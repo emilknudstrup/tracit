@@ -262,12 +262,12 @@ def data_temp(filename='data_template.csv',n_phot=0,n_spec=0):
 	'''
 	ph = ['Handle','Light curve:','Instrument','LC Filename','Units',
 		'Fit LC','Oversample factor','Exposure time (min.)','Detrend','Poly. deg./filt. w.','LC chi2 scaling',
-		'Gaussian Process','GP type','GP bin (hours)',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ']
+		'Gaussian Process','GP type',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ']
 	
 	sp = ['Handle','Radial velocities:','Instrument','RV Filename','Units',
 		'Fit RV','Fit RM','RV chi2 scaling','Lineshape:','Fit LS','LS Filename',
 		'Units','Disk Resolution','Ring Thickness','LS chi2 scaling','Fit OOT',
-		'Only fit OOT','OOT chi2 scaling','OOT indices','Slope','Fit SL','SL Filename','Units','SL chi2 scaling']
+		'Only fit OOT','OOT chi2 scaling','OOT indices','Slope','Fit SL','SL Filename','Units','SL chi2 scaling','Gaussian Process','GP type']
 
 	print(len(ph))
 	print(len(sp))
@@ -276,7 +276,7 @@ def data_temp(filename='data_template.csv',n_phot=0,n_spec=0):
 	nn = 1
 	for ii in range(1,n_phot+1): 
 		df.loc[nn] = ['Phot_{}'.format(ii),'Single .txt file',' ','lc*{}.txt'.format(ii),
-					'BJD & Relative brightness','true',1,2,'false',1,1,'false','Matern32',1,' ',' ',' ',' ',' ',' ',' ',' ',' ',' ']
+					'BJD & Relative brightness','true',1,2,'false',1,1,'false','Matern32',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ']
 		nn += 1
 	
 	df.loc[nn] = ['Spectroscopy']+['##^vv^^\/^^^v##']*(len(ph)-1)
@@ -1108,6 +1108,7 @@ def lnprob(positions):
 
 
 
+			trend = data['Detrend LC_{}'.format(nn)]
 
 
 			if (trend == 'poly') or (trend == True): in_transit = np.array([],dtype=np.int)
@@ -1140,13 +1141,13 @@ def lnprob(positions):
 					flux_m[t_idxs] -= (1 - flux_pl)
 
 				if (trend == 'poly') or (trend == True):
-					per, t0 = fitter.parameters['P_{}'.format(pl)]['Value'],fitter.parameters['T0_{}'.format(pl)]['Value']
-					ph = time2phase(time,per,t0)*per*24
-					aR = fitter.parameters['a_Rs_{}'.format(pl)]['Value']
-					rp = fitter.parameters['Rp_Rs_{}'.format(pl)]['Value']
-					inc = fitter.parameters['inc_{}'.format(pl)]['Value']
-					ecc = fitter.parameters['e_{}'.format(pl)]['Value']
-					ww = fitter.parameters['w_{}'.format(pl)]['Value']
+					per, t0 = parameters['P_{}'.format(pl)]['Value'],parameters['T0_{}'.format(pl)]['Value']
+					ph = dynamics.time2phase(time,per,t0)*per*24
+					aR = parameters['a_Rs_{}'.format(pl)]['Value']
+					rp = parameters['Rp_Rs_{}'.format(pl)]['Value']
+					inc = parameters['inc_{}'.format(pl)]['Value']
+					ecc = parameters['e_{}'.format(pl)]['Value']
+					ww = parameters['w_{}'.format(pl)]['Value']
 					dur = dynamics.duration(per,rp,aR,inc*np.pi/180.,ecc,ww*np.pi/180.)*24
 					
 					indxs = np.where((ph < (dur/2 + 6)) & (ph > (-dur/2 - 6)))[0]
@@ -1158,7 +1159,6 @@ def lnprob(positions):
 			
 			n_dps += len(flux)
 
-			trend = data['Detrend LC_{}'.format(nn)]
 
 			if (trend == 'poly') or (trend == True):
 				deg_w = data['Poly LC_{}'.format(nn)]

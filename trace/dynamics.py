@@ -300,7 +300,7 @@ def true_anomaly(time, Tw, ecc, per, w):#, T0=True):
     #     Tc = Tw - M/n
     # else:
     #     Tc = Tw
-    mean_anomaly = n*(time-Tc)
+    mean_anomaly = n*(time-Tw)
     ecc_anomaly = solve_keplers_eq(mean_anomaly,ecc)
 
     cos_E = np.cos(ecc_anomaly)
