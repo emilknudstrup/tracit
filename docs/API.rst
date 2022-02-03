@@ -2,3 +2,6 @@
 
 API
 ================
+
+.. autoclass:: trace.dynamics
+	:members:
