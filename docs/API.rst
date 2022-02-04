@@ -7,5 +7,5 @@ API
 
 The API
 
-.. autoclass:: trace.dynamics
+.. automodule:: trace.dynamics
 	:members:
