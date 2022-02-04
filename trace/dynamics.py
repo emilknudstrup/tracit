@@ -543,14 +543,15 @@ def total_duration(P,rp,ar,inc,ecc,ww):
 
     This is the time from the first to the last contact point.
 
-    :param P: orbital period in days
+    :param P: Orbital period.
     :type P: float
 
     :return: the total duration of the transit
-    :rtype t41: float
+    :rtype: float
 
     .. note::
-        The output will have the same units as :param P:.
+        -The output will have the same units as the orbital period.
+
 
     '''
     b = ar*np.cos(inc)*(1 - ecc**2)/(1 + ecc*np.sin(ww))
