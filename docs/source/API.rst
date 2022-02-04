@@ -5,5 +5,5 @@ API
 
 The API
 
-.. automodule:: trace.dynamics
+.. automodule:: dynamics
 	:members:
