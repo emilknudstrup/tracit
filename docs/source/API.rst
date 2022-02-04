@@ -1,5 +1,3 @@
-.. module:: trace
-
 .. _API:
 
 API
