@@ -269,8 +269,6 @@ def data_temp(filename='data_template.csv',n_phot=0,n_spec=0):
 		'Units','Disk Resolution','Ring Thickness','LS chi2 scaling','Fit OOT',
 		'Only fit OOT','OOT chi2 scaling','OOT indices','Slope','Fit SL','SL Filename','Units','SL chi2 scaling','Gaussian Process','GP type']
 
-	print(len(ph))
-	print(len(sp))
 	df = pd.DataFrame(columns = ['Photometry']+['##--_--_--_--##']*(len(sp)-1))
 	df.loc[0] = ph
 	nn = 1
@@ -951,7 +949,7 @@ def localRV_model(time,n_planet='b',t0_off=0.0):
 	lam *= np.pi/180.
 	pp = dynamics.time2phase(time,per,T0)*per*24
 
-	tau = dynamics.duration(per,rp,a_Rs,inc,ecc,omega)
+	tau = dynamics.total_duration(per,rp,a_Rs,inc,ecc,omega)
 	x1 = -24*tau/2
 	x2 = 24*tau/2
 	
@@ -1148,7 +1146,7 @@ def lnprob(positions):
 					inc = parameters['inc_{}'.format(pl)]['Value']
 					ecc = parameters['e_{}'.format(pl)]['Value']
 					ww = parameters['w_{}'.format(pl)]['Value']
-					dur = dynamics.duration(per,rp,aR,inc*np.pi/180.,ecc,ww*np.pi/180.)*24
+					dur = dynamics.total_duration(per,rp,aR,inc*np.pi/180.,ecc,ww*np.pi/180.)*24
 					
 					indxs = np.where((ph < (dur/2 + 6)) & (ph > (-dur/2 - 6)))[0]
 					in_transit = np.append(in_transit,indxs)				

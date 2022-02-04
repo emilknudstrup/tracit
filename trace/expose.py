@@ -312,7 +312,7 @@ def plot_orbit(param_fname,data_fname,updated_pars=None,
 			ecc = business.parameters['e_{}'.format(pl)]['Value']
 			ww = business.parameters['w_{}'.format(pl)]['Value']
 			K = business.parameters['K_{}'.format(pl)]['Value']
-			dur = dynamics.duration(per,rp,aR,inc*np.pi/180.,ecc,ww*np.pi/180.)*24
+			dur = dynamics.total_duration(per,rp,aR,inc*np.pi/180.,ecc,ww*np.pi/180.)*24
 			if np.isfinite(dur): x1, x2 = -1*dur/2-1.0,dur/2+1.0
 
 			aa_pl = [business.parameters['a{}_{}'.format(ii,pl)]['Value'] for ii in range(1,3)]
@@ -565,7 +565,7 @@ def plot_lightcurve(param_fname,data_fname,updated_pars=None,savefig=False,
 				inc = business.parameters['inc_{}'.format(pl)]['Value']
 				ecc = business.parameters['e_{}'.format(pl)]['Value']
 				ww = business.parameters['w_{}'.format(pl)]['Value']
-				dur = dynamics.duration(per,rp,aR,inc*np.pi/180.,ecc,ww*np.pi/180.)*24
+				dur = dynamics.total_duration(per,rp,aR,inc*np.pi/180.,ecc,ww*np.pi/180.)*24
 				
 				indxs = np.where((ph < (dur/2 + 6)) & (ph > (-dur/2 - 6)))[0]
 				in_transit = np.append(in_transit,indxs)

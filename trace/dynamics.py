@@ -62,7 +62,8 @@ class OrbitalParams(object):
         self.cs = None
 
 class StellarParams(object):
-    '''
+    '''Class to hold the stellar parameters.
+
 	The stellar parameters:
 		Teff    : float       - effective temperature (in K).
 		logg    : float       - surface gravity (in cm/s2).
@@ -115,7 +116,7 @@ class InstrumentParams(object):
 
 def get_LDcoeff(stelpars,cat='TESS'):
     '''
-	Module that collects limb darkening coefficients from Vizier.
+	Function that collects limb darkening coefficients from Vizier.
 	
     Catalogs:
         J/A+A/600/A30/
@@ -217,7 +218,7 @@ def get_LDcoeff(stelpars,cat='TESS'):
 # Keplerian motion 
 # =============================================================================
 def solve_keplers_eq(mean_anomaly, ecc, tolerance=1.e-5):
-	'''Module that solves Kepler's equation.
+	'''Function that solves Kepler's equation.
 
     Kepler's equation:
 	.. math:: M = E - \sin(E) ,
@@ -264,7 +265,7 @@ def solve_keplers_eq(mean_anomaly, ecc, tolerance=1.e-5):
 	return new_ecc_anomaly
 
 def true_anomaly(time, Tw, ecc, per, w):#, T0=True):
-    '''Module that returns the true anomaly.
+    '''Function that returns the true anomaly.
 
     The approach follows [1].
 	
@@ -319,7 +320,7 @@ def true_anomaly(time, Tw, ecc, per, w):#, T0=True):
 # Sky projected distance 
 # =============================================================================
 def proj_dist(cos_f,sin_f,w,inc,a,ecc):
-    '''Module that returns the separation of the centers of the two orbiting objects.
+    '''Function that returns the separation of the centers of the two orbiting objects.
     
     The approach follows [2].
     
@@ -372,7 +373,7 @@ def proj_dist(cos_f,sin_f,w,inc,a,ecc):
 # =============================================================================
 def xy_pos(cos_f,sin_f,ecc,w,a,inc,lam):
     '''
-    Module to calculate the position on the stellar disk.
+    Function to calculate the position on the stellar disk.
     Stellar disk goes from 0 to 1 in x and y.
     '''
     # nn = len(cos_f)
@@ -404,8 +405,9 @@ def xy_pos(cos_f,sin_f,ecc,w,a,inc,lam):
 def get_RM(cos_f,sin_f,w,ecc,a,inc,Rp,c1,c2,lam,vsini,
     beta=3.,gamma=1.,zeta=1.0,alpha=0.,cos_is=0.0,
     mpath='./'):
-    '''
-    Module to calculate the Rossiter-McLaughlin effect for transiting exoplanets.
+    '''The Rossiter-McLaughlin effect
+
+    Function to calculate the Rossiter-McLaughlin effect for transiting exoplanets.
 
     The approach follows [3]_.
 
@@ -422,9 +424,11 @@ def get_RM(cos_f,sin_f,w,ecc,a,inc,Rp,c1,c2,lam,vsini,
         RM   : array       
             The RM signal.
 
+    
     References
     ----------
     [3] Hirano et al. 2011 arXiv:1108.4430, doi:10.1088/0004-637X/742/2/69
+
     '''
     x, y = xy_pos(cos_f,sin_f,ecc,w,a,inc,lam)
     
@@ -456,16 +460,32 @@ def get_RM(cos_f,sin_f,w,ecc,a,inc,Rp,c1,c2,lam,vsini,
 # =============================================================================
 
 def get_RV(time, orbpars, RM=False, stelpars=None,mpath='./'):
-    '''
-    Module that returns the light curve given of the orbit following
-    Carl D. Murray and Alexandre C. M. Correia in arXiv:1009.1738v2.
-	
-    Input:
-        time    : float array - times of observations.
-        orbpars : object      - orbital parameters from class OrbitalParams.
+    '''The radial velocity curve
 
+    Function that returns the radial velocity curve of the orbit following [1]_.
+    If RM is set to True it will include the RM effect as implemented in :py:func:`get_RM´.
+	
+    :param time: Times of observations.
+    :type time: array
+
+    :param orbpars: Orbital parameters from :py:class:`OrbitalParams´.
+    :type orbpars: object
+
+    :param RM: Whether to calculate the RM effect or not. Defaults to `False´.
+    :type RM: bool(, optional)
+
+    :param stelpars: Stellar parameters from :py:class:`StellarParams´. Defaults to `None´.
+    :type stelpars: object(, optional)
+
+    :param mpath: Path to the code by [3]_. Defaults to `'./'´.
+    :type mpath: str(, optional)
+    
     Output:
         vr      : float array - radial velocity curve.
+    
+    References
+    ----------
+    [1] Carl D. Murray and Alexandre C. M. Correia in arXiv:1009.1738v2.
     '''
     Tw = orbpars.Tw
     ecc = orbpars.ecc
@@ -531,26 +551,36 @@ def get_RV(time, orbpars, RM=False, stelpars=None,mpath='./'):
 # 
 # =============================================================================
     
-def duration(P,rp,ar,inc,ecc,ww):
-    b = ar*np.cos(inc)*(1 - ecc**2)/(1 + ecc*np.sin(ww))
-    nom = np.arcsin( np.sqrt( (1 + rp)**2 - b**2 )/(np.sin(inc)*ar)  )*np.sqrt(1 - ecc**2)
-    den = (1 + ecc*np.sin(ww))
-    t14 = P/np.pi * nom/den
-    return t14
+# def duration(P,rp,ar,inc,ecc,ww):
+#     b = ar*np.cos(inc)*(1 - ecc**2)/(1 + ecc*np.sin(ww))
+#     nom = np.arcsin( np.sqrt( (1 + rp)**2 - b**2 )/(np.sin(inc)*ar)  )*np.sqrt(1 - ecc**2)
+#     den = (1 + ecc*np.sin(ww))
+#     t14 = P/np.pi * nom/den
+#     return t14
 
 def total_duration(P,rp,ar,inc,ecc,ww):
-    '''The total duration of the transit, i.e., T41.
+    '''The total duration of the transit, i.e., .. math: T41 .
 
     This is the time from the first to the last contact point.
 
     :param P: Orbital period.
     :type P: float
+    :param rp: Planet-to-star radius ratio.
+    :type rp: float
+    :param ar: Semi-major axis in stellar radii.
+    :type ar: float
+    :param inc: Inclination in radians.
+    :type inc: float
+    :param ecc: Eccentricity.
+    :type ecc: float
+    :param ww: Argument of periastron in radians.
+    :type ww: float
 
     :return: the total duration of the transit
     :rtype: float
 
     .. note::
-        -The output will have the same units as the orbital period.
+        The output will have the same units as the orbital period.
 
 
     '''
@@ -561,25 +591,58 @@ def total_duration(P,rp,ar,inc,ecc,ww):
     return t41
 
 def full_duration(P,rp,ar,inc,ecc,ww):
-    b = ar*np.cos(inc)#*(1 - ecc**2)/(1 + ecc*np.sin(ww))
+    '''The duration of the transit with the planet completely within the stellar disk, i.e., .. math: T32 .
+
+    This is the time from the second to the third contact point.
+
+    :param P: Orbital period.
+    :type P: float
+    :param rp: Planet-to-star radius ratio.
+    :type rp: float
+    :param ar: Semi-major axis in stellar radii.
+    :type ar: float
+    :param inc: Inclination in radians.
+    :type inc: float
+    :param ecc: Eccentricity.
+    :type ecc: float
+    :param ww: Argument of periastron in radians.
+    :type ww: float
+
+    :return: the total duration of the transit
+    :rtype: float
+
+    .. note::
+        The output will have the same units as the orbital period.
+
+
+    '''
+    b = ar*np.cos(inc)*(1 - ecc**2)/(1 + ecc*np.sin(ww))
     nom = np.arcsin( np.sqrt( ((1 - rp)**2 - b**2))/(np.sin(inc)*ar)  )*np.sqrt(1 - ecc**2)
     den = (1 + ecc*np.sin(ww))
-    t23 = P/np.pi * nom/den
-    return t23
+    t32 = P/np.pi * nom/den
+    return t32
 
 
 def get_rel_vsini(b, lam):
-    '''
-    Function that returns the relative value of vsini at first and second contact
-    following Albrecht et al. (2011), bibcode: 2011ApJ...738...50A
-    
-    Input:
-        b    : float - impact parameter.
-        lam  : float - projected obliquity (radians).
+    '''Relative value of vsini at limbs.
 
-    Output:
-        x1      : float - relative value of vsini at first contact.
-        x2      : float - relative value of vsini at second contact.
+    Function that returns the relative value of vsini at first and last contact
+    following [4]_.
+    
+    :param b: Impact parameter.
+    :type b: float
+    :param lam: Projected obliquity in radians.
+    :type lam: float
+
+    :return: relative value of vsini at x1, x2.
+    :rtype: (float,float)
+
+    
+    References
+    ----------
+    [4] Albrecht et al. (2011), bibcode: 2011ApJ...738...50A
+
+
     '''
 
     x1 = np.sqrt(1 - b**2)*np.cos(lam) - b*np.sin(lam)
