@@ -217,8 +217,7 @@ def get_LDcoeff(stelpars,cat='TESS'):
 # Keplerian motion 
 # =============================================================================
 def solve_keplers_eq(mean_anomaly, ecc, tolerance=1.e-5):
-	'''
-	Module that solves Kepler's equation.
+	'''Module that solves Kepler's equation.
 
     Kepler's equation:
 	.. math:: M = E - \sin(E) ,
@@ -228,19 +227,21 @@ def solve_keplers_eq(mean_anomaly, ecc, tolerance=1.e-5):
 
     Parameters
     ----------
-		mean_anomaly    : float array
-            The mean anomaly.
-        ecc    : float
-            Eccentricity.
+		mean_anomaly    : array
+            the mean anomaly.
+        ecc             : float
+            eccentricity.
 
     Returns
     ----------
-		new_ecc_anomaly : float array 
-            The new eccentric anomaly.
+		new_ecc_anomaly : array 
+            the new eccentric anomaly.
 
     References
     ----------
     [1] Carl D. Murray and Alexandre C. M. Correia in arXiv:1009.1738v2.
+
+
 	'''
 	## Circular orbit
 	if ecc == 0: return mean_anomaly 
@@ -263,10 +264,9 @@ def solve_keplers_eq(mean_anomaly, ecc, tolerance=1.e-5):
 	return new_ecc_anomaly
 
 def true_anomaly(time, Tw, ecc, per, w):#, T0=True):
-    '''
-    Module that returns the true anomaly.
+    '''Module that returns the true anomaly.
 
-    The approach follows [1]_.
+    The approach follows [1].
 	
     Parameters
     ----------
@@ -286,6 +286,8 @@ def true_anomaly(time, Tw, ecc, per, w):#, T0=True):
     References
     ----------
     [1] Carl D. Murray and Alexandre C. M. Correia in arXiv:1009.1738v2.
+
+
     '''
     
     n = 2.0*np.pi/per
@@ -317,10 +319,9 @@ def true_anomaly(time, Tw, ecc, per, w):#, T0=True):
 # Sky projected distance 
 # =============================================================================
 def proj_dist(cos_f,sin_f,w,inc,a,ecc):
-    '''
-    Module that returns the separation of the centers of the two orbiting objects.
+    '''Module that returns the separation of the centers of the two orbiting objects.
     
-    The approach follows [2]_.
+    The approach follows [2].
     
     
     Parameters
@@ -330,23 +331,25 @@ def proj_dist(cos_f,sin_f,w,inc,a,ecc):
         sin_f  : array       
             sine of the true anomaly  
         w      : float
-            Argument of periastron in radians.
+            argument of periastron in radians.
         inc    : float
-            Inclination in radians.
+            inclination in radians.
         a      : float
-            Semi-major axis in stellar radii.
+            semi-major axis in stellar radii.
         ecc    : float
-            Eccentricity.
+            eccentricity.
     
 
     Returns
     ----------
         sep    : array
-            Separation of centers.
+            separation of centers.
     
     References
     ----------
     [2] L. Kreidberg in arXiv:1507.08285.
+
+
     '''
 
     nn = len(cos_f)
@@ -536,11 +539,25 @@ def duration(P,rp,ar,inc,ecc,ww):
     return t14
 
 def total_duration(P,rp,ar,inc,ecc,ww):
+    '''The total duration of the transit, i.e., T41.
+
+    This is the time from the first to the last contact point.
+
+    :param P: orbital period in days
+    :type P: float
+
+    :return: the total duration of the transit
+    :rtype t41: float
+
+    .. note::
+        The output will have the same units as :param P:.
+
+    '''
     b = ar*np.cos(inc)*(1 - ecc**2)/(1 + ecc*np.sin(ww))
-    nom = P*np.arcsin( np.sqrt( ((1 + rp)**2 - b**2))/(np.sin(inc)*ar)  )*np.sqrt(1 - ecc**2)
-    den = (1 + ecc*np.sin(ww))*np.pi
-    #t14 = P/np.pi * nom/den
-    return nom/den
+    nom = np.arcsin( np.sqrt( ((1 + rp)**2 - b**2))/(np.sin(inc)*ar)  )*np.sqrt(1 - ecc**2)
+    den = (1 + ecc*np.sin(ww))
+    t41 = P/np.pi * nom/den
+    return t41
 
 def full_duration(P,rp,ar,inc,ecc,ww):
     b = ar*np.cos(inc)#*(1 - ecc**2)/(1 + ecc*np.sin(ww))
