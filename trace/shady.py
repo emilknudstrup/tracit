@@ -54,7 +54,7 @@ def grid(Rs,xoff=0,yoff=0):
 
 def grid_ring(Rs,thick,xoff=0.,yoff=0.):
 	'''Initial grid of star in rings of mu.
-	
+
 	Initial grid of star in rings of aprrox same mu = cos(theta).
 	Useful for macroturbulence calculations.
 	
@@ -62,6 +62,9 @@ def grid_ring(Rs,thick,xoff=0.,yoff=0.):
 	:type Rs: int 
 	:param thick: Thickness of rings.
 	:type thick: int
+
+	:return: 
+	:rtype: (array, array, array, array)
 
 	'''
 	assert Rs/thick > 2.0, print('The stellar radius must be at least twice the size of the rings.')
@@ -101,8 +104,11 @@ def grid_ring(Rs,thick,xoff=0.,yoff=0.):
 def transit_ring(vel,vel_ext,ring_LD,mu_grid,mu_mean,lum,
 				vsini,xi,zeta,Rp_Rs,radius,
 				time,Tw,ecc,per,w,a_Rs,inc,lam):
-	'''
-	Calculate the planet signal in each ring (incl. LD+micro+macro)
+	'''Planet position in each ring.
+
+	Function that calculates the planet signal in each ring.
+	This includes the effects of limb-darkening, as well as micro- and macroturbulence.
+	
 	'''
 	rot_profile = vel*vsini
 	nn = len(time)
@@ -176,8 +182,10 @@ def transit_ring(vel,vel_ext,ring_LD,mu_grid,mu_mean,lum,
 # =============================================================================
 
 def macro(vel,mu_mean,zeta):
-	'''
-	Calculate the macroturbulence for given zeta and mu using the radial-tangential profile.
+	'''Macroturbulence at given distance from center.
+
+	Function that calculates the macroturbulence for given :math:`\zeta` and `\mu` using the radial-tangential profile.
+
 
 	'''
 
@@ -231,10 +239,11 @@ def gauss_conv(lum,vel,xi,sigma=3):
 	return velocity, line_profile
 
 def convolve(vel,ring_LD,mu_mean,xi,zeta,sigma=3.):
-	'''
+	'''Convolves limb-darkened rings.
 
-	Convolves limb-darkened rings with gaussian to get microturbulence, 
+	Function that convolves limb-darkened rings with gaussian to get microturbulence, 
 	and then convolve this with the macroturbulence.
+	
 	'''
 	n_LD = len(ring_LD)
 	## 1D-velocity (same for each ring)

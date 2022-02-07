@@ -15,6 +15,8 @@ import os
 def time2phase(time,per,T0):
     '''Convert time to phase.
 
+    Phase centered on the reference time, i.e., from -0.5 to 0.5.
+
     :param time: Times to convert.
     :type time: array
     :param per: Period.
@@ -65,10 +67,10 @@ class OrbitalParams(object):
     :param lam: Projected obliquity in degrees.
     :type lam: float
 
-    :param K: Velocity semi-amplitude in km/s.
+    :param K: Velocity semi-amplitude in m/s.
     :type K: float
 
-    :param RVsys: Systemic velocity in km/s.
+    :param RVsys: Systemic velocity in m/s.
     :type RVsys: float
 
     :param imp: Impact parameter.
@@ -110,13 +112,12 @@ class OrbitalParams(object):
 class StellarParams(object):
     '''Class to hold the stellar parameters.
 
-	The stellar parameters:
-	:param Teff: Effective temperature in K.
+    :param Teff: Effective temperature in K.
     :type Teff: float
 
-	:param logg: Surface gravity in cm/s:math:`^2`.
+    :param logg: Surface gravity in cm/s:math:`^2`.
     :type logg: float
-	
+
     :param MeH: Metallicity [Fe/H] in dex.
     :type MeH: float
 
@@ -140,12 +141,10 @@ class StellarParams(object):
     :type beta: float
 
     :param inc: Inclination of steller soin axis in deg.
-    :type inc: float       - 
+    :type inc: float 
 
-	:param 	LD: limb darkening law used.; 
-    :type LD: string      - 
-								
-
+    :param 	LD: limb darkening law used.; 
+    :type LD: string     
 
     :Example:
 
@@ -154,8 +153,8 @@ class StellarParams(object):
     >>> stelparams.Teff = 5000.0
     
     .. note::
-        - Default is a sun-like star in terms of Teff, logg, and [Fe/H]. 
-        - The limb darkening laws to choose from are:
+        -Default is a sun-like star in terms of Teff, logg, and [Fe/H]. 
+        -The limb darkening laws to choose from are:
             i. 'uni'  - uniform, no LD
             ii. 'quad' - quadratic, default.
             iii. 'nl'   - non-linear.
@@ -467,7 +466,7 @@ def xy_pos(cos_f,sin_f,ecc,ww,ar,inc,lam):
     :type lam: float
 
     :return: x,y position of planet on stellar disk.
-    :rtype: (array,array)
+    :rtype: (array, array)
     
 
     '''
