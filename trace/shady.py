@@ -15,8 +15,10 @@ import sys
 # =============================================================================
 
 def grid_coordinates(Rs,xoff=0.,yoff=0.):
-	'''
+	'''Coordinates of the stellar grid.
+
 	Calculate the coordinates of the stellar grid.
+	
 	'''
 	xx, yy = np.arange(-Rs+xoff,Rs+1+xoff),np.arange(-Rs+yoff,Rs+1+yoff)
 	coord = np.array(np.meshgrid(xx,yy)).T.reshape(-1,2)
@@ -28,11 +30,10 @@ def grid_coordinates(Rs,xoff=0.,yoff=0.):
 	return coord, cidxs, rr
 
 def grid(Rs,xoff=0,yoff=0):
-	'''
-	Initial grid of the star.
+	'''Initial grid of the star.
 
-	:params:
-		Rs    : int - Stellar radius in number of pixels.
+	:param Rs: Stellar radius in number of pixels.
+	:type Rs: int 
 
 	'''
 	coord, cidxs, rr = grid_coordinates(Rs,xoff=xoff,yoff=yoff)
@@ -52,13 +53,16 @@ def grid(Rs,xoff=0,yoff=0):
 
 
 def grid_ring(Rs,thick,xoff=0.,yoff=0.):
-	'''
+	'''Initial grid of star in rings of mu.
+	
 	Initial grid of star in rings of aprrox same mu = cos(theta).
 	Useful for macroturbulence calculations.
 	
-	:params:
-		Rs    : int - Stellar radius in number of pixels.
-		thick : int - Thickness of rings.
+	:param Rs: Stellar radius in number of pixels.
+	:type Rs: int 
+	:param thick: Thickness of rings.
+	:type thick: int
+
 	'''
 	assert Rs/thick > 2.0, print('The stellar radius must be at least twice the size of the rings.')
 	coord, cidxs, rr = grid_coordinates(Rs,xoff=xoff,yoff=yoff)

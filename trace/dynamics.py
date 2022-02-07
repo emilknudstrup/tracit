@@ -13,6 +13,19 @@ import itertools
 import os
 
 def time2phase(time,per,T0):
+    '''Convert time to phase.
+
+    :param time: Times to convert.
+    :type time: array
+    :param per: Period.
+    :param per: float
+    :param T0: Reference time (mid-transit time).
+    :param T0: float
+
+    :rerturn: Phase.
+    :rtype: array
+
+    '''
 	phase = ((time-T0)%per)/per
 	for ii in range(len(phase)):
 		if phase[ii] > 0.5: phase[ii] = phase[ii] - 1
@@ -129,9 +142,9 @@ def get_LDcoeff(stelpars,cat='TESS'):
         CoRot, Spitzer, uvby, UBVRIJHK, Sloan, and 2MASS [6]_.
             
 
-	The limb darkening law is decided by the one specified in `stelpars.LD´.
+	The limb darkening law is decided by the one specified in `stelpars.LD`.
 
-	:param stelpars: stellar parameters from class :py:class:`StellarParams´.
+	:param stelpars: stellar parameters from class :py:class:`StellarParams`.
     :type stelpars: object 
     :param cat: Catalog from which to extract LD coefficients.
     :type cat: str
@@ -239,7 +252,7 @@ def solve_keplers_eq(mean_anomaly, ecc, tolerance=1.e-5):
     :type mean_anomaly: array
     :param ecc: Eccentricity.
     :type ecc: float
-    :param tolerance: The tolerance for convergene. Defaults to `1.e-5´.
+    :param tolerance: The tolerance for convergene. Defaults to 1.e-5.
     :type tolerance: float (,optional).
 
     :return: The new eccentric anomaly.
@@ -451,18 +464,18 @@ def get_RM(cos_f,sin_f,ww,ecc,ar,inc,rp,c1,c2,lam,vsini,
     :type lam: float
     :param vsini: Projected stellar rotation in km/s.
     :type vsini: float
-    :param beta: Macro-turbulence rotation in km/s. Defaults to `3.´.
+    :param beta: Macro-turbulence rotation in km/s. Defaults to 3.
     :type beta: float(, optional)
-    :param gamma:  in km/s. Defaults to `1.´.
+    :param gamma:  in km/s. Defaults to 1.
     :type gamma: float(, optional)
-    :param zeta: Micro-turbulence rotation in km/s. Defaults to `1.0´.
+    :param zeta: Micro-turbulence rotation in km/s. Defaults to 1.0.
     :type zeta: float(, optional)
-    :param alpha:  in km/s. Defaults to `0.´.
+    :param alpha:  in km/s. Defaults to 0.
     :type alpha: float(, optional)
-    :param cos_is:  in . Defaults to `0.´.
+    :param cos_is:  in . Defaults to 0.
     :type alpha: float(, optional)
 
-    :param mpath: Path to the code by [3]_. Defaults to `'./'´.
+    :param mpath: Path to the code by [3]_. Defaults to './'.
     :type mpath: str(, optional)
 
     :return: The RM signal.
@@ -507,21 +520,21 @@ def get_RV(time, orbpars, RM=False, stelpars=None,mpath='./'):
     '''The radial velocity curve
 
     Function that returns the radial velocity curve of the orbit following [1]_.
-    If RM is set to True it will include the RM effect as implemented in :py:func:`get_RM´.
+    If RM is set to True it will include the RM effect as implemented in :py:func:`get_RM`.
 	
     :param time: Times of observations.
     :type time: array
 
-    :param orbpars: Orbital parameters from :py:class:`OrbitalParams´.
+    :param orbpars: Orbital parameters from :py:class:`OrbitalParams`.
     :type orbpars: object
 
-    :param RM: Whether to calculate the RM effect or not. Defaults to `False´.
+    :param RM: Whether to calculate the RM effect or not. Defaults to ``False``.
     :type RM: bool(, optional)
 
-    :param stelpars: Stellar parameters from :py:class:`StellarParams´. Defaults to `None´.
+    :param stelpars: Stellar parameters from :py:class:`StellarParams`. Defaults to ``None``.
     :type stelpars: object(, optional)
 
-    :param mpath: Path to the code by [3]_. Defaults to `'./'´.
+    :param mpath: Path to the code by [3]_. Defaults to './'.
     :type mpath: str(, optional)
     
     :return: Radial velocity curve.
