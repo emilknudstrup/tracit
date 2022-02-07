@@ -35,27 +35,60 @@ def time2phase(time,per,T0):
 # Parameters 
 # =============================================================================
 class OrbitalParams(object):
-    '''
-    The orbital parameters:
-        Rp    : float       - planet-to-star ratio (in units of stellar radius).
-        ecc   : float       - eccentricity of orbit.
-        per   : float       - period of orbit (in days).
-        w     : float       - argument of periastron (in degrees).
-        T0    : float       - time of inferior conjunction (in days).
-        Tw    : float       - time of periastron passage (in days).
-        K     : float       - velocity amplitude (in km/s).
-        RVsys : float       - systemic velocity (in km/s).
-        inc   : float       - inclination (in degrees).
-        a     : float       - semi-major axis (in units of stellar radius).
-        imp   : float       - impact parameter.
-        dur   : float       - transit duration (in hours).
-        lam   : float       - planetary obliquity (in deg).
-        LD    : str         - Limb-darkening law see StellarParams, default 'uni'.
-        cs    : list        - Limb-darkening coefficients.
+    '''Class to hold the orbital/transit parameters.
 
-    Set the parameters by calling
-        stelparams = OrbitalParams()
-        stelparams.ecc = 0.0
+
+    :param per: Orbital period.
+    :type per: float
+
+    :param Rp: Planet-to-star radius ratio.
+    :type Rp: float
+
+    :param a: Semi-major axis in stellar radii.
+    :type a: float
+
+    :param inc: Inclination in degrees.
+    :type inc: float
+
+    :param ecc: Eccentricity.
+    :type ecc: float
+
+    :param w: Argument of periastron in degress.
+    :type w: float
+
+    :param T0: Time of inferior conjunction in days.
+    :type T0: float
+    
+    :param Tw: Time of periastron passage in days.
+    :type Tw: float
+
+    :param lam: Projected obliquity in degrees.
+    :type lam: float
+
+    :param K: Velocity semi-amplitude in km/s.
+    :type K: float
+
+    :param RVsys: Systemic velocity in km/s.
+    :type RVsys: float
+
+    :param imp: Impact parameter.
+    :type imp: float
+
+    :param dur: Total transit duration, i.e., :math:`T_{41}`.
+    :type dur: float
+
+    :param cs: Limb-darkening coefficients.
+    :type cs: list
+
+    :param LD: Limb-darkening law see :py:class:`StellarParams`, default 'uni'.
+    :type str:
+
+    :Example:
+
+    >>> import dynamics
+    >>> orbparams = dynamics.OrbitalParams()
+    >>> orbparams.ecc = 0.0
+
     '''
     def __init__(self):
         self.Rp = 0.1
@@ -78,27 +111,56 @@ class StellarParams(object):
     '''Class to hold the stellar parameters.
 
 	The stellar parameters:
-		Teff    : float       - effective temperature (in K).
-		logg    : float       - surface gravity (in cm/s2).
-		MeH     : float       - metallicity [Fe/H] (in dex).
-        vsini   : float       - projected rotational velocity (in km/s).
-        inc     : float       - inclination of steller soin axis (in deg).
-		LD      : string      - limb darkening law used; 
-								'uni'  - uniform, no LD.
-							    'quad' - quadratic, default.
-								'nl'   - non-linear.
-								'small'- LD for a small planet. 
-		xi      : float       - micro-turbulence (in km/s);
-        zeta    : float       - macro-turbulence (in km/s).
-        gamma   : float       - Lorentzian dispersion of spectral lines (in km/s).
-        beta    : float       - Gaussian dispersion of spectral lines (in km/s).
-        alpha   : float       - coefficient of differential rotation.
+	:param Teff: Effective temperature in K.
+    :type Teff: float
 
-    Set the parameters by calling
-        stelparams = StellarParams()
-        stelparams.Teff = 5000.0
+	:param logg: Surface gravity in cm/s:math:`^2`.
+    :type logg: float
+	
+    :param MeH: Metallicity [Fe/H] in dex.
+    :type MeH: float
 
-    Default is a sun-like star in terms of Teff, logg, and [Fe/H]. 
+
+    :param vsini: Projected stellar rotation in km/s.
+    :type vsini: float
+
+    :param xi: Macro-turbulence rotation in km/s. 
+    :type xi: float
+
+    :param gamma:  Coefficient of differential rotation. Defaults to 1.
+    :type gamma: float
+
+    :param zeta: Micro-turbulence rotation in km/s. 
+    :type zeta: float
+
+    :param alpha:  in km/s. Defaults to 0.
+    :type alpha: float
+
+    :param beta: Gaussian dispersion of spectral lines in km/s.
+    :type beta: float
+
+    :param inc: Inclination of steller soin axis in deg.
+    :type inc: float       - 
+
+	:param 	LD: limb darkening law used.; 
+    :type LD: string      - 
+								
+
+
+    :Example:
+
+    >>> import dynamics
+    >>> stelparams = dynamics.StellarParams()
+    >>> stelparams.Teff = 5000.0
+    
+    .. note::
+        - Default is a sun-like star in terms of Teff, logg, and [Fe/H]. 
+        - The limb darkening laws to choose from are:
+            i. 'uni'  - uniform, no LD
+            ii. 'quad' - quadratic, default.
+            iii. 'nl'   - non-linear.
+            iv. 'small'- LD for a small planet. 
+
     '''
     def __init__(self):
         self.Teff = 5750
@@ -114,15 +176,11 @@ class StellarParams(object):
         self.alpha = 0.0
 
 class InstrumentParams(object):
-    '''
-	The stellar parameters:
-		res     : float       - resolution of spectrograph
+    '''Class to hold the instrument parameters:
 
-    Set the parameters by calling
-        insparams =InstrumentParams()
-        insparams.res = 67000
+	:param res: Resolution of spectrograph.
+    :type res: float
 
-    Default is a sun-like star in terms of Teff, logg, and [Fe/H]. 
     '''
     def __init__(self):
         self.res = 115000
@@ -135,11 +193,11 @@ def get_LDcoeff(stelpars,cat='TESS'):
     Catalogs:
     ----------
         J/A+A/600/A30/
-        -Calculated by A. Claret using ATLAS atmospheres for TESS [5]_.
+        -Calculated by A. Claret using ATLAS atmospheres for TESS [5].
     
         J/A+A/552/A16/
         -Calculated by A. Claret using Phoenix atmospheres for Kepler, 
-        CoRot, Spitzer, uvby, UBVRIJHK, Sloan, and 2MASS [6]_.
+        CoRot, Spitzer, uvby, UBVRIJHK, Sloan, and 2MASS [6].
             
 
 	The limb darkening law is decided by the one specified in `stelpars.LD`.
@@ -240,49 +298,49 @@ def get_LDcoeff(stelpars,cat='TESS'):
 # Keplerian motion 
 # =============================================================================
 def solve_keplers_eq(mean_anomaly, ecc, tolerance=1.e-5):
-	'''Solves Kepler's equation.
+    '''Solves Kepler's equation.
 
     Function that solves Kepler's equation:
-	.. math:: M = E - \sin(E) ,
-	where M is the mean anomaly and E the eccentric anomaly.
+    .. :math:`M = E - \sin(E)`,
+    where :math:`M` is the mean anomaly and :math:`E` the eccentric anomaly.
 
-	This is done following the Newton-Raphson method as described in [1]_.
+    This is done following the Newton-Raphson method as described in [1].
 
-	:param mean_anomaly: The mean anomaly.
+    :param mean_anomaly: The mean anomaly.
     :type mean_anomaly: array
     :param ecc: Eccentricity.
     :type ecc: float
     :param tolerance: The tolerance for convergene. Defaults to 1.e-5.
-    :type tolerance: float (,optional).
+    :type tolerance: float, optional
 
     :return: The new eccentric anomaly.
-	:rtype: array 
+    :rtype: array 
 
     References
     ----------
     [1] Carl D. Murray and Alexandre C. M. Correia in arXiv:1009.1738v2.
 
 
-	'''
-	## Circular orbit
-	if ecc == 0: return mean_anomaly 
+    '''
+    ## Circular orbit
+    if ecc == 0: return mean_anomaly 
 
-	new_ecc_anomaly = mean_anomaly
-	converged = False
+    new_ecc_anomaly = mean_anomaly
+    converged = False
 
-	for ii in range(300):
-		old_ecc_anomaly = new_ecc_anomaly
+    for ii in range(300):
+        old_ecc_anomaly = new_ecc_anomaly
 
-		new_ecc_anomaly = old_ecc_anomaly - (old_ecc_anomaly - ecc*np.sin(old_ecc_anomaly) - mean_anomaly)/(1.0 - ecc*np.cos(old_ecc_anomaly))
+        new_ecc_anomaly = old_ecc_anomaly - (old_ecc_anomaly - ecc*np.sin(old_ecc_anomaly) - mean_anomaly)/(1.0 - ecc*np.cos(old_ecc_anomaly))
 
-		if np.max(np.abs(new_ecc_anomaly - old_ecc_anomaly)/old_ecc_anomaly) < tolerance:
-			converged = True
-			break
+        if np.max(np.abs(new_ecc_anomaly - old_ecc_anomaly)/old_ecc_anomaly) < tolerance:
+            converged = True
+            break
 
-	if not converged:
-		print('Calculation of the eccentric anomaly did not converge!')
+    if not converged:
+        print('Calculation of the eccentric anomaly did not converge!')
 
-	return new_ecc_anomaly
+    return new_ecc_anomaly
 
 def true_anomaly(time, Tw, ecc, P, w):#, T0=True):
     '''Function that returns the true anomaly.
@@ -346,7 +404,7 @@ def proj_dist(cos_f,sin_f,ww,inc,ar,ecc):
     '''The separation of the centers of the two orbiting objects.
     
     Function that returns the separation of the centers of the two orbiting objects.
-    The approach follows [2]_.
+    The approach follows [2].
     
     
     :param cos_f: cosine of the true anomaly
@@ -434,13 +492,13 @@ def xy_pos(cos_f,sin_f,ecc,ww,ar,inc,lam):
 # Rossiter-McLaughlin effect 
 # =============================================================================
 def get_RM(cos_f,sin_f,ww,ecc,ar,inc,rp,c1,c2,lam,vsini,
-    beta=3.,gamma=1.,zeta=1.0,alpha=0.,cos_is=0.0,
+    xi=3.,gamma=1.,zeta=1.0,alpha=0.,cos_is=0.0,
     mpath='./'):
     '''The Rossiter-McLaughlin effect
 
     Function to calculate the Rossiter-McLaughlin effect for transiting exoplanets.
 
-    The approach follows [3]_.
+    The approach follows [3].
 
     :param cos_f: cosine of the true anomaly
     :type cos_f: array
@@ -464,19 +522,19 @@ def get_RM(cos_f,sin_f,ww,ecc,ar,inc,rp,c1,c2,lam,vsini,
     :type lam: float
     :param vsini: Projected stellar rotation in km/s.
     :type vsini: float
-    :param beta: Macro-turbulence rotation in km/s. Defaults to 3.
-    :type beta: float(, optional)
-    :param gamma:  in km/s. Defaults to 1.
-    :type gamma: float(, optional)
+    :param xi: Macro-turbulence rotation in km/s. Defaults to 3.
+    :type xi: float, optional
+    :param gamma: Coefficient of differential rotation. Defaults to 1.
+    :type gamma: float, optional
     :param zeta: Micro-turbulence rotation in km/s. Defaults to 1.0.
-    :type zeta: float(, optional)
+    :type zeta: float, optional
     :param alpha:  in km/s. Defaults to 0.
-    :type alpha: float(, optional)
-    :param cos_is:  in . Defaults to 0.
-    :type alpha: float(, optional)
+    :type alpha: float, optional
+    :param cos_is: Cosine of stellar inclination. Defaults to 0.
+    :type alpha: float, optional
 
-    :param mpath: Path to the code by [3]_. Defaults to './'.
-    :type mpath: str(, optional)
+    :param mpath: Path to the code by [3]. Defaults to './'.
+    :type mpath: str, optional
 
     :return: The RM signal.
     :rtype: array       
@@ -519,7 +577,7 @@ def get_RM(cos_f,sin_f,ww,ecc,ar,inc,rp,c1,c2,lam,vsini,
 def get_RV(time, orbpars, RM=False, stelpars=None,mpath='./'):
     '''The radial velocity curve
 
-    Function that returns the radial velocity curve of the orbit following [1]_.
+    Function that returns the radial velocity curve of the orbit following [1].
     If RM is set to True it will include the RM effect as implemented in :py:func:`get_RM`.
 	
     :param time: Times of observations.
@@ -529,13 +587,13 @@ def get_RV(time, orbpars, RM=False, stelpars=None,mpath='./'):
     :type orbpars: object
 
     :param RM: Whether to calculate the RM effect or not. Defaults to ``False``.
-    :type RM: bool(, optional)
+    :type RM: bool, optional
 
     :param stelpars: Stellar parameters from :py:class:`StellarParams`. Defaults to ``None``.
-    :type stelpars: object(, optional)
+    :type stelpars: object, optional
 
-    :param mpath: Path to the code by [3]_. Defaults to './'.
-    :type mpath: str(, optional)
+    :param mpath: Path to the code by [3]. Defaults to './'.
+    :type mpath: str, optional
     
     :return: Radial velocity curve.
     :rtype: array
@@ -596,11 +654,11 @@ def get_RV(time, orbpars, RM=False, stelpars=None,mpath='./'):
             pass 
         elif len(idxs) == 1:
             cos_f, sin_f = np.array(cos_f[idx]), np.array(sin_f[idx])
-            RMs = get_RM(cos_f,sin_f,w,ecc,a,inc,Rp,c1,c2,lam,vsini,beta=xi,zeta=zeta,mpath=mpath)
+            RMs = get_RM(cos_f,sin_f,w,ecc,a,inc,Rp,c1,c2,lam,vsini,xi=xi,zeta=zeta,mpath=mpath)
             idx = idxs[0]
             vr[idx] = vr[idx] + RMs
         else:
-            RMs = get_RM(cos_f,sin_f,w,ecc,a,inc,Rp,c1,c2,lam,vsini,beta=xi,zeta=zeta,mpath=mpath)
+            RMs = get_RM(cos_f,sin_f,w,ecc,a,inc,Rp,c1,c2,lam,vsini,xi=xi,zeta=zeta,mpath=mpath)
             for idx in idxs: vr[idx] = vr[idx] + RMs[idx]
 
     return vr + RVsys
@@ -617,7 +675,7 @@ def get_RV(time, orbpars, RM=False, stelpars=None,mpath='./'):
 #     return t14
 
 def total_duration(P,rp,ar,inc,ecc,ww):
-    '''The total duration of the transit, i.e., .. math: T41 .
+    '''The total duration of the transit, i.e., :math:`T_{41}`.
 
     This is the time from the first to the last contact point.
 
@@ -649,7 +707,7 @@ def total_duration(P,rp,ar,inc,ecc,ww):
     return t41
 
 def full_duration(P,rp,ar,inc,ecc,ww):
-    '''The duration of the transit with the planet completely within the stellar disk, i.e., .. math: T32 .
+    '''The duration of the transit with the planet completely within the stellar disk, i.e., :math:`T_{32}`.
 
     This is the time from the second to the third contact point.
 
@@ -685,7 +743,7 @@ def get_rel_vsini(b, lam):
     '''Relative value of vsini at limbs.
 
     Function that returns the relative value of vsini at first and last contact
-    following [4]_.
+    following [4].
     
     :param b: Impact parameter.
     :type b: float
