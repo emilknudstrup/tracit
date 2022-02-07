@@ -1,4 +1,3 @@
-.. _dynamics:
 
 dynamics
 ================
