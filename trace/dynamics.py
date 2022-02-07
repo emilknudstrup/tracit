@@ -115,26 +115,35 @@ class InstrumentParams(object):
         self.res = 115000
 
 def get_LDcoeff(stelpars,cat='TESS'):
-    '''
+    '''Get Limb darkening coefficients.
+
 	Function that collects limb darkening coefficients from Vizier.
 	
     Catalogs:
+    ----------
         J/A+A/600/A30/
-            Calculated by A. Claret using ATLAS atmospheres for TESS.
-	        in ADS:2017A&A...600A..30C.
+        -Calculated by A. Claret using ATLAS atmospheres for TESS [5]_.
     
         J/A+A/552/A16/
-            Calculated by A. Claret using Phoenix atmospheres for Kepler, 
-            CoRot, Spitzer, uvby, UBVRIJHK, Sloan, and 2MASS.
-            in ADS:2013A&A...552A..16C.
+        -Calculated by A. Claret using Phoenix atmospheres for Kepler, 
+        CoRot, Spitzer, uvby, UBVRIJHK, Sloan, and 2MASS [6]_.
+            
 
-	The limb darkening law is decided by the one specified in stelpars.LD.
+	The limb darkening law is decided by the one specified in `stelpars.LD´.
 
-	Input:
-		stelpars : object - stellar parameters from class StellarParams
-        cat      : str    - catalog from which to extract LD coefficients.
-	Output:
-		coeffs   : list   - list of LD coefficients in ascending order.
+	:param stelpars: stellar parameters from class :py:class:`StellarParams´.
+    :type stelpars: object 
+    :param cat: Catalog from which to extract LD coefficients.
+    :type cat: str
+
+	:return	coeffs: List of LD coefficients in ascending order.
+    :rtype: list
+
+   References
+    ----------
+    [5] A. Claret in ADS:2017A&A...600A..30C.
+    [6] A. Claret in ADS:2013A&A...552A..16C.
+
     '''
     Teff, logg, MeH = stelpars.Teff, stelpars.logg, stelpars.MeH
     xi, LD = stelpars.xi, stelpars.LD
@@ -218,25 +227,23 @@ def get_LDcoeff(stelpars,cat='TESS'):
 # Keplerian motion 
 # =============================================================================
 def solve_keplers_eq(mean_anomaly, ecc, tolerance=1.e-5):
-	'''Function that solves Kepler's equation.
+	'''Solves Kepler's equation.
 
-    Kepler's equation:
+    Function that solves Kepler's equation:
 	.. math:: M = E - \sin(E) ,
 	where M is the mean anomaly and E the eccentric anomaly.
 
 	This is done following the Newton-Raphson method as described in [1]_.
 
-    Parameters
-    ----------
-		mean_anomaly    : array
-            the mean anomaly.
-        ecc             : float
-            eccentricity.
+	:param mean_anomaly: The mean anomaly.
+    :type mean_anomaly: array
+    :param ecc: Eccentricity.
+    :type ecc: float
+    :param tolerance: The tolerance for convergene. Defaults to `1.e-5´.
+    :type tolerance: float (,optional).
 
-    Returns
-    ----------
-		new_ecc_anomaly : array 
-            the new eccentric anomaly.
+    :return: The new eccentric anomaly.
+	:rtype: array 
 
     References
     ----------
@@ -264,24 +271,27 @@ def solve_keplers_eq(mean_anomaly, ecc, tolerance=1.e-5):
 
 	return new_ecc_anomaly
 
-def true_anomaly(time, Tw, ecc, per, w):#, T0=True):
+def true_anomaly(time, Tw, ecc, P, w):#, T0=True):
     '''Function that returns the true anomaly.
 
     The approach follows [1].
 	
     Parameters
     ----------
-        time   : array       
-            times of observations.
-        orbpars: object      
-            see orbital parameters from class OrbitalParams.
+    :param time: Times of observations.
+    :type time: array
+    :param Tw: Time of periastron.
+    :type Tw: float
+    :param ecc: Eccentricity.
+    :type ecc: float
+    :param P: Orbital period.
+    :type P: float
+    :param ww: Argument of periastron in radians.
+    :type ww: float
 
-    Returns
-    ----------
-        cos_f  : array
-            cosine of the true anomaly
-        sin_f  : array       
-            sine of the true anomaly
+
+    :return: cosine, sine of the true anomaly.
+    :rtype: (array, array)
 
     
     References
@@ -291,7 +301,7 @@ def true_anomaly(time, Tw, ecc, per, w):#, T0=True):
 
     '''
     
-    n = 2.0*np.pi/per
+    n = 2.0*np.pi/P
     
     # ## With this you supply the mid-transit time 
     # ## and then the time of periastron is calculated
@@ -319,32 +329,28 @@ def true_anomaly(time, Tw, ecc, per, w):#, T0=True):
 # =============================================================================
 # Sky projected distance 
 # =============================================================================
-def proj_dist(cos_f,sin_f,w,inc,a,ecc):
-    '''Function that returns the separation of the centers of the two orbiting objects.
+def proj_dist(cos_f,sin_f,ww,inc,ar,ecc):
+    '''The separation of the centers of the two orbiting objects.
     
-    The approach follows [2].
+    Function that returns the separation of the centers of the two orbiting objects.
+    The approach follows [2]_.
     
     
-    Parameters
-    ----------
-        cos_f  : array
-            cosine of the true anomaly
-        sin_f  : array       
-            sine of the true anomaly  
-        w      : float
-            argument of periastron in radians.
-        inc    : float
-            inclination in radians.
-        a      : float
-            semi-major axis in stellar radii.
-        ecc    : float
-            eccentricity.
+    :param cos_f: cosine of the true anomaly
+    :type cos_f: array
+    :param sin_f: sine of the true anomaly
+    :type sin_f: array            
+    :param ww: Argument of periastron in radians.
+    :type ww: float
+    :param inc: Inclination in radians.
+    :type inc: float
+    :param ar: Semi-major axis in stellar radii.
+    :type ar: float
+    :param ecc: Eccentricity.
+    :type ecc: float
     
-
-    Returns
-    ----------
-        sep    : array
-            separation of centers.
+    :return: separation of centers.
+    :rtype: array
     
     References
     ----------
@@ -358,11 +364,11 @@ def proj_dist(cos_f,sin_f,w,inc,a,ecc):
     for ii in range(nn):
         ## Huge value for separation to make sure not to model planet passing behind star
         ## NOTE: Expressions like sin(w + f) are expanded to stay clear of arctan
-        if np.sin(inc)*(np.sin(w)*cos_f[ii] + np.cos(w)*sin_f[ii]) <= 0:
+        if np.sin(inc)*(np.sin(ww)*cos_f[ii] + np.cos(ww)*sin_f[ii]) <= 0:
             sep[ii] = 1000.
         else:
-            nom = a*(1.0 - ecc**2)
-            nom *= np.sqrt(1.0 - (np.sin(w)*cos_f[ii] + np.cos(w)*sin_f[ii])**2*np.sin(inc)**2)
+            nom = ar*(1.0 - ecc**2)
+            nom *= np.sqrt(1.0 - (np.sin(ww)*cos_f[ii] + np.cos(ww)*sin_f[ii])**2*np.sin(inc)**2)
             den = 1.0 + ecc*cos_f[ii]
             sep[ii] = nom/den
 
@@ -371,27 +377,39 @@ def proj_dist(cos_f,sin_f,w,inc,a,ecc):
 # =============================================================================
 # x,y-position on the stellar disk 
 # =============================================================================
-def xy_pos(cos_f,sin_f,ecc,w,a,inc,lam):
-    '''
+def xy_pos(cos_f,sin_f,ecc,ww,ar,inc,lam):
+    '''Position of planet on stellar disk.
+
     Function to calculate the position on the stellar disk.
     Stellar disk goes from 0 to 1 in x and y.
+
+    :param cos_f: cosine of the true anomaly
+    :type cos_f: array
+    :param sin_f: sine of the true anomaly
+    :type sin_f: array            
+    :param ecc: Eccentricity.
+    :type ecc: float
+    :param ww: Argument of periastron in radians.
+    :type ww: float
+    :param ar: Semi-major axis in stellar radii.
+    :type ar: float
+    :param inc: Inclination in radians.
+    :type inc: float
+    :param lam: Projected obliquity in radians.
+    :type lam: float
+
+    :return: x,y position of planet on stellar disk.
+    :rtype: (array,array)
+    
+
     '''
-    # nn = len(cos_f)
-    # f = np.zeros(nn)
-    # r = np.zeros(nn)
-    # for ii in range(nn):
-    #     f[ii] = np.arctan2(sin_f[ii],cos_f[ii])
-    #     r[ii] = a*(1.0 - ecc**2)/(1.0 + ecc*cos_f[ii]) 
-    #cosi = b*(1.0 + ecc*np.sin(w))/(a*(1.0 - ecc**2))
-    #print('xy_pos {}'.format(lam))
-    r = a*(1.0 - ecc**2)/(1.0 + ecc*cos_f)
+    r = ar*(1.0 - ecc**2)/(1.0 + ecc*cos_f)
     f = np.arctan2(sin_f,cos_f)
-    #cosi = b/r#*(1.0 + ecc*cos_f)/(a*(1.0 - ecc**2))
     
     ## x and y are lists of the positions of the transitting planet on the stellar disk 
     ## normalized to stellar radius (using a/Rs), corresponding to each RV-point
-    x_old = -1*r*np.cos(w + f)
-    y_old = -1*r*np.sin(w + f)*np.cos(inc)
+    x_old = -1*r*np.cos(ww + f)
+    y_old = -1*r*np.sin(ww + f)*np.cos(inc)
 
     ## Rotate our coordinate system, such that the projected obliquity becomes the new y-axis
     x = x_old*np.cos(lam) - y_old*np.sin(lam)
@@ -402,7 +420,7 @@ def xy_pos(cos_f,sin_f,ecc,w,a,inc,lam):
 # =============================================================================
 # Rossiter-McLaughlin effect 
 # =============================================================================
-def get_RM(cos_f,sin_f,w,ecc,a,inc,Rp,c1,c2,lam,vsini,
+def get_RM(cos_f,sin_f,ww,ecc,ar,inc,rp,c1,c2,lam,vsini,
     beta=3.,gamma=1.,zeta=1.0,alpha=0.,cos_is=0.0,
     mpath='./'):
     '''The Rossiter-McLaughlin effect
@@ -411,18 +429,44 @@ def get_RM(cos_f,sin_f,w,ecc,a,inc,Rp,c1,c2,lam,vsini,
 
     The approach follows [3]_.
 
-    Parameters
-    ----------
-        cos_f  : array
-            cosine of the true anomaly
-        sin_f  : array       
-            sine of the true anomaly    
+    :param cos_f: cosine of the true anomaly
+    :type cos_f: array
+    :param sin_f: sine of the true anomaly
+    :type sin_f: array            
+    :param ww: Argument of periastron in radians.
+    :type ww: float
+    :param ecc: Eccentricity.
+    :type ecc: float
+    :param ar: Semi-major axis in stellar radii.
+    :type ar: float
+    :param inc: Inclination in radians.
+    :type inc: float
+    :param rp: Planet-to-star radius ratio.
+    :type rp: float
+    :param c1: Linear limb-darkening coefficient.
+    :type c1: float
+    :param c2: Quadratic limb-darkening coefficient.
+    :type c2: float
+    :param lam: Projected obliquity in radians.
+    :type lam: float
+    :param vsini: Projected stellar rotation in km/s.
+    :type vsini: float
+    :param beta: Macro-turbulence rotation in km/s. Defaults to `3.´.
+    :type beta: float(, optional)
+    :param gamma:  in km/s. Defaults to `1.´.
+    :type gamma: float(, optional)
+    :param zeta: Micro-turbulence rotation in km/s. Defaults to `1.0´.
+    :type zeta: float(, optional)
+    :param alpha:  in km/s. Defaults to `0.´.
+    :type alpha: float(, optional)
+    :param cos_is:  in . Defaults to `0.´.
+    :type alpha: float(, optional)
 
+    :param mpath: Path to the code by [3]_. Defaults to `'./'´.
+    :type mpath: str(, optional)
 
-    Returns
-    ----------
-        RM   : array       
-            The RM signal.
+    :return: The RM signal.
+    :rtype: array       
 
     
     References
@@ -430,7 +474,7 @@ def get_RM(cos_f,sin_f,w,ecc,a,inc,Rp,c1,c2,lam,vsini,
     [3] Hirano et al. 2011 arXiv:1108.4430, doi:10.1088/0004-637X/742/2/69
 
     '''
-    x, y = xy_pos(cos_f,sin_f,ecc,w,a,inc,lam)
+    x, y = xy_pos(cos_f,sin_f,ecc,ww,ar,inc,lam)
     
     try:
         nn = len(cos_f)
@@ -444,7 +488,7 @@ def get_RM(cos_f,sin_f,w,ecc,a,inc,Rp,c1,c2,lam,vsini,
     wd = os.getcwd()
     os.chdir(mpath)
     run_input = ['./new_analytic7.exe']
-    pars = [c1,c2,vsini,Rp,beta,gamma,zeta,alpha,cos_is,nn]
+    pars = [c1,c2,vsini,rp,beta,gamma,zeta,alpha,cos_is,nn]
     for par in pars: run_input.append(str(par))    
     
     RM = subprocess.check_output(run_input + xy)
@@ -480,12 +524,13 @@ def get_RV(time, orbpars, RM=False, stelpars=None,mpath='./'):
     :param mpath: Path to the code by [3]_. Defaults to `'./'´.
     :type mpath: str(, optional)
     
-    Output:
-        vr      : float array - radial velocity curve.
+    :return: Radial velocity curve.
+    :rtype: array
     
     References
     ----------
     [1] Carl D. Murray and Alexandre C. M. Correia in arXiv:1009.1738v2.
+
     '''
     Tw = orbpars.Tw
     ecc = orbpars.ecc
