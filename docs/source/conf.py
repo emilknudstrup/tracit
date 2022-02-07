@@ -56,7 +56,7 @@ html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']
 
 # Logo
-html_logo = "rot_star.png"
+html_logo = "rot_star.pdf"
 html_theme_options = {
     "logo_only": True,
 }
