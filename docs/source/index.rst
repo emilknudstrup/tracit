@@ -3,11 +3,15 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to trace's documentation!
+trace
 =================================
 
+**tracing the paths of planets**
+
+trace's aim is to shed light on key orbital parameters of exoplanet systems.
+
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
    :caption: Contents:
    
    API
