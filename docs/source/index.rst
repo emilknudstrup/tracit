@@ -11,10 +11,11 @@ trace
 trace's aim is to shed light on key orbital parameters of exoplanet systems.
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+   :maxdepth: 1
+   :caption: APIs:
    
-   API
+   dynamics
+   shady
 
 Indices and tables
 ==================
