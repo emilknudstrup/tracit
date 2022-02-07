@@ -176,7 +176,7 @@ class StellarParams(object):
         self.alpha = 0.0
 
 class InstrumentParams(object):
-    '''Class to hold the instrument parameters:
+    '''Class to hold the instrument parameters.
 
 	:param res: Resolution of spectrograph.
     :type res: float
@@ -186,34 +186,31 @@ class InstrumentParams(object):
         self.res = 115000
 
 def get_LDcoeff(stelpars,cat='TESS'):
-    '''Get Limb darkening coefficients.
+    '''Retrieve Limb darkening coefficients from Vizier.
 
-	Function that collects limb darkening coefficients from Vizier.
-	
+    Function that collects limb darkening coefficients from Vizier.
+
     Catalogs:
     ----------
-        J/A+A/600/A30/
-        -Calculated by A. Claret using ATLAS atmospheres for TESS [5].
+    i. J/A+A/600/A30/ ATLAS atmospheres for TESS [5].
     
-        J/A+A/552/A16/
-        -Calculated by A. Claret using Phoenix atmospheres for Kepler, 
-        CoRot, Spitzer, uvby, UBVRIJHK, Sloan, and 2MASS [6].
+    ii. J/A+A/552/A16/ hoenix atmospheres for Kepler, CoRot, Spitzer, uvby, UBVRIJHK, Sloan, and 2MASS [6].
             
 
-	The limb darkening law is decided by the one specified in `stelpars.LD`.
+    The limb darkening law is decided by the one specified in :py:class:`StellarParams.LD`.
 
-	:param stelpars: stellar parameters from class :py:class:`StellarParams`.
+    :param stelpars: stellar parameters from class :py:class:`StellarParams`.
     :type stelpars: object 
     :param cat: Catalog from which to extract LD coefficients.
     :type cat: str
 
-	:return	coeffs: List of LD coefficients in ascending order.
+    :return	coeffs: List of LD coefficients in ascending order.
     :rtype: list
 
-   References
+    References
     ----------
-    [5] A. Claret in ADS:2017A&A...600A..30C.
-    [6] A. Claret in ADS:2013A&A...552A..16C.
+    -[5] A. Claret in ADS:2017A&A...600A..30C.
+    -[6] A. Claret in ADS:2013A&A...552A..16C.
 
     '''
     Teff, logg, MeH = stelpars.Teff, stelpars.logg, stelpars.MeH
