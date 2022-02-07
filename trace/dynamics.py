@@ -26,10 +26,10 @@ def time2phase(time,per,T0):
     :rtype: array
 
     '''
-	phase = ((time-T0)%per)/per
-	for ii in range(len(phase)):
-		if phase[ii] > 0.5: phase[ii] = phase[ii] - 1
-	return phase
+    phase = ((time-T0)%per)/per
+    for ii in range(len(phase)):
+        if phase[ii] > 0.5: phase[ii] = phase[ii] - 1
+    return phase
 
 # =============================================================================
 # Parameters 
