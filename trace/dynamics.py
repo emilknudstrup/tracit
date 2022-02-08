@@ -193,7 +193,7 @@ def get_LDcoeff(stelpars,cat='TESS'):
     ----------
     i. J/A+A/600/A30/ ATLAS atmospheres for TESS [5].
     
-    ii. J/A+A/552/A16/ hoenix atmospheres for Kepler, CoRot, Spitzer, uvby, UBVRIJHK, Sloan, and 2MASS [6].
+    ii. J/A+A/552/A16/ Phoenix atmospheres for Kepler, CoRot, Spitzer, uvby, UBVRIJHK, Sloan, and 2MASS [6].
             
 
     The limb darkening law is decided by the one specified in :py:class:`StellarParams.LD`.
@@ -208,8 +208,8 @@ def get_LDcoeff(stelpars,cat='TESS'):
 
     References
     ----------
-    -[5] A. Claret in ADS:2017A&A...600A..30C.
-    -[6] A. Claret in ADS:2013A&A...552A..16C.
+    - [5] A. Claret in ADS:2017A&A...600A..30C.
+    - [6] A. Claret in ADS:2013A&A...552A..16C.
 
     '''
     Teff, logg, MeH = stelpars.Teff, stelpars.logg, stelpars.MeH
