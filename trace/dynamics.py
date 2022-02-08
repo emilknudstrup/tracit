@@ -153,12 +153,12 @@ class StellarParams(object):
     >>> stelparams.Teff = 5000.0
     
     .. note::
-        -Default is a sun-like star in terms of Teff, logg, and [Fe/H]. 
-        -The limb darkening laws to choose from are:
-        i. 'uni'  - uniform, no LD
-        ii. 'quad' - quadratic, default.
-        iii. 'nl'   - non-linear.
-        iv. 'small'- LD for a small planet. 
+        a. Default is a sun-like star in terms of Teff, logg, and [Fe/H]. 
+        b. The limb darkening laws to choose from are:
+            i. 'uni'  - uniform, no LD
+            ii. 'quad' - quadratic, default.
+            iii. 'nl'   - non-linear.
+            iv. 'small'- LD for a small planet. 
 
     '''
     def __init__(self):
@@ -190,10 +190,8 @@ def get_LDcoeff(stelpars,cat='TESS'):
     Function that collects limb darkening coefficients from Vizier.
 
     Catalogs:
-    ----------
-    i. J/A+A/600/A30/ ATLAS atmospheres for TESS [5].
-    
-    ii. J/A+A/552/A16/ Phoenix atmospheres for Kepler, CoRot, Spitzer, uvby, UBVRIJHK, Sloan, and 2MASS [6].
+        i. J/A+A/600/A30/ ATLAS atmospheres for TESS [5].
+        ii. J/A+A/552/A16/ Phoenix atmospheres for Kepler, CoRot, Spitzer, uvby, UBVRIJHK, Sloan, and 2MASS [6].
             
 
     The limb darkening law is decided by the one specified in :py:class:`StellarParams.LD`.

@@ -20,8 +20,8 @@ trace's aim is to shed light on key orbital parameters of exoplanet systems.
    :maxdepth: 1
    :caption: API
    
-   shady
-   dynamics
+   API/shady
+   API/dynamics
 
 Indices and tables
 ==================
