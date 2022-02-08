@@ -4,6 +4,11 @@
 Created on Wed Apr 15 13:27:04 2020
 
 @author: emil
+
+.. todo::
+	Finish documentation
+	Make it faster?
+
 """
 
 import numpy as np
@@ -320,7 +325,6 @@ def limb_darkening(gridini,mu,cs=[],LD_law='quad'):
 	'''
 	Calculate the limb darkening at each position of the stellar grid.
 
-	:params:
 	:param gridini: Grid of positions on the stellar disk.
 	:type gridini: array
 	:param mu: Normalized radial coordinate.
@@ -350,7 +354,21 @@ def limb_darkening(gridini,mu,cs=[],LD_law='quad'):
 def absline_star(gridini,vel,ring_grid,
 	mu,mu_mean,vsini,xi,zeta,
 	cs=[0.3,0.2],LD_law='quad'):
+	'''The shape of the absorption line.
 	
+	Function that calculates the line shape as a function of velocity (km/s).
+	
+	:param gridini: Grid of positions on the stellar disk.
+	:type gridini: array
+	:param mu: Normalized radial coordinate.
+	:type mu: array	
+
+	:param cs: Limb darkening coefficients. Default ``[]``.
+	:type cs: list, optional
+	:param	LD_law: limb darkening law. Default 'quad'. See :py:class:`dynamics.StellarParams`.
+	:type LD_law: str, optional 	
+
+	'''
 	rot_profile = vel*vsini
 	if LD_law == 'quad':
 		c1, c2 = cs
@@ -382,9 +400,9 @@ def absline(gridini,vel,ring_grid,
 			Rp_Rs=0.1,a_Rs=20.,inc=90.,
 			ecc=0.,w=90.,lam=0.
 			):
-	'''The shape of the absorption line.
+	'''The shape of the absorption line during transit.
 
-	Function that calculates the line-shape as a function of velocity (km/sec) for a transitting star-planet system.
+	Function that calculates the line shape as a function of velocity (km/s) for a transitting star-planet system.
 	Effects of limb-darkening, as well as micro- and macroturbulence are included.
 	
 	:param gridini: The initial stellar grid.	
