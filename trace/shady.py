@@ -18,6 +18,15 @@ def grid_coordinates(Rs,xoff=0.,yoff=0.):
 	'''Coordinates of the stellar grid.
 
 	Calculate the coordinates of the stellar grid.
+
+	:param Rs: Stellar radius in number of pixels.
+	:type Rs: int 
+	
+	:param xoff: Potential offset in x-direction. Default 0.
+	:type xoff: float, optional 
+	
+	:param yoff: Potential offset in y-direction. Default 0.
+	:type yoff: float, optional 
 	
 	'''
 	xx, yy = np.arange(-Rs+xoff,Rs+1+xoff),np.arange(-Rs+yoff,Rs+1+yoff)
@@ -34,6 +43,12 @@ def grid(Rs,xoff=0,yoff=0):
 
 	:param Rs: Stellar radius in number of pixels.
 	:type Rs: int 
+	
+	:param xoff: Potential offset in x-direction. Default 0.
+	:type xoff: float, optional 
+	
+	:param yoff: Potential offset in y-direction. Default 0.
+	:type yoff: float, optional 
 
 	'''
 	coord, cidxs, rr = grid_coordinates(Rs,xoff=xoff,yoff=yoff)
@@ -59,8 +74,15 @@ def grid_ring(Rs,thick,xoff=0.,yoff=0.):
 	
 	:param Rs: Stellar radius in number of pixels.
 	:type Rs: int 
+	
 	:param thick: Thickness of rings.
 	:type thick: int
+	
+	:param xoff: Potential offset in x-direction. Default 0.
+	:type xoff: float, optional 
+	
+	:param yoff: Potential offset in y-direction. Default 0.
+	:type yoff: float, optional 
 
 	:return: 
 	:rtype: (array, array, array, array)
@@ -299,12 +321,18 @@ def limb_darkening(gridini,mu,cs=[],LD_law='quad'):
 	Calculate the limb darkening at each position of the stellar grid.
 
 	:params:
-		gridini : array - grid of positions on the stellar disk.
-		mu      : array - normalized radial coordinate.
-		cs      : list of floats - limb darkening coefficients.
-		LD_law  : string - limb darkening law.
-	:return:
-		lum     : array - limb-darkened surface.
+	:param gridini: Grid of positions on the stellar disk.
+	:type gridini: array
+	:param mu: Normalized radial coordinate.
+	:type mu: array
+	
+	:param cs: Limb darkening coefficients. Default ``[]``.
+	:type cs: list, optional
+	:param	LD_law: limb darkening law. Default 'quad'. See :py:class:`dynamics.StellarParams`.
+	:type LD_law: str, optional 
+	
+	:return: Limb-darkened surface. 
+	:rtype: array
 	'''
 
 	if LD_law == 'quad':
