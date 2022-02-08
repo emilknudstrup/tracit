@@ -354,10 +354,13 @@ def absline(gridini,vel,ring_grid,
 			Rp_Rs=0.1,a_Rs=20.,inc=90.,
 			ecc=0.,w=90.,lam=0.
 			):
-	'''
-	Calculates the line-shape as a function of velocity (km/sec) 
-	for a transitting star-planet system with the given parameters 
-	at a given time (including LD, micro- and macroturbulence).
+	'''The shape of the absorption line.
+
+	Function that calculates the line-shape as a function of velocity (km/sec) for a transitting star-planet system.
+	Effects of limb-darkening, as well as micro- and macroturbulence are included.
+	
+	:param gridini: The initial stellar grid.	
+	:type gridini: array
 
 	'''
 
