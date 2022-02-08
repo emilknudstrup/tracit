@@ -42,7 +42,6 @@ def grid(Rs,xoff=0,yoff=0):
 	start_grid = np.zeros((2*Rs+1,2*Rs+1))
 	vel = start_grid.copy()
 	mu = start_grid.copy()
-	#t0 = tt.time()
 	for ii in range(len(cidxs)):
 		if rr[ii] <= Rs:
 			start_grid[cidxs[ii]] = 1
@@ -207,16 +206,19 @@ def macro(vel,mu_mean,zeta):
 	return vel_1d, mac
 
 def gauss_conv(lum,vel,xi,sigma=3):
-	'''
+	'''Convolves the rotation profile.
 
-	Convolves the rotation profile with a gaussian to take microturbulence
+	Function that convolves the rotation profile with a gaussian to take microturbulence
 	and the instrumental profile into account. 
-	See 
-		- Hirano et al. 2011 | doi:10.1088/0004-637X/742/2/69
-		- Gray 2005 | doi:10.1017/CBO9781316036570 p. 430.
 	
-	:params:
-		sigma : float - number of sigmas we go out on our x-axis to get the borders of the gaussian
+	:param sigma: Number of sigmas we go out on our x-axis to get the borders of the gaussian
+	:type sigma: float
+
+    References
+    ----------
+		[1] Hirano et al. 2011 | doi:10.1088/0004-637X/742/2/69
+		[2] Gray 2005 | doi:10.1017/CBO9781316036570 p. 430.
+
 	'''
 	sep = (vel[-1]-vel[0])/(len(vel)-1) #seperation of velocity vector
 	## x-axis for the gaussian. The steps are the same as vel, but the borders go further out.
@@ -243,7 +245,7 @@ def convolve(vel,ring_LD,mu_mean,xi,zeta,sigma=3.):
 
 	Function that convolves limb-darkened rings with gaussian to get microturbulence, 
 	and then convolve this with the macroturbulence.
-	
+
 	'''
 	n_LD = len(ring_LD)
 	## 1D-velocity (same for each ring)
@@ -466,3 +468,6 @@ def create_shadow(phase,vel,shadow,exp_phase,per,
 		ax.axvline(-vsini,linestyle='--',color='C0',lw=2.0)
 
 	if savefig: plt.savefig(fname)
+
+if __name__=='__main__':
+	print('Go!')

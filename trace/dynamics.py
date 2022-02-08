@@ -155,10 +155,10 @@ class StellarParams(object):
     .. note::
         -Default is a sun-like star in terms of Teff, logg, and [Fe/H]. 
         -The limb darkening laws to choose from are:
-            i. 'uni'  - uniform, no LD
-            ii. 'quad' - quadratic, default.
-            iii. 'nl'   - non-linear.
-            iv. 'small'- LD for a small planet. 
+        i. 'uni'  - uniform, no LD
+        ii. 'quad' - quadratic, default.
+        iii. 'nl'   - non-linear.
+        iv. 'small'- LD for a small planet. 
 
     '''
     def __init__(self):
@@ -177,7 +177,7 @@ class StellarParams(object):
 class InstrumentParams(object):
     '''Class to hold the instrument parameters.
 
-	:param res: Resolution of spectrograph.
+    :param res: Resolution of spectrograph.
     :type res: float
 
     '''
@@ -208,8 +208,8 @@ def get_LDcoeff(stelpars,cat='TESS'):
 
     References
     ----------
-    - [5] A. Claret in ADS:2017A&A...600A..30C.
-    - [6] A. Claret in ADS:2013A&A...552A..16C.
+        [5] A. Claret in ADS:2017A&A...600A..30C.
+        [6] A. Claret in ADS:2013A&A...552A..16C.
 
     '''
     Teff, logg, MeH = stelpars.Teff, stelpars.logg, stelpars.MeH
@@ -314,7 +314,7 @@ def solve_keplers_eq(mean_anomaly, ecc, tolerance=1.e-5):
 
     References
     ----------
-    [1] Carl D. Murray and Alexandre C. M. Correia in arXiv:1009.1738v2.
+        [1] Carl D. Murray and Alexandre C. M. Correia in arXiv:1009.1738v2.
 
 
     '''
@@ -363,7 +363,7 @@ def true_anomaly(time, Tw, ecc, P, w):#, T0=True):
     
     References
     ----------
-    [1] Carl D. Murray and Alexandre C. M. Correia in arXiv:1009.1738v2.
+        [1] Carl D. Murray and Alexandre C. M. Correia in arXiv:1009.1738v2.
 
 
     '''
@@ -421,7 +421,7 @@ def proj_dist(cos_f,sin_f,ww,inc,ar,ecc):
     
     References
     ----------
-    [2] L. Kreidberg in arXiv:1507.08285.
+        [2] L. Kreidberg in arXiv:1507.08285.
 
 
     '''
@@ -538,7 +538,7 @@ def get_RM(cos_f,sin_f,ww,ecc,ar,inc,rp,c1,c2,lam,vsini,
     
     References
     ----------
-    [3] Hirano et al. 2011 arXiv:1108.4430, doi:10.1088/0004-637X/742/2/69
+        [3] Hirano et al. 2011 arXiv:1108.4430, doi:10.1088/0004-637X/742/2/69
 
     '''
     x, y = xy_pos(cos_f,sin_f,ecc,ww,ar,inc,lam)
@@ -596,7 +596,7 @@ def get_RV(time, orbpars, RM=False, stelpars=None,mpath='./'):
     
     References
     ----------
-    [1] Carl D. Murray and Alexandre C. M. Correia in arXiv:1009.1738v2.
+        [1] Carl D. Murray and Alexandre C. M. Correia in arXiv:1009.1738v2.
 
     '''
     Tw = orbpars.Tw
@@ -752,7 +752,7 @@ def get_rel_vsini(b, lam):
     
     References
     ----------
-    [4] Albrecht et al. (2011), bibcode: 2011ApJ...738...50A
+        [4] Albrecht et al. (2011), bibcode: 2011ApJ...738...50A
 
 
     '''
