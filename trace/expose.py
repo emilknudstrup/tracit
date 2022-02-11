@@ -60,6 +60,11 @@ def run_sys(nproc):
 	}
 
 def plot_autocorr(autocorr,index,savefig=True):
+	'''Autocorrelation plot.
+
+	
+
+	'''
 	figc = plt.figure()
 	axc = figc.add_subplot(111)
 	nn, yy = 1000*np.arange(1,index+1), autocorr[:index]
@@ -71,6 +76,9 @@ def plot_autocorr(autocorr,index,savefig=True):
 	if savefig: figc.savefig('autocorr.pdf')
 
 def create_chains(samples,labels=None,savefig=False,fname='chains',ival=5):
+	'''Chains from the sampling.
+
+	'''
 	plt.rc('text',usetex=plot_tex)
 	pre = fname.split('.')[0]
 	if not fname.lower().endswith(('.png', '.pdf')): ext = '.pdf'
@@ -111,6 +119,16 @@ def create_chains(samples,labels=None,savefig=False,fname='chains',ival=5):
 def create_corner(samples,labels=None,truths=None,savefig=True,fname='corner',
 		#quantiles=[16,50,84], show_titles=True, priors=None):
 		quantiles=[], diag_titles=None, priors=None):
+	'''Corner plot.
+
+	
+	References
+	----------
+		[2] `Foreman-Mackey (2016) <https://corner.readthedocs.io/en/latest/index.html>`_
+
+
+
+	'''
 	plt.rc('text',usetex=plot_tex)
 	ndim = samples.shape[-1]
 	if labels == None: 
@@ -198,6 +216,9 @@ def create_corner(samples,labels=None,truths=None,savefig=True,fname='corner',
 def plot_orbit(param_fname,data_fname,updated_pars=None,
 	savefig=False,path='',OC_rv=True,n_pars=0,
 	best_fit=True):
+	'''Plot the radial velocity curve.
+
+	'''
 	plt.rc('text',usetex=plot_tex)
 
 	font = 15
@@ -215,9 +236,9 @@ def plot_orbit(param_fname,data_fname,updated_pars=None,
 		pars = business.parameters['FPs']
 		pars = updated_pars.keys()[1:-2]
 		if n_pars == 0: n_pars = len(pars)
+		idx = 1
+		if (updated_pars.shape[0] > 3) & best_fit: idx = 4
 		for par in pars:
-			if best_fit: idx = 4
-			else: idx = 1
 			try:
 				business.parameters[par]['Value'] = float(updated_pars[par][idx])	
 			except KeyError:
@@ -453,16 +474,17 @@ def plot_orbit(param_fname,data_fname,updated_pars=None,
 
 def plot_lightcurve(param_fname,data_fname,updated_pars=None,savefig=False,
 	path='',n_pars=0,errorbar=True,best_fit=True):
-	'''
-	Module to plot a light curve
+	'''Plot the light curve.
+
+	Function to plot a light curve
 	
 	More thorough description
 
-	Args:
-		param_fname (str): The .csv file containing all the values 
-			for the parameters
-		data_fname (str): The .csv file containing the filenames 
-			for the data and the detrending routines
+	:param param_fname: Name for the parameter .csv file. See :py:class:`business.params_temp`.
+	:type param_fname: str
+
+	:param data_fname: Name for the data .csv file. See :py:class:`business.data_temp`.
+	:type data_fname: str
 
 
 	'''
@@ -482,9 +504,9 @@ def plot_lightcurve(param_fname,data_fname,updated_pars=None,savefig=False,
 		pars = business.parameters['FPs']
 		pars = updated_pars.keys()[1:-2]
 		if n_pars == 0: n_pars = len(pars)
+		idx = 1
+		if (updated_pars.shape[0] > 3) & best_fit: idx = 4
 		for par in pars:
-			if best_fit: idx = 4
-			else: idx = 1
 			try:
 				business.parameters[par]['Value'] = float(updated_pars[par][idx])	
 			except KeyError:
@@ -862,12 +884,13 @@ def plot_shadow(param_fname,data_fname,updated_pars=None,oots=None,n_pars=0,
 			if phase[ii] > 0.5: phase[ii] = phase[ii] - 1
 		return phase
 	if updated_pars is not None:
+
 		pars = business.parameters['FPs']
 		pars = updated_pars.keys()[1:-2]
 		if n_pars == 0: n_pars = len(pars)
+		idx = 1
+		if (updated_pars.shape[0] > 3) & best_fit: idx = 4
 		for par in pars:
-			if best_fit: idx = 4
-			else: idx = 1
 			try:
 				business.parameters[par]['Value'] = float(updated_pars[par][idx])	
 			except KeyError:
@@ -1185,9 +1208,9 @@ def plot_oot_ccf(param_fname,data_fname,updated_pars=None,oots=None,n_pars=0,chi
 		pars = business.parameters['FPs']
 		pars = updated_pars.keys()[1:-2]
 		if n_pars == 0: n_pars = len(pars)
+		idx = 1
+		if (updated_pars.shape[0] > 3) & best_fit: idx = 4
 		for par in pars:
-			if best_fit: idx = 4
-			else: idx = 1
 			try:
 				business.parameters[par]['Value'] = float(updated_pars[par][idx])	
 			except KeyError:
@@ -1550,9 +1573,9 @@ def plot_rv_pgram(param_fname,data_fname,updated_pars=None,savefig=False,path=''
 		pars = business.parameters['FPs']
 		pars = updated_pars.keys()[1:-2]
 		if n_pars == 0: n_pars = len(pars)
+		idx = 1
+		if (updated_pars.shape[0] > 3) & best_fit: idx = 4
 		for par in pars:
-			if best_fit: idx = 4
-			else: idx = 1
 			try:
 				business.parameters[par]['Value'] = float(updated_pars[par][idx])	
 			except KeyError:

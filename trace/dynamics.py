@@ -4,6 +4,9 @@
 Created on Wed Sep 18 17:33:55 2019
 
 @author: emil
+
+.. todo::
+    * :py:func:`true_anomaly` takes ww as an argument, which is not needed now.
 """
 
 import numpy as np
@@ -125,13 +128,13 @@ class StellarParams(object):
     :param vsini: Projected stellar rotation in km/s.
     :type vsini: float
 
-    :param xi: Macro-turbulence rotation in km/s. 
+    :param xi: Micro-turbulence in km/s. 
     :type xi: float
 
-    :param gamma:  Coefficient of differential rotation. Defaults to 1.
+    :param gamma: Coefficient of differential rotation. Defaults to 1.
     :type gamma: float
 
-    :param zeta: Micro-turbulence rotation in km/s. 
+    :param zeta: Macro-turbulence in km/s. 
     :type zeta: float
 
     :param alpha:  in km/s. Defaults to 0.
@@ -143,8 +146,8 @@ class StellarParams(object):
     :param inc: Inclination of steller soin axis in deg.
     :type inc: float 
 
-    :param 	LD: limb darkening law used.; 
-    :type LD: string     
+    :param LD: limb darkening law used. 
+    :type LD: str    
 
     :Example:
 
@@ -155,9 +158,9 @@ class StellarParams(object):
     .. note::
         a. Default is a sun-like star in terms of Teff, logg, and [Fe/H]. 
         b. The limb darkening laws to choose from are:
-            i. 'uni'  - uniform, no LD
+            i. 'uni' - uniform, no LD
             ii. 'quad' - quadratic, default.
-            iii. 'nl'   - non-linear.
+            iii. 'nl' - non-linear.
             iv. 'small'- LD for a small planet. 
 
     '''
@@ -185,9 +188,9 @@ class InstrumentParams(object):
         self.res = 115000
 
 def get_LDcoeff(stelpars,cat='TESS'):
-    '''Retrieve Limb darkening coefficients from Vizier.
+    '''Retrieve Limb darkening coefficients from VizieR.
 
-    Function that collects limb darkening coefficients from Vizier.
+    Function that collects limb darkening coefficients from `VizieR <http://vizier.u-strasbg.fr/>`_.
 
     Catalogs:
         i. J/A+A/600/A30/ ATLAS atmospheres for TESS [5].
@@ -206,8 +209,8 @@ def get_LDcoeff(stelpars,cat='TESS'):
 
     References
     ----------
-        [5] A. Claret in ADS:2017A&A...600A..30C.
-        [6] A. Claret in ADS:2013A&A...552A..16C.
+        [5] `Claret (2017) <https://ui.adsabs.harvard.edu/abs/2017A&A...600A..30C/abstract>`_ ,
+        [6] `Claret (2013) <https://ui.adsabs.harvard.edu/abs/2013A%26A...552A..16C/abstract>`_
 
     '''
     Teff, logg, MeH = stelpars.Teff, stelpars.logg, stelpars.MeH
@@ -312,7 +315,7 @@ def solve_keplers_eq(mean_anomaly, ecc, tolerance=1.e-5):
 
     References
     ----------
-        [1] Carl D. Murray and Alexandre C. M. Correia in arXiv:1009.1738v2.
+        [1] `Murray & Correia (2010) <https://ui.adsabs.harvard.edu/abs/2010exop.book...15M/abstract>`_
 
 
     '''
@@ -336,21 +339,20 @@ def solve_keplers_eq(mean_anomaly, ecc, tolerance=1.e-5):
 
     return new_ecc_anomaly
 
-def true_anomaly(time, Tw, ecc, P, w):#, T0=True):
+def true_anomaly(time, Tw, ecc, per, ww):#, T0=True):
     '''Function that returns the true anomaly.
 
     The approach follows [1].
 	
-    Parameters
-    ----------
+
     :param time: Times of observations.
     :type time: array
     :param Tw: Time of periastron.
     :type Tw: float
     :param ecc: Eccentricity.
     :type ecc: float
-    :param P: Orbital period.
-    :type P: float
+    :param per: Orbital period.
+    :type per: float
     :param ww: Argument of periastron in radians.
     :type ww: float
 
@@ -361,12 +363,12 @@ def true_anomaly(time, Tw, ecc, P, w):#, T0=True):
     
     References
     ----------
-        [1] Carl D. Murray and Alexandre C. M. Correia in arXiv:1009.1738v2.
+        [1] `Murray & Correia (2010) <https://ui.adsabs.harvard.edu/abs/2010exop.book...15M/abstract>`_
 
 
     '''
     
-    n = 2.0*np.pi/P
+    n = 2.0*np.pi/per
     
     # ## With this you supply the mid-transit time 
     # ## and then the time of periastron is calculated
@@ -419,7 +421,7 @@ def proj_dist(cos_f,sin_f,ww,inc,ar,ecc):
     
     References
     ----------
-        [2] L. Kreidberg in arXiv:1507.08285.
+        [2] `Kreidberg (2015) <https://ui.adsabs.harvard.edu/abs/2015PASP..127.1161K/abstract>`_
 
 
     '''
@@ -506,24 +508,34 @@ def get_RM(cos_f,sin_f,ww,ecc,ar,inc,rp,c1,c2,lam,vsini,
     :type ar: float
     :param inc: Inclination in radians.
     :type inc: float
+
     :param rp: Planet-to-star radius ratio.
     :type rp: float
+
     :param c1: Linear limb-darkening coefficient.
     :type c1: float
+
     :param c2: Quadratic limb-darkening coefficient.
     :type c2: float
+
     :param lam: Projected obliquity in radians.
     :type lam: float
+
     :param vsini: Projected stellar rotation in km/s.
     :type vsini: float
-    :param xi: Macro-turbulence rotation in km/s. Defaults to 3.
+  
+    :param xi: Micro-turbulence in km/s. Defaults to 3.
     :type xi: float, optional
+   
+    :param zeta: Macro-turbulence in km/s. Defaults to 1.0.
+    :type zeta: float, optional
+  
     :param gamma: Coefficient of differential rotation. Defaults to 1.
     :type gamma: float, optional
-    :param zeta: Micro-turbulence rotation in km/s. Defaults to 1.0.
-    :type zeta: float, optional
+  
     :param alpha:  in km/s. Defaults to 0.
     :type alpha: float, optional
+
     :param cos_is: Cosine of stellar inclination. Defaults to 0.
     :type alpha: float, optional
 
@@ -536,7 +548,7 @@ def get_RM(cos_f,sin_f,ww,ecc,ar,inc,rp,c1,c2,lam,vsini,
     
     References
     ----------
-        [3] Hirano et al. 2011 arXiv:1108.4430, doi:10.1088/0004-637X/742/2/69
+        [3] `Hirano et al. (2011) <https://ui.adsabs.harvard.edu/abs/2011ApJ...742...69H/abstract>`_
 
     '''
     x, y = xy_pos(cos_f,sin_f,ecc,ww,ar,inc,lam)
@@ -573,7 +585,7 @@ def get_RV(time, orbpars, RM=False, stelpars=None,mpath='./'):
 
     Function that returns the radial velocity curve of the orbit following [1].
     If RM is set to True it will include the RM effect as implemented in :py:func:`get_RM`.
-	
+
     :param time: Times of observations.
     :type time: array
 
@@ -594,7 +606,7 @@ def get_RV(time, orbpars, RM=False, stelpars=None,mpath='./'):
     
     References
     ----------
-        [1] Carl D. Murray and Alexandre C. M. Correia in arXiv:1009.1738v2.
+        [1] `Murray & Correia (2010) <https://ui.adsabs.harvard.edu/abs/2010exop.book...15M/abstract>`_
 
     '''
     Tw = orbpars.Tw
@@ -668,13 +680,13 @@ def get_RV(time, orbpars, RM=False, stelpars=None,mpath='./'):
 #     t14 = P/np.pi * nom/den
 #     return t14
 
-def total_duration(P,rp,ar,inc,ecc,ww):
+def total_duration(per,rp,ar,inc,ecc,ww):
     '''The total duration of the transit, i.e., :math:`T_{41}`.
 
     This is the time from the first to the last contact point.
 
-    :param P: Orbital period.
-    :type P: float
+    :param per: Orbital period.
+    :type per: float
     :param rp: Planet-to-star radius ratio.
     :type rp: float
     :param ar: Semi-major axis in stellar radii.
@@ -697,16 +709,16 @@ def total_duration(P,rp,ar,inc,ecc,ww):
     b = ar*np.cos(inc)*(1 - ecc**2)/(1 + ecc*np.sin(ww))
     nom = np.arcsin( np.sqrt( ((1 + rp)**2 - b**2))/(np.sin(inc)*ar)  )*np.sqrt(1 - ecc**2)
     den = (1 + ecc*np.sin(ww))
-    t41 = P/np.pi * nom/den
+    t41 = per/np.pi * nom/den
     return t41
 
-def full_duration(P,rp,ar,inc,ecc,ww):
+def full_duration(per,rp,ar,inc,ecc,ww):
     '''The duration of the transit with the planet completely within the stellar disk, i.e., :math:`T_{32}`.
 
     This is the time from the second to the third contact point.
 
-    :param P: Orbital period.
-    :type P: float
+    :param per: Orbital period.
+    :type per: float
     :param rp: Planet-to-star radius ratio.
     :type rp: float
     :param ar: Semi-major axis in stellar radii.
@@ -729,7 +741,7 @@ def full_duration(P,rp,ar,inc,ecc,ww):
     b = ar*np.cos(inc)*(1 - ecc**2)/(1 + ecc*np.sin(ww))
     nom = np.arcsin( np.sqrt( ((1 - rp)**2 - b**2))/(np.sin(inc)*ar)  )*np.sqrt(1 - ecc**2)
     den = (1 + ecc*np.sin(ww))
-    t32 = P/np.pi * nom/den
+    t32 = per/np.pi * nom/den
     return t32
 
 
@@ -750,7 +762,7 @@ def get_rel_vsini(b, lam):
     
     References
     ----------
-        [4] Albrecht et al. (2011), bibcode: 2011ApJ...738...50A
+        [4] `Albrecht et al. (2011) <https://ui.adsabs.harvard.edu/abs/2011ApJ...738...50A/abstract>`_
 
 
     '''

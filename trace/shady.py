@@ -6,9 +6,10 @@ Created on Wed Apr 15 13:27:04 2020
 @author: emil
 
 .. todo::
-	Finish documentation
-	Make it faster?
-
+	* Finish documentation
+	* Make it faster?
+	* Some arrays seem to be passed on and created multiple times -- redundant?
+	* We do create our light curve... use that?
 """
 
 import numpy as np
@@ -22,16 +23,19 @@ import sys
 def grid_coordinates(Rs,xoff=0.,yoff=0.):
 	'''Coordinates of the stellar grid.
 
-	Calculate the coordinates of the stellar grid.
+	Calculate the coordinates of the stellar grid, from -Rs to +Rs.
 
 	:param Rs: Stellar radius in number of pixels.
 	:type Rs: int 
 	
-	:param xoff: Potential offset in x-direction. Default 0.
+	:param xoff: Offset in x-direction. Default is 0.
 	:type xoff: float, optional 
 	
-	:param yoff: Potential offset in y-direction. Default 0.
+	:param yoff: Offset in y-direction. Default is 0.
 	:type yoff: float, optional 
+	
+	:return: grid coordinates, indices of coordinates, distance from limb
+	:rtype: (array, array, array)
 	
 	'''
 	xx, yy = np.arange(-Rs+xoff,Rs+1+xoff),np.arange(-Rs+yoff,Rs+1+yoff)
@@ -49,11 +53,14 @@ def grid(Rs,xoff=0,yoff=0):
 	:param Rs: Stellar radius in number of pixels.
 	:type Rs: int 
 	
-	:param xoff: Potential offset in x-direction. Default 0.
+	:param xoff: Offset in x-direction. Default 0.
 	:type xoff: float, optional 
 	
-	:param yoff: Potential offset in y-direction. Default 0.
+	:param yoff: Offset in y-direction. Default 0.
 	:type yoff: float, optional 
+
+	:return: initial stellar grid, velocity grid, normalized radial coordinate.
+	:rtype: (array, array, array)
 
 	'''
 	coord, cidxs, rr = grid_coordinates(Rs,xoff=xoff,yoff=yoff)
@@ -72,9 +79,11 @@ def grid(Rs,xoff=0,yoff=0):
 
 
 def grid_ring(Rs,thick,xoff=0.,yoff=0.):
-	'''Initial grid of star in rings of mu.
+	'''Initial grid of star in rings of :math:`\mu`.
 
-	Initial grid of star in rings of aprrox same mu = cos(theta).
+	Initial grid of star in rings of aprrox same :math:`\mu = \cos(\\theta)`, 
+	where :math:`\\theta` is the angle between a line through the center of the star and the limb.
+
 	Useful for macroturbulence calculations.
 	
 	:param Rs: Stellar radius in number of pixels.
@@ -89,7 +98,7 @@ def grid_ring(Rs,thick,xoff=0.,yoff=0.):
 	:param yoff: Potential offset in y-direction. Default 0.
 	:type yoff: float, optional 
 
-	:return: 
+	:return: rings of same mu, velocity grid, mu, approx :math:`\mu` in each ring
 	:rtype: (array, array, array, array)
 
 	'''
@@ -134,7 +143,56 @@ def transit_ring(vel,vel_ext,ring_LD,mu_grid,mu_mean,lum,
 
 	Function that calculates the planet signal in each ring.
 	This includes the effects of limb-darkening, as well as micro- and macroturbulence.
+
+	:param mu_mean: Approximate :math:`\mu` in each ring.
+	:type mu_mean: array
 	
+	:param lum: Limb-darkened grid.
+	:type lum: array
+	
+	:param vsini: Projected stellar rotation in km/s.
+	:type vsini: float
+
+	:param xi: Micro-turbulence in km/s. Defaults to 3.
+	:type xi: float, optional
+
+	:param zeta: Macro-turbulence in km/s. Defaults to 1.0.
+	:type zeta: float, optional
+
+	:param Rp_Rs: Planet-to-star radius ratio.
+	:type Rp_Rs: float
+
+	:param radius: Number of pixels from center to limb, i.e, 100 yields a :math:`200 \times 200` stellar grid.
+	:type radius: int
+
+	:param time: Times of observations.
+	:type time: array
+
+	:param a_Rs: Semi-major axis in stellar radii.
+	:type a_Rs: float
+
+	:param inc: Inclination in degrees.
+	:type inc: float
+
+	:param lam: Projected obliquity in degrees.
+	:type lam: float
+
+	:param ecc: Eccentricity.
+	:type ecc: float
+
+	:param per: Orbital period.
+	:type per: float
+
+	:param w: Argument of periastron in degress.
+	:type w: float
+
+	:param Tw: Time of periastron passage in days.
+	:type Tw: float
+
+
+	:return: velocity grid, convoluted stellar line, light curve, error (for MCMC)
+	:rtype: array, array, array, bool
+
 	'''
 	rot_profile = vel*vsini
 	nn = len(time)
@@ -210,8 +268,20 @@ def transit_ring(vel,vel_ext,ring_LD,mu_grid,mu_mean,lum,
 def macro(vel,mu_mean,zeta):
 	'''Macroturbulence at given distance from center.
 
-	Function that calculates the macroturbulence for given :math:`\zeta` and `\mu` using the radial-tangential profile.
+	Function that calculates the macroturbulence for given :math:`\zeta` and :math:`\mu` using the radial-tangential profile.
 
+
+	:param vel: Velocity grid.
+	:type vel: array
+
+	:param mu_mean: Approximate :math:`\mu` in each ring.
+	:type mu_mean: array
+
+	:param zeta: Macro-turbulence in km/s. 
+	:type zeta: float
+
+	:return: velocity grid as 1D array, macro-turbulence 
+	:rtype: (array, array)
 
 	'''
 
@@ -233,18 +303,25 @@ def macro(vel,mu_mean,zeta):
 	return vel_1d, mac
 
 def gauss_conv(lum,vel,xi,sigma=3):
-	'''Convolves the rotation profile.
+	'''Convolve the rotation profile.
 
 	Function that convolves the rotation profile with a gaussian to take microturbulence
-	and the instrumental profile into account. 
-	
-	:param sigma: Number of sigmas we go out on our x-axis to get the borders of the gaussian
+	and the instrumental profile into account. Following the approaches in [1] and [2].
+
+	:param lum: Limb-darkened grid.
+	:type lum: array
+
+	:param sigma: Number of sigmas we go out on our x-axis to get the borders of the Gaussian.
 	:type sigma: float
 
-    References
-    ----------
-		[1] Hirano et al. 2011 | doi:10.1088/0004-637X/742/2/69
-		[2] Gray 2005 | doi:10.1017/CBO9781316036570 p. 430.
+	:return: velocity grid, line profile after convolution
+	:rtype: (array, array)
+
+	References
+	----------
+		[1] `Hirano et al. (2011) <https://ui.adsabs.harvard.edu/abs/2011ApJ...742...69H/abstract>`_
+
+		[2] `Gray (2005), p. 430. <https://ui.adsabs.harvard.edu/abs/2005oasp.book.....G/abstract>`_
 
 	'''
 	sep = (vel[-1]-vel[0])/(len(vel)-1) #seperation of velocity vector
@@ -272,6 +349,9 @@ def convolve(vel,ring_LD,mu_mean,xi,zeta,sigma=3.):
 
 	Function that convolves limb-darkened rings with gaussian to get microturbulence, 
 	and then convolve this with the macroturbulence.
+
+	:param sigma: Number of sigmas we go out on our x-axis to get the borders of the Gaussian.
+	:type sigma: float
 
 	'''
 	n_LD = len(ring_LD)
@@ -322,17 +402,20 @@ def convolve(vel,ring_LD,mu_mean,xi,zeta,sigma=3.):
 # =============================================================================
 
 def limb_darkening(gridini,mu,cs=[],LD_law='quad'):
-	'''
-	Calculate the limb darkening at each position of the stellar grid.
+	'''Limb darkening in stellar grid.
+
+	Function that calculates the limb darkening at each position of the stellar grid.
 
 	:param gridini: Grid of positions on the stellar disk.
-	:type gridini: array
-	:param mu: Normalized radial coordinate.
+	:type gridini: array 
+
+	:param mu: Normalized radial coordinates. See :py:func:`grid_ring` for the definition of :math:`\mu`.
 	:type mu: array
 	
 	:param cs: Limb darkening coefficients. Default ``[]``.
 	:type cs: list, optional
-	:param	LD_law: limb darkening law. Default 'quad'. See :py:class:`dynamics.StellarParams`.
+
+	:param	LD_law: limb darkening law. Default ``'quad'``. See :py:class:`dynamics.StellarParams`.
 	:type LD_law: str, optional 
 	
 	:return: Limb-darkened surface. 
@@ -360,13 +443,20 @@ def absline_star(gridini,vel,ring_grid,
 	
 	:param gridini: Grid of positions on the stellar disk.
 	:type gridini: array
+
 	:param mu: Normalized radial coordinate.
 	:type mu: array	
 
+	:param mu_mean: Approximate :math:`\mu` in each ring.
+	:type mu_mean: array
+
 	:param cs: Limb darkening coefficients. Default ``[]``.
 	:type cs: list, optional
-	:param	LD_law: limb darkening law. Default 'quad'. See :py:class:`dynamics.StellarParams`.
+
+	:param	LD_law: limb darkening law. Default ``'quad'``. See :py:class:`dynamics.StellarParams`.
 	:type LD_law: str, optional 	
+
+
 
 	'''
 	rot_profile = vel*vsini
@@ -404,6 +494,9 @@ def absline(gridini,vel,ring_grid,
 
 	Function that calculates the line shape as a function of velocity (km/s) for a transitting star-planet system.
 	Effects of limb-darkening, as well as micro- and macroturbulence are included.
+
+	:param mu_mean: Approximate :math:`\mu` in each ring.
+	:type mu_mean: array
 	
 	:param gridini: The initial stellar grid.	
 	:type gridini: array
@@ -450,15 +543,25 @@ def create_shadow(phase,vel,shadow,exp_phase,per,
 	xlims=[],contour=False,vsini=None,cmap='bone_r',
 	ax=None,colorbar=True,cbar_pos='right',latex=True,
 	font = 12,tickfontsize=10):
-	'''
+	'''Shadow plot.
+
 	Creates the shadow plot.
 	
-	:params:
-		vel       : array - velocity vector.
-		phase     : array - phase stamps.
-		shadow    : array - shahow vector (out-of-transit absline minus all absline).
-		exp_phase : array - exposure time in phase units.
-		per       : array - orbital period (days).
+	:param vel: Velocity vector.
+	:type vel: array - 
+
+	:param phase: Phase.
+	:type phase: array
+
+	:param shadow: Shahow vector (out-of-transit absline minus in-transit absline).
+	:type shadow: array
+	
+	:param exp_phase: Exposure time in phase units.
+	:type exp_phase: array
+	
+	:param per: Orbital period (days).
+	:type per: array 
+
 	'''
 	if not fname.lower().endswith(('.png','.pdf')): 
 		ext = '.pdf'

@@ -7,26 +7,22 @@ Created on Wed Oct 20 11:02:15 2021
 """
 
 '''
-TO DO:
+.. todo::
 	* Make sure data isn't passed around with each evaluation 
 		- global variables? CHECK, seems to work
 		- data class/object? REDUNDANT
-	* Find a way to scale convergence check
-		- enough to just increase to every 1000th iteration? 
-		+ CHECK, seems to work
-	* Include fit to binaries
-		- wrap ellc?
-	* Find common orbital solution between batman/orbits
-		- best case: we are just solving Kepler's eq. twice
-		- worst case: we are not getting consistent results between the two
-		- use batman.TransitModel().get_true_anomaly()?
-		- switch entirely to ellc?
-	* Fix scaling of jitter term -- line 497 for now
-		- now it cannot fit if the comment in Fix to != none
-		+ CHECK, should be fixed now
-	* Object oriented
-		- just do it
+	
+	* Include fit to binaries - wrap ellc?
 
+	* Find common orbital solution between batman/orbits
+		i. best case: we are just solving Kepler's eq. twice
+		ii. worst case: we are not getting consistent results between the two
+		iii. use batman.TransitModel().get_true_anomaly()?
+		iv. switch entirely to ellc?
+	
+	* Object oriented - just do it
+	
+	* Restructure - move .csv generator and reader to different module
 '''
 
 import lmfit
@@ -95,6 +91,27 @@ def Gauss(x, amp, mu,sig ):
 def params_temp(filename='parameter_template.csv',
 				n_phot=1,n_spec=1,n_planets=1,
 				LD_law='quad'):
+	'''Generate a .csv file template for the parameters.
+	
+	Generate a .csv file to put in the parameters for the planet/instrument.
+	
+	:param filename: Name for the parameter .csv file. Default `'parameter_template.csv'`.
+	:type filename: str, optional
+
+	:param n_phot: Number of photometric systems. Default 1.
+	:type n_phot: int
+	
+	:param n_spec: Number of spectroscopic systems. Default 1.
+	:type n_spec: int
+
+	:param n_phot: Number of planets in system. Default 1.
+	:type n_spec: int
+
+	:param LD_law: limb darkening law used. Default `'quad'`. See :py:class:`dynamics.StellarParams`.
+	:type LD_law: str    
+
+	'''
+
 	LD_laws = ['uni','quad','nonlinear']
 	assert LD_law in LD_laws, print('Limb darkening law must be in {}'.format(LD_laws))
 
@@ -256,9 +273,20 @@ def params_temp(filename='parameter_template.csv',
 	print('Warning: Make sure to format labels correctly, i.e., $label$.')
 	print('\n\n')
 
-def data_temp(filename='data_template.csv',n_phot=0,n_spec=0):
-	'''
+def data_temp(filename='data_template.csv',n_phot=1,n_spec=1):
+	'''Generate a .csv file template for the data.
+	
 	Generate a .csv file to put in the filenames for the data.
+	
+	:param filename: Name for the data .csv file. Default `'data_template.csv'`.
+	:type filename: str, optional
+
+	:param n_phot: Number of photometric systems. Default 1.
+	:type n_phot: int
+	
+	:param n_spec: Number of spectroscopic systems. Default 1.
+	:type n_spec: int
+
 	'''
 	ph = ['Handle','Light curve:','Instrument','LC Filename','Units',
 		'Fit LC','Oversample factor','Exposure time (min.)','Detrend','Poly. deg./filt. w.','LC chi2 scaling',
@@ -303,11 +331,16 @@ def data_temp(filename='data_template.csv',n_phot=0,n_spec=0):
 
 
 def data_structure(file):
-	'''
+	'''Structure the data for :del:`trace`.
 
-	Using global variable to prevent having to pickle and 
-	pass the data to the modules every time the code is called,
-	see: https://emcee.readthedocs.io/en/stable/tutorials/parallel/#pickling-data-transfer-arguments
+	Function that reads in the data .csv file, and structures the content in a dictionary.
+
+	:param filename: Path to the parameter file, e.g., `./dat.csv`.
+	:type filename: str
+
+	.. note::
+		Using global variable to prevent having to pickle and pass the data to the modules every time the code is called,
+		see `emcee <https://emcee.readthedocs.io/en/stable/tutorials/parallel/#pickling-data-transfer-arguments>`_'s documention.
 
 	'''
 	import glob
@@ -504,11 +537,16 @@ def data_structure(file):
 
 
 def params_structure(filename):
-	'''
+	'''Structure the parameters for :del:`trace`.
 
-	Using global variable to prevent having to pickle and 
-	pass the data to the modules every time the code is called,
-	see: https://emcee.readthedocs.io/en/stable/tutorials/parallel/#pickling-data-transfer-arguments
+	Function that reads in the parameter .csv file, and structures the content in a dictionary.
+
+	:param filename: Path to the parameter file, e.g., `./par.csv`.
+	:type filename: str
+
+	.. note::
+		Using global variable to prevent having to pickle and pass the data to the modules every time the code is called,
+		see `emcee <https://emcee.readthedocs.io/en/stable/tutorials/parallel/#pickling-data-transfer-arguments>`_'s documention.
 
 	'''
 	df = pd.read_csv(filename)
@@ -2230,7 +2268,9 @@ def residuals(params,parameters,data):
 
 def lmfitter(param_fname,data_fname,method='leastsq',eps=0.01,
 		print_fit=True):
-
+	'''Fit data using lmfit
+	
+	'''
 	#data = data_structure(data_fname)
 	#parameters = params_structure(param_fname)
 
