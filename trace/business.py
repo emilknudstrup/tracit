@@ -33,12 +33,12 @@ import arviz as az
 from multiprocessing import Pool
 import celerite
 
-
+import glob
 import numpy as np
 import pandas as pd
 import h5py
 #import matplotlib.pyplot as plt
-
+import string
 import batman
 import dynamics
 import shady
@@ -115,7 +115,7 @@ def params_temp(filename='parameter_template.csv',
 	LD_laws = ['uni','quad','nonlinear']
 	assert LD_law in LD_laws, print('Limb darkening law must be in {}'.format(LD_laws))
 
-	import string
+	
 	abc = list(string.ascii_lowercase)[1:]
 	ABC = list(string.ascii_uppercase)
 
@@ -343,7 +343,7 @@ def data_structure(file):
 		see `emcee <https://emcee.readthedocs.io/en/stable/tutorials/parallel/#pickling-data-transfer-arguments>`_'s documention.
 
 	'''
-	import glob
+	
 	df = pd.read_csv(file,skip_blank_lines=True)
 	split = np.where(df['Photometry'].str.find('Spectroscopy') == 0)[0][0]
 	df_phot_sub, df_spec_sub = df[0:split], df[split+1:]
@@ -559,7 +559,6 @@ def params_structure(filename):
 		ndf = ndf.reset_index(drop=True)
 		return ndf, handles
 
-	import string
 	abc = list(string.ascii_lowercase)
 
 

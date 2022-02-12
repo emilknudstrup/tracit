@@ -12,6 +12,7 @@ Created on Wed Apr 15 13:27:04 2020
 	* We do create our light curve... use that?
 """
 
+import matplotlib.pyplot as plt
 import numpy as np
 import scipy.signal as ss
 import dynamics
@@ -566,8 +567,6 @@ def create_shadow(phase,vel,shadow,exp_phase,per,
 	if not fname.lower().endswith(('.png','.pdf')): 
 		ext = '.pdf'
 		fname = fname.split('.')[0] + ext
-
-	import matplotlib.pyplot as plt
 	
 	plt.rc('text',usetex=True)
 	plt.rc('xtick',labelsize=3*font/4)
