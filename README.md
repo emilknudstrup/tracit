@@ -1,4 +1,4 @@
 # tracer
 Modelling the traces of exoplanets
 
-Documentation can be found [here](https://trace.readthedocs.io/en/latest/#).
+Documentation can be found [here](https://tracer.readthedocs.io/en/latest/#).
