@@ -9,4 +9,3 @@ matplotlib
 lmfit
 arviz
 statsmodels
-math
