@@ -15,7 +15,7 @@ Created on Wed Apr 15 13:27:04 2020
 import numpy as np
 import scipy.signal as ss
 import sys
-import tracer.dynamics
+import umbra.dynamics
 # =============================================================================
 # Grids
 # =============================================================================

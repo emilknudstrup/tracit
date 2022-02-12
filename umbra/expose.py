@@ -10,14 +10,14 @@ Created on Tue Jun 29 16:30:38 2021
 
 """
 # =============================================================================
-# tracer modules
+# umbra modules
 # =============================================================================
 
-from tracer import stat_tools
-from tracer import business
-from tracer import dynamics
-from tracer import shady
-from tracer.priors import tgauss_prior, gauss_prior, flat_prior, tgauss_prior_dis, flat_prior_dis
+from umbra import stat_tools
+from umbra import business
+from umbra import dynamics
+from umbra import shady
+from umbra.priors import tgauss_prior, gauss_prior, flat_prior, tgauss_prior_dis, flat_prior_dis
 
 
 # =============================================================================
