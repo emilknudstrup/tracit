@@ -35,10 +35,10 @@ The RM effect as seen in the RVs is modelled using the software presented in:
    :maxdepth: 2
    :caption: API
    
-   API/dynamics
    API/expose
    API/shady
    API/business
+   API/dynamics
 
 
 
