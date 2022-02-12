@@ -12,7 +12,7 @@ First we want to create two .csv files: one for the parameters and one for the d
 
 This would be done as in the example below. Here we have a 2-planet system with RVs from 2 different spectrographs, and light curves from 2 different photometers.
 
-::
+:: 
 
 	import business
 
@@ -37,6 +37,9 @@ Assuming you have set the relevant parameters and included the data files correc
 
 	import expose
 
+	n_proc = 1
+	expose.run_sys(n_proc)#ignore this. it's only to tell the plotting routine whether to use LaTeX formatting or not.
+
 	inspect = 1
 	if inspect:
 		expose.plot_lightcurve(pfile,dfile)
@@ -45,7 +48,7 @@ Assuming you have set the relevant parameters and included the data files correc
 
 Fitting the data
 ---------------------------
-We can find some good starting values for our parameters before we start doing an MCMC. This is done using `lmfit <https://lmfit.github.io/lmfit-py/>`_. In :strike:`trace` this is done calling :py:func:`business.lmfitter`, which will return a `fit object`. We will turn into a `pandas <https://pandas.pydata.org/>`_ dataframe.
+We can find some good starting values for our parameters before we start doing an MCMC. This is done using `lmfit <https://lmfit.github.io/lmfit-py/>`_. In :strike:`trace` this is done calling :py:func:`business.lmfitter`, which will return a `fit object`. We will turn into a `pandas.DataFrame <https://pandas.pydata.org/>`_ .
 
 ::
 

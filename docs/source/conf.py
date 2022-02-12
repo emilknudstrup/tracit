@@ -12,12 +12,16 @@
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath('../../trace'))
+#sys.path.insert(0, os.path.abspath('../..'))
+sys.path.insert(0, os.path.abspath('../../tracer'))
+#sys.path.insert(0, os.path.abspath('../..'))
+
+#import tracer
 
 
 # -- Project information -----------------------------------------------------
 
-project = 'trace'
+project = 'tracer'
 copyright = '2022, Emil Knudstrup'
 author = 'Emil Knudstrup'
 
@@ -49,7 +53,6 @@ exclude_patterns = []
 
 # Add todo list
 todo_include_todos = True
-
 
 
 # -- Options for HTML output -------------------------------------------------

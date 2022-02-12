@@ -3,14 +3,14 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-:strike:`trace`
+:strike:`tracer`
 =================================
 
 **tracing the paths of planets**
 
-:strike:`trace`'s aim is to shed light on key orbital parameters in exoplanet systems.
+:strike:`tracer`'s aim is to shed light on key orbital parameters in exoplanet systems.
 
-This is done through modelling of light curves and radial velocity curves, but :strike:`trace` is specifically designed with the Rossiter-McLaughlin effect in mind.
+This is done through modelling of light curves and radial velocity curves, but :strike:`tracer` is specifically designed with the Rossiter-McLaughlin effect in mind.
 
 
 References and acknowledgements
@@ -22,7 +22,7 @@ The planetary shadow is modelled following the approach in:
 The RM effect as seen in the RVs is modelled using the software presented in:
    * `Hirano et al. (2011) <https://ui.adsabs.harvard.edu/abs/2011ApJ...742...69H/abstract>`_
 
-:strike:`trace` has been used in:
+:strike:`tracer` has been used in:
    * `Knudstrup & Albrecht (2021) <https://ui.adsabs.harvard.edu/abs/2021arXiv211114968K/abstract>`_
 
 .. toctree::

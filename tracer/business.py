@@ -26,6 +26,26 @@ Created on Wed Oct 20 11:02:15 2021
 
 	* Check imported packages, redundancy
 '''
+# =============================================================================
+# tracer modules
+# =============================================================================
+
+# import tracer.dynamics as dynamics
+# import tracer.shady as shady
+# import tracer.expose as expose
+# import tracer.stat_tools as stat_tools
+# import tracer.constants as constants
+
+from tracer import expose
+from tracer import stat_tools
+from tracer import dynamics
+from tracer import shady
+from tracer.priors import tgauss_prior, gauss_prior, flat_prior, tgauss_prior_dis, flat_prior_dis
+
+
+# =============================================================================
+# external modules
+# =============================================================================
 
 import lmfit
 import emcee
@@ -40,15 +60,8 @@ import h5py
 #import matplotlib.pyplot as plt
 import string
 import batman
-import dynamics
-import shady
-import expose
-
-import stat_tools
-import constants
 
 from scipy import interpolate
-from priors import tgauss_prior, gauss_prior, flat_prior, tgauss_prior_dis, flat_prior_dis
 #from astropy.modeling import models, fitting
 from scipy.optimize import curve_fit
 import scipy.signal as scisig
@@ -331,7 +344,7 @@ def data_temp(filename='data_template.csv',n_phot=1,n_spec=1):
 
 
 def data_structure(file):
-	'''Structure the data for :strike:`trace`.
+	'''Structure the data for :strike:`tracer`.
 
 	Function that reads in the data .csv file, and structures the content in a dictionary.
 
@@ -537,7 +550,7 @@ def data_structure(file):
 
 
 def params_structure(filename):
-	'''Structure the parameters for :strike:`trace`.
+	'''Structure the parameters for :strike:`tracer`.
 
 	Function that reads in the parameter .csv file, and structures the content in a dictionary.
 
@@ -1786,7 +1799,7 @@ def mcmc(param_fname,data_fname,maxdraws,nwalkers,
 	## - chain is longer than 100 times the estimated autocorrelation time 
 	## - & this estimate changed by less than 1%.
 	if plot_convergence:
-		expose.plot_autocorr(autocorr,index)
+		expose.plot_autocorr(autocorr,index,kk)
 		# figc = plt.figure()
 		# axc = figc.add_subplot(111)
 		# nn, yy = 1000*np.arange(1,index+1), autocorr[:index]

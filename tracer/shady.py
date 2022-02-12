@@ -12,11 +12,10 @@ Created on Wed Apr 15 13:27:04 2020
 	* We do create our light curve... use that?
 """
 
-import matplotlib.pyplot as plt
 import numpy as np
 import scipy.signal as ss
-import dynamics
 import sys
+import tracer.dynamics
 # =============================================================================
 # Grids
 # =============================================================================
@@ -535,90 +534,6 @@ def absline(gridini,vel,ring_grid,
 
 	return vel_1d_ext, line_conv, line_conv_total, planet_rings, lum, index_error
 
-# =============================================================================
-# Shadow plot
-# =============================================================================
-
-def create_shadow(phase,vel,shadow,exp_phase,per,
-	savefig=False,fname='shadow',zmin=None,zmax=None,
-	xlims=[],contour=False,vsini=None,cmap='bone_r',
-	ax=None,colorbar=True,cbar_pos='right',latex=True,
-	font = 12,tickfontsize=10):
-	'''Shadow plot.
-
-	Creates the shadow plot.
-	
-	:param vel: Velocity vector.
-	:type vel: array - 
-
-	:param phase: Phase.
-	:type phase: array
-
-	:param shadow: Shahow vector (out-of-transit absline minus in-transit absline).
-	:type shadow: array
-	
-	:param exp_phase: Exposure time in phase units.
-	:type exp_phase: array
-	
-	:param per: Orbital period (days).
-	:type per: array 
-
-	'''
-	if not fname.lower().endswith(('.png','.pdf')): 
-		ext = '.pdf'
-		fname = fname.split('.')[0] + ext
-	
-	plt.rc('text',usetex=True)
-	plt.rc('xtick',labelsize=3*font/4)
-	plt.rc('ytick',labelsize=3*font/4)	
-	## sort in phase
-	sp = np.argsort(phase)
-	shadow = shadow[sp]
-	if zmin == None: zmin = np.min(shadow)
-	if zmax == None: zmax = np.max(shadow)
-
-	nn = len(phase)
-	low_phase, high_phase = np.zeros(nn), np.zeros(nn)
-	low_phase[:] = phase[sp] - exp_phase[sp]/2. - exp_phase[sp]/5.
-	high_phase[:] = phase[sp] + exp_phase[sp]/2. + exp_phase[sp]/5.
-	if not ax:
-		fig = plt.figure()
-		ax = fig.add_subplot(111)
-	else:
-		fig = ax.get_figure()
-	for ii in range(nn):
-		xi = vel[ii] - np.append(np.diff(vel[ii])/2.,np.diff(vel[ii])[-1]/2.)
-		x_low, y_low = np.meshgrid(xi,low_phase)
-		x_high, y_high = np.meshgrid(xi,high_phase)
-		xx = np.array([x_low[ii],x_high[ii]])
-		yy = np.array([y_low[ii],y_high[ii]])
-		mm = ax.pcolormesh(xx,yy*per*24,shadow[ii:ii+1],cmap=cmap,vmin=zmin,vmax=zmax)
-	
-	if contour:
-		XX, YY = np.meshgrid(vel[0,:],phase*per*24)	
-		ax.contour(XX,YY,shadow,1,colors='k')
-	ax.set_xlabel(r'$\rm Velocity \ (km/s)$',fontsize=font)
-	ax.set_ylabel(r'$\rm Hours \ from \ midtransit$',fontsize=font)
-	if colorbar:
-		if cbar_pos == 'right':
-			cb = fig.colorbar(mm,ax=ax)
-		else:
-			# Now adding the colorbar
-			cbaxes = fig.add_axes([0.128, 0.75, 0.43, 0.04]) 
-			cb = fig.colorbar(mm,ax=ax, cax = cbaxes, orientation='horizontal') 
-			cb.ax.xaxis.set_ticks_position('top')
-
-		cb.ax.tick_params(labelsize=tickfontsize)
-
-	if len(xlims) == 0:	
-		xl, xh = ax.get_xlim()
-		xlims = [xl,xh]
-	ax.set_xlim(xlims[0],xlims[1])
-	if vsini: 
-		ax.axvline(vsini,linestyle='--',color='C0',lw=2.0)
-		ax.axvline(-vsini,linestyle='--',color='C0',lw=2.0)
-
-	if savefig: plt.savefig(fname)
 
 if __name__=='__main__':
 	print('Go!')

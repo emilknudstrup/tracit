@@ -5,19 +5,34 @@ Created on Tue Jun 29 16:30:38 2021
 
 @author: emil
 
+.. todo::
+    * Look at autocorrelation plot.
+
 """
+# =============================================================================
+# tracer modules
+# =============================================================================
+
+from tracer import stat_tools
+from tracer import business
+from tracer import dynamics
+from tracer import shady
+from tracer.priors import tgauss_prior, gauss_prior, flat_prior, tgauss_prior_dis, flat_prior_dis
+
+
+# =============================================================================
+# external modules
+# =============================================================================
 import matplotlib.pyplot as plt
 import numpy as np
-import stat_tools
-import business
-import dynamics
-from priors import tgauss_prior, gauss_prior, flat_prior, tgauss_prior_dis, flat_prior_dis
 #from astropy.modeling import models, fitting
-import shady
 from scipy import interpolate
 #import scipy.optimize as sop
 from scipy.optimize import curve_fit
 from scipy.signal import savgol_filter
+from astropy.timeseries import LombScargle
+from matplotlib.gridspec import GridSpec
+
 
 def Gauss(x, amp, mu,sig ):
 	y = amp*np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
@@ -38,14 +53,11 @@ def residuals(pars,x,y):
 
 def run_sys(nproc):
 	global plot_tex
-	#global mpath
 
 	if nproc > 4:
 		plot_tex = False
-		#mpath = './'
 	else:
 		plot_tex = True
-		#mpath = '/home/emil/Desktop/PhD/exoplanets'
 
 	global colors
 	colors = {
@@ -59,15 +71,26 @@ def run_sys(nproc):
 		'i' : 'C8'
 	}
 
-def plot_autocorr(autocorr,index,savefig=True):
+
+# =============================================================================
+# Statistics
+# =============================================================================
+
+def plot_autocorr(autocorr,index,kk,savefig=True):
 	'''Autocorrelation plot.
 
-	
+	Plot the autocorrelation of the MCMC sampling.
 
+	Following the example in `emcee <https://emcee.readthedocs.io/en/stable/tutorials/monitor/>`_ from [1].
+
+	References
+	----------
+		[1] `Foreman-Mackey et al. (2013) <https://ui.adsabs.harvard.edu/abs/2013PASP..125..306F/abstract>`_
+	
 	'''
 	figc = plt.figure()
 	axc = figc.add_subplot(111)
-	nn, yy = 1000*np.arange(1,index+1), autocorr[:index]
+	nn, yy = kk*np.arange(1,index+1), autocorr[:index]
 	axc.plot(nn,nn/100.,'k--')#,color='C7')
 	axc.plot(nn,yy,'k-',lw=3.0)
 	axc.plot(nn,yy,'-',color='C0',lw=2.0)
@@ -77,6 +100,14 @@ def plot_autocorr(autocorr,index,savefig=True):
 
 def create_chains(samples,labels=None,savefig=False,fname='chains',ival=5):
 	'''Chains from the sampling.
+
+	Plot the chains from the sampling to monitor the behaviour of the walkers during the run.
+
+	:param samples: The samples from the MCMC.
+	:type samples: array
+
+	:param labels: Parameter names for the samples. Default ``None``.
+	:type labels: list, optional
 
 	'''
 	plt.rc('text',usetex=plot_tex)
@@ -121,6 +152,13 @@ def create_corner(samples,labels=None,truths=None,savefig=True,fname='corner',
 		quantiles=[], diag_titles=None, priors=None):
 	'''Corner plot.
 
+	Create corner plot to investigate the covariance between the samples using `corner` [2].
+
+	:param samples: The samples from the MCMC.
+	:type samples: array
+
+	:param labels: Parameter names for the samples. Default ``None``.
+	:type labels: list, optional
 	
 	References
 	----------
@@ -213,10 +251,35 @@ def create_corner(samples,labels=None,truths=None,savefig=True,fname='corner',
 		plt.close()
 
 
+# =============================================================================
+# Radial velocity curve
+# =============================================================================
+
 def plot_orbit(param_fname,data_fname,updated_pars=None,
 	savefig=False,path='',OC_rv=True,n_pars=0,
 	best_fit=True):
 	'''Plot the radial velocity curve.
+
+	:param param_fname: Name for the parameter .csv file. See :py:class:`business.params_temp`.
+	:type param_fname: str
+
+	:param data_fname: Name for the data .csv file. See :py:class:`business.data_temp`.
+	:type data_fname: str
+
+	:param updated_pars: Updated parameters. Default ``None``.
+	:type updated_pars: :py:class:`pandas.DataFrame`, optional
+
+	:param savefig: Whether to save the figure. Default ``True``.
+	:type savefig: bool, optional
+
+	:param path: Where to save the figure. Default ''.
+	:type path: str, optional
+
+	:param best_fit: Whether to use best-fit as opposed to median from MCMC. Default ``True``.
+	:type best_fit: bool, optional
+
+	:param n_pars: Number of fitting parameters to use for reduced chi-squared calculation. Default 0. If 0 they will be grabbed from **updated_pars**.
+	:type n_pars: int, optional
 
 	'''
 	plt.rc('text',usetex=plot_tex)
@@ -471,6 +534,10 @@ def plot_orbit(param_fname,data_fname,updated_pars=None,
 				if savefig: figrm.savefig(path+'rm_{}.pdf'.format(pl))
 
 
+# =============================================================================
+# Light curve
+# =============================================================================
+
 
 def plot_lightcurve(param_fname,data_fname,updated_pars=None,savefig=False,
 	path='',n_pars=0,errorbar=True,best_fit=True):
@@ -486,6 +553,20 @@ def plot_lightcurve(param_fname,data_fname,updated_pars=None,savefig=False,
 	:param data_fname: Name for the data .csv file. See :py:class:`business.data_temp`.
 	:type data_fname: str
 
+	:param updated_pars: Updated parameters. Default ``None``.
+	:type updated_pars: :py:class:`pandas.DataFrame`, optional
+
+	:param savefig: Whether to save the figure. Default ``True``.
+	:type savefig: bool, optional
+
+	:param path: Where to save the figure. Default ''.
+	:type path: str, optional
+
+	:param best_fit: Whether to use best-fit as opposed to median from MCMC. Default ``True``.
+	:type best_fit: bool, optional
+
+	:param n_pars: Number of fitting parameters to use for reduced chi-squared calculation. Default 0. If 0 they will be grabbed from **updated_pars**.
+	:type n_pars: int, optional
 
 	'''
 
@@ -864,12 +945,97 @@ def plot_lightcurve(param_fname,data_fname,updated_pars=None,savefig=False,
 
 		if savefig: fig.savefig(path+'lc_unphased.pdf')
 
+# =============================================================================
+# Shadow plot
+# =============================================================================
+
+def create_shadow(phase,vel,shadow,exp_phase,per,
+	savefig=False,fname='shadow',zmin=None,zmax=None,
+	xlims=[],contour=False,vsini=None,cmap='bone_r',
+	ax=None,colorbar=True,cbar_pos='right',latex=True,
+	font = 12,tickfontsize=10):
+	'''Shadow plot.
+
+	Creates the shadow plot.
+	
+	:param vel: Velocity vector.
+	:type vel: array - 
+
+	:param phase: Phase.
+	:type phase: array
+
+	:param shadow: Shahow vector (out-of-transit absline minus in-transit absline).
+	:type shadow: array
+	
+	:param exp_phase: Exposure time in phase units.
+	:type exp_phase: array
+	
+	:param per: Orbital period (days).
+	:type per: array 
+
+	'''
+	if not fname.lower().endswith(('.png','.pdf')): 
+		ext = '.pdf'
+		fname = fname.split('.')[0] + ext
+	
+	plt.rc('text',usetex=True)
+	plt.rc('xtick',labelsize=3*font/4)
+	plt.rc('ytick',labelsize=3*font/4)	
+	## sort in phase
+	sp = np.argsort(phase)
+	shadow = shadow[sp]
+	if zmin == None: zmin = np.min(shadow)
+	if zmax == None: zmax = np.max(shadow)
+
+	nn = len(phase)
+	low_phase, high_phase = np.zeros(nn), np.zeros(nn)
+	low_phase[:] = phase[sp] - exp_phase[sp]/2. - exp_phase[sp]/5.
+	high_phase[:] = phase[sp] + exp_phase[sp]/2. + exp_phase[sp]/5.
+	if not ax:
+		fig = plt.figure()
+		ax = fig.add_subplot(111)
+	else:
+		fig = ax.get_figure()
+	for ii in range(nn):
+		xi = vel[ii] - np.append(np.diff(vel[ii])/2.,np.diff(vel[ii])[-1]/2.)
+		x_low, y_low = np.meshgrid(xi,low_phase)
+		x_high, y_high = np.meshgrid(xi,high_phase)
+		xx = np.array([x_low[ii],x_high[ii]])
+		yy = np.array([y_low[ii],y_high[ii]])
+		mm = ax.pcolormesh(xx,yy*per*24,shadow[ii:ii+1],cmap=cmap,vmin=zmin,vmax=zmax)
+	
+	if contour:
+		XX, YY = np.meshgrid(vel[0,:],phase*per*24)	
+		ax.contour(XX,YY,shadow,1,colors='k')
+	ax.set_xlabel(r'$\rm Velocity \ (km/s)$',fontsize=font)
+	ax.set_ylabel(r'$\rm Hours \ from \ midtransit$',fontsize=font)
+	if colorbar:
+		if cbar_pos == 'right':
+			cb = fig.colorbar(mm,ax=ax)
+		else:
+			# Now adding the colorbar
+			cbaxes = fig.add_axes([0.128, 0.75, 0.43, 0.04]) 
+			cb = fig.colorbar(mm,ax=ax, cax = cbaxes, orientation='horizontal') 
+			cb.ax.xaxis.set_ticks_position('top')
+
+		cb.ax.tick_params(labelsize=tickfontsize)
+
+	if len(xlims) == 0:	
+		xl, xh = ax.get_xlim()
+		xlims = [xl,xh]
+	ax.set_xlim(xlims[0],xlims[1])
+	if vsini: 
+		ax.axvline(vsini,linestyle='--',color='C0',lw=2.0)
+		ax.axvline(-vsini,linestyle='--',color='C0',lw=2.0)
+
+	if savefig: plt.savefig(fname)
+
 
 def plot_shadow(param_fname,data_fname,updated_pars=None,oots=None,n_pars=0,
 	cmap='gray',contact_color='C3',font = 12,savefig=True,path='',
 	no_bump=15,best_fit=True,xmin=None,xmax=None,tickfontsize=10):
 
-	from matplotlib.gridspec import GridSpec
+	
 
 	plt.rc('text',usetex=plot_tex)
 
@@ -1110,14 +1276,14 @@ def plot_shadow(param_fname,data_fname,updated_pars=None,oots=None,n_pars=0,
 			axres1 = plt.subplot(gs[0, 4:6])
 
 
-			shady.create_shadow(phase, vel_m_arr, -1*int_shadows/scale, exptime_phase,P,cmap=cmap,
+			create_shadow(phase, vel_m_arr, -1*int_shadows/scale, exptime_phase,P,cmap=cmap,
 									vsini=vsini,zmin=zmin,zmax=zmax,contour=False,ax=ax1,colorbar=False,latex=plot_tex,font=font)
 
-			shady.create_shadow(phase, vel_m_arr, -1*shadow_model/scale, exptime_phase,P, vsini=vsini,cmap=cmap,font=font,
+			create_shadow(phase, vel_m_arr, -1*shadow_model/scale, exptime_phase,P, vsini=vsini,cmap=cmap,font=font,
 									zmin=zmin,zmax=zmax,contour=False,ax=ax2,cbar_pos='top',latex=plot_tex,tickfontsize=tickfontsize)
 
 			diff = -1*(int_shadows - shadow_model)
-			shady.create_shadow(phase, vel_m_arr, diff/scale, exptime_phase,P, cmap=cmap,font=font,
+			create_shadow(phase, vel_m_arr, diff/scale, exptime_phase,P, cmap=cmap,font=font,
 									vsini=vsini,zmin=zmin,zmax=zmax,contour=False,ax=ax3,colorbar=False,latex=plot_tex);# plt.show()
 
 
@@ -1187,7 +1353,9 @@ def plot_shadow(param_fname,data_fname,updated_pars=None,oots=None,n_pars=0,
 			plt.subplots_adjust(wspace=0.0,hspace=0.0)
 			if savefig: plt.savefig(path+'shadow.png')
 
-
+# =============================================================================
+# Out-of-transit plot
+# =============================================================================
 
 def plot_oot_ccf(param_fname,data_fname,updated_pars=None,oots=None,n_pars=0,chi2_scale=1.0,
 	font = 12,savefig=True,path='',no_bump=15,best_fit=True,xmajor=None,xminor=None,
@@ -1549,730 +1717,7 @@ def plot_oot_ccf(param_fname,data_fname,updated_pars=None,oots=None,n_pars=0,chi
 			ax2.set_xlim(xmin,xmax)
 			if savefig: fig_in.savefig('in_minus_out_ccf.pdf')
 
-def plot_rv_pgram(param_fname,data_fname,updated_pars=None,savefig=False,path='',pls=None,
-	freq_grid=None,samples_per_peak=5,savefile=False,best_fit=True):#,
-#	xminLS=0.0,xmaxLS=None):
 
-	from astropy.timeseries import LombScargle
-	plt.rc('text',usetex=plot_tex)
-
-	font = 15
-	plt.rc('xtick',labelsize=3*font/4)
-	plt.rc('ytick',labelsize=3*font/4)
-
-
-	bms = 6.0 # background markersize
-	fms = 4.0 # foreground markersize
-	tms = 40.0 # triangle markersize
-	flw = 1.3 # freq linewidth
-
-	business.data_structure(data_fname)
-	business.params_structure(param_fname)
-
-	if updated_pars is not None:
-		pars = business.parameters['FPs']
-		pars = updated_pars.keys()[1:-2]
-		if n_pars == 0: n_pars = len(pars)
-		idx = 1
-		if (updated_pars.shape[0] > 3) & best_fit: idx = 4
-		for par in pars:
-			try:
-				business.parameters[par]['Value'] = float(updated_pars[par][idx])	
-			except KeyError:
-				pass
-
-	n_rv = business.data['RVs']
-	if not pls:
-		pls = business.parameters['Planets']
-
-	if n_rv >= 1:
-		aa = [business.parameters['a{}'.format(ii)]['Value'] for ii in range(1,3)]
-		fig = plt.figure(figsize=(8,8))
-		figls = plt.figure(figsize=(8,8))
-		#figls_phase = plt.figure(figsize=(8,8))
-		n_subs = len(pls) + 1
-		if any(np.asarray(aa) != 0): n_subs += 1
-		axes_rvs = []
-		axes_ls = []
-		#axes_phase = []
-		for ii in range(1,n_subs+1):
-			axes_rvs.append(fig.add_subplot(n_subs,1,ii))
-			axes_ls.append(figls.add_subplot(n_subs,1,ii))
-
-
-		times, rvs, rv_errs = np.array([]), np.array([]), np.array([])
-		for nn in range(1,n_rv+1):
-			arr = business.data['RV_{}'.format(nn)]
-			time, rv, rv_err = arr[:,0].copy(), arr[:,1].copy(), arr[:,2].copy()
-			times, rvs, rv_errs = np.append(times,time), np.append(rvs,rv), np.append(rv_errs,rv_err)
-
-		zp = np.amin(times)
-
-		RMs = []
-		all_times, all_rvs, all_errs = np.array([]), np.array([]), np.array([])
-		idxs = np.array([],dtype=np.int)
-		all_rvs_signal_removed = np.array([])
-		ins_idxs = np.array([])
-
-
-		for nn in range(1,n_rv+1):
-			#label = business.data['RV_label_{}'.format(nn)]
-			arr = business.data['RV_{}'.format(nn)]
-			time, rv, rv_err = arr[:,0].copy(), arr[:,1].copy(), arr[:,2].copy()
-			v0 = business.parameters['RVsys_{}'.format(nn)]['Value']
-			jitter = business.parameters['RVsigma_{}'.format(nn)]['Value']
-			#jitter = np.exp(log_jitter)
-			#jitter = log_jitter
-			jitter_err = np.sqrt(rv_err**2 + jitter**2)
-
-			drift = aa[1]*(time-zp)**2 + aa[0]*(time-zp)
-			#RM = business.data['RM RV_{}'.format(nn)]
-
-
-			all_times = np.append(all_times,time)
-			idxs = np.append(idxs,np.ones(len(time))*nn)
-			all_rvs = np.append(all_rvs,rv-v0)
-			all_errs = np.append(all_errs,jitter_err)
-			all_rvs_signal_removed = np.append(all_rvs_signal_removed,rv-v0-drift)
-
-
-		#### REMEMBER TO INSTALL CHECK FOR RM FOR NON-TRANSITING PLANETS ####
-		#### FOR NOW RM SIGNAL IS NOT INCLUDED IN THE PLOTTED MODEL ###
-		#### IT IS HOWEVER PROPERLY REMOVED FROM THE RVS ###
-
-
-		npoints = 50000
-		unp_m = np.linspace(min(all_times)-10.,max(all_times)+10.,npoints)
-		model_rvs = np.zeros(npoints)
-		temp_rvs = aa[1]*(unp_m-zp)**2 + aa[0]*(unp_m-zp)
-		if any(temp_rvs != 0.0):
-			ax = axes_rvs[0]
-			ax.plot(unp_m,temp_rvs,'-',color='k',lw=1.0,zorder=-1)
-		model_rvs += temp_rvs
-
-
-		ax0 = axes_rvs[0]
-		ax0.errorbar(all_times,all_rvs,yerr=all_errs,marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
-		for nn in range(1,n_rv+1):
-			RM = business.data['RM RV_{}'.format(nn)]
-			label = business.data['RV_label_{}'.format(nn)]
-			idx = nn == idxs
-			ax0.errorbar(all_times[idx],all_rvs[idx],yerr=all_errs[idx],marker='o',markersize=fms,color='C{}'.format(nn-1),linestyle='none',zorder=5,label=r'$\rm {}$'.format(label))
-		ax0.legend(bbox_to_anchor=(0, 1.05, 1, 0),ncol=n_rv)
-		freqs = []
-		for ii, pl in enumerate(pls): 
-			per = business.parameters['P_{}'.format(pl)]['Value']
-			freqs.append(1/per)
-			temp_rvs = business.rv_model(unp_m,n_planet=pl,n_rv=1,RM=False)
-			ax0.plot(unp_m,temp_rvs,'-',color=colors[pl],lw=1.0,zorder=-1)
-			model_rvs += temp_rvs
-
-		ax0.plot(unp_m,model_rvs,'-',color='k',lw=2.0,zorder=-1)
-		ax0.plot(unp_m,model_rvs,'-',color='C7',lw=1.0,zorder=0)		
-
-		max_freq = max(freqs)#*2.0
-		ax0ls = axes_ls[0]
-		LS = LombScargle(all_times, all_rvs, dy=all_errs)
-		if freq_grid is None:
-			frequency, power = LS.autopower(maximum_frequency=max_freq*1.5,samples_per_peak=samples_per_peak)
-		else:			
-			power = LS.power(freq_grid)
-			frequency = freq_grid
-		FAP = LS.false_alarm_probability(power.max())
-
-
-		midx = np.argmax(power)
-		mper = frequency[midx]
-		ax0ls.plot(frequency,power,'-',color='k',lw=flw)
-		ax0.set_ylabel(r'$\rm RV \ (m/s)$',fontsize=font)
-		y1,y2 = ax0ls.get_ylim()
-		x1,x2 = ax0ls.get_xlim()
-		ax0ls.set_ylabel(r'$\rm LS \ power$',fontsize=font)
-		ax0ls.text(0.7*x2,0.8*y2,r'$P_{} = {:0.1f} \ \rm d$'.format('\mathrm{max}',1/mper),color='k',bbox=dict(edgecolor='k',facecolor='w'))
-		ax0ls.scatter(mper,y2,marker='v',facecolor='C7',edgecolor='k',s=tms,zorder=5)
-
-		ii = 1
-		if any(np.asarray(aa) != 0):
-			ax = axes_rvs[ii]
-			axls = axes_ls[ii]
-			ii += 1
-			ax.errorbar(all_times,all_rvs_signal_removed,yerr=all_errs,marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
-			for nn in range(1,n_rv+1):
-				idx = nn == idxs
-				ax.errorbar(all_times[idx],all_rvs_signal_removed[idx],yerr=all_errs[idx],marker='o',markersize=fms,color='C{}'.format(nn-1),linestyle='none',zorder=5)
-			LS2 = LombScargle(all_times, all_rvs_signal_removed, dy=all_errs)
-			if freq_grid is None:
-				frequency, power = LS2.autopower(maximum_frequency=max_freq*1.5,samples_per_peak=samples_per_peak)
-			else:			
-				power = LS.power(freq_grid)
-				frequency = freq_grid
-
-			axls.plot(frequency,power,'-',color='k',lw=flw)
-			ax.set_ylabel(r'$\rm RV \ (m/s)$',fontsize=font)
-			axls.set_ylabel(r'$\rm LS \ power$',fontsize=font)
-			model_rvs -= aa[1]*(unp_m-zp)**2 + aa[0]*(unp_m-zp)
-			ax.plot(unp_m,model_rvs,'-',color='k',lw=2.0,zorder=-1)
-			ax.plot(unp_m,model_rvs,'-',color='C7',lw=1.0,zorder=0)
-			
-
-
-			for kk, pl in enumerate(pls): 
-				temp_rvs = business.rv_model(unp_m,n_planet=pl,n_rv=1,RM=False)
-				ax.plot(unp_m,temp_rvs,'-',color=colors[pl],lw=1.0,zorder=-1)
-
-		pers = []
-		removed_pls = []
-		for jj, pl in enumerate(pls):
-			ax = axes_rvs[ii]
-			axls = axes_ls[ii]
-			axls_vert = axes_ls[ii-1]
-			ii += 1
-			per = business.parameters['P_{}'.format(pl)]['Value']
-			pers.append(per)
-
-			
-			for nn in range(1,n_rv+1):
-				label = business.data['RV_label_{}'.format(nn)]
-				arr = business.data['RV_{}'.format(nn)]
-				time = arr[:,0].copy()
-				RM = business.data['RM RV_{}'.format(nn)]
-				idx = nn == idxs
-				all_rvs_signal_removed[idx] -= business.rv_model(all_times[idx],n_planet=pl,n_rv=nn,RM=RM)
-				ax.errorbar(all_times[idx],all_rvs_signal_removed[idx],yerr=all_errs[idx],marker='o',markersize=fms,color='C{}'.format(nn-1),linestyle='none',zorder=5)
-			ax.errorbar(all_times,all_rvs_signal_removed,yerr=all_errs,marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
-			LS3 = LombScargle(all_times, all_rvs_signal_removed, dy=all_errs)
-			if freq_grid is None:
-				frequency, power = LS3.autopower(maximum_frequency=max_freq*1.5,samples_per_peak=samples_per_peak)
-			else:			
-				power = LS.power(freq_grid)
-				frequency = freq_grid
-
-			axls.plot(frequency,power,'-',color='k',lw=flw)
-			midx = np.argmax(power)
-			mper = frequency[midx]
-			y1,y2 = axls.get_ylim()
-			x1,x2 = axls.get_xlim()
-			axls.text(0.7*x2,0.8*y2,r'$P_{} = {:0.1f} \ \rm d \ removed$'.format(pl,per),color=colors[pl],bbox=dict(edgecolor='k',facecolor='w'))
-			axls.text(0.7*x2,0.4*y2,r'$P_{} = {:0.1f} \ \rm d$'.format('\mathrm{max}',1/mper),color='C7',bbox=dict(edgecolor='k',facecolor='w'))
-			#axls.axvline(mper,color='C7',zorder=-1)
-			#axls_vert.axvline(1/per,color='C{}'.format(jj),zorder=-1)
-			y1_vert,y2_vert = axls_vert.get_ylim()
-			axls.scatter(mper,y2,marker='v',facecolor='C7',edgecolor='k',s=tms,zorder=5)
-			axls_vert.scatter(1/per,y2_vert,marker='v',facecolor=colors[pl],edgecolor='k',s=tms,zorder=6)
-
-			#ax0ls.axvline(1/per,color='C{}'.format(jj))
-			ax.set_ylabel(r'$\rm RV \ (m/s)$',fontsize=font)
-			axls.set_ylabel(r'$\rm LS \ power$',fontsize=font)
-			removed_pls.append(pl)
-			model_rvs = np.zeros(npoints)
-			for kk, pl2 in enumerate(pls):
-				if pl2 not in removed_pls:
-					temp_rvs = business.rv_model(unp_m,n_planet=pl2)
-					model_rvs += temp_rvs
-					ax.plot(unp_m,temp_rvs,'-',color=colors[pl2],lw=1.0,zorder=-1)
-				else:
-					per = business.parameters['P_{}'.format(pl2)]['Value']
-					axls.scatter(1/per,0.0,marker='^',facecolor=colors[pl2],edgecolor='k',s=tms,zorder=5)
-
-
-			ax.plot(unp_m,model_rvs,'-',color='k',lw=2.0,zorder=-1)
-			ax.plot(unp_m,model_rvs,'-',color='C7',lw=1.0,zorder=0)
-
-		if savefile:
-			labels = []
-			ii = 1
-			for nn in range(1,n_rv+1):
-				idx = nn == idxs
-				label = business.data['RV_label_{}'.format(nn)]
-				if label in labels: 
-					label += str(ii)
-					ii += 1
-				labels.append(label)
-				tt, rr, ee = all_times[idx], all_rvs_signal_removed[idx], all_errs[idx]
-				arr = np.zeros(shape=(len(tt),3))
-				arr[:,0] = tt
-				arr[:,1] = rr
-				arr[:,2] = ee
-				ll = label.replace(' ','')
-				np.savetxt(ll+'_rvs_signal_removed.txt',arr)
-
-		for jj, pl in enumerate(pls):
-			per = business.parameters['P_{}'.format(pl)]['Value']
-			axls.scatter(1/per,0.0,marker='^',facecolor=colors[pl],edgecolor='k',s=tms,zorder=5)
-		# 	#axls.axvline(1/per,linestyle='--',color='C{}'.format(kk),zorder=-1)
-	
-		ax.set_xlabel(r'$\rm Time \ (BJD)$',fontsize=font)
-		axls.set_xlabel(r'$\rm Frequency \ (c/d)$',fontsize=font)
-		fig.tight_layout()
-		fig.subplots_adjust(hspace=0.0)
-		figls.tight_layout()
-		figls.subplots_adjust(hspace=0.0)
-		if savefig: fig.savefig(path+'rvs_subtracted.pdf')
-		if savefig: figls.savefig(path+'rv_periodogram.pdf')
-
-def plot_lc_pgram(param_fname,data_fname,updated_pars=None,savefig=False,
-	path='',pls=None,tls = False,best_fit=True):#,
-#	xminLS=0.0,xmaxLS=None):
-
-	from astropy.timeseries import LombScargle
-	plt.rc('text',usetex=plot_tex)
-
-	font = 15
-	plt.rc('xtick',labelsize=3*font/4)
-	plt.rc('ytick',labelsize=3*font/4)
-
-
-	bms = 6.0 # background markersize
-	fms = 4.0 # foreground markersize
-	tms = 40.0 # triangle markersize
-	flw = 1.3 # freq linewidth
-	blw = 1.5 # back linewidth
-	plw = 1.0 # planet linewidth
-
-	business.data_structure(data_fname)
-	business.params_structure(param_fname)
-
-	if updated_pars is not None:
-		#pars = updated_pars.keys()[1:]
-		pars = business.parameters['FPs']
-		for par in pars:
-			if best_fit:
-				business.parameters[par]['Value'] = float(updated_pars[par][4])
-			else:
-				business.parameters[par]['Value'] = float(updated_pars[par][1])		
-	n_phot = business.data['LCs']
-	if not pls:
-		pls = business.parameters['Planets']
-
-	
-	if tls: from transitleastsquares import transitleastsquares as transitls
-
-	if n_phot >= 1:
-
-		npoints = 10000
-		fig = plt.figure(figsize=(8,8))
-		figls = plt.figure(figsize=(8,8))
-		figp = plt.figure()
-
-		n_pls = len(pls) + 1
-		axes = []
-		axesls = []
-		axesp = []
-		for ii in range(2): axesp.append(figp.add_subplot(2,1,ii+1))
-		if tls:
-			figtls = plt.figure()
-			axestls = figtls.add_subplot(111)
-		for nn in range(n_pls):
-			axesls.append(figls.add_subplot(n_pls,1,nn+1))
-			axes.append(fig.add_subplot(n_pls,1,nn+1))
-
-		times, fluxs, flux_errs = np.array([]), np.array([]), np.array([])
-		idxs = np.array([])
-		#ii = 0
-		ax = axes[0]
-		for nn in range(1,n_phot+1):
-			arr = business.data['LC_{}'.format(nn)]
-			time, flux, flux_err = arr[:,0].copy(), arr[:,1].copy(), arr[:,2].copy()
-
-			ax.plot(time,flux,'.',color='k',markersize=bms)
-			ax.plot(time,flux,'.',color='C{}'.format(nn-1),markersize=fms)
-			times, fluxs, flux_errs = np.append(times,time), np.append(fluxs,flux), np.append(flux_errs,flux_err)
-			idxs = np.append(idxs,np.ones(len(time))*nn)		
-			#ii += 1
-
-		LS = LombScargle(times, fluxs, dy=flux_errs)
-		frequency, power = LS.autopower()
-		FAP = LS.false_alarm_probability(power.max())
-		mper = 1/frequency[np.argmax(power)]
-
-		#axls.text(0.7*max(frequency),0.8*max(power),r'$P_{} = {:0.1f} \ \rm d \ removed$'.format(pl,per),color=colors[pl],bbox=dict(edgecolor='k',facecolor='w'))
-		axesls[0].axvline(mper,lw=flw,color='C7')
-		axesls[0].semilogx(1/frequency,power,'-',lw=flw,color='k')
-		axesp[0].loglog(frequency,power,'-',lw=flw,color='k')
-		axesp[0].set_ylabel(r'$\rm LS \ Power$',fontsize=font)
-		axesp[1].set_ylabel(r'$\rm LS \ Power$',fontsize=font)
-		axesls[0].set_ylabel(r'$\rm LS \ Power$',fontsize=font)
-		axes[0].set_ylabel(r'$\rm Rel. \ Int.$',fontsize=font)
-
-
-		mts = np.linspace(min(times)-1.0,max(times)+1.0,npoints)
-		lcs = np.ones(npoints)
-		pers = []
-		for kk,pl in enumerate(pls):
-			#for nn in range(1,n_phot+1):
-			lc_pl = business.lc_model(mts,n_planet=pl,n_phot=1)
-			#lcs += 1.0 - lc_pl
-			ax.plot(mts,lc_pl,'-',color='k',lw=blw)
-			ax.plot(mts,lc_pl,'-',color=colors[pl],lw=plw)
-			per = business.parameters['P_{}'.format(pl)]['Value']
-			axesls[0].axvline(per,color=colors[pl])
-			pers.append(per)
-
-		#axesls[0].set_xlim(0.0,max(pers)+1.05*max(pers))
-		axesls[0].text(0.7*(max(pers)+max(pers)),0.8*max(power),r'$P_{} = {:0.1f} \ \rm d $'.format('\mathrm{max}',mper),color='C7',bbox=dict(edgecolor='k',facecolor='w'))
-
-
-
-		removed_pls = []
-		ii = 1
-		for pl in pls:
-			ax = axes[ii]
-			tt_sub, fl_sub, er_sub = np.array([]), np.array([]), np.array([])
-			for nn in range(1,n_phot+1):
-				
-				idx = nn == idxs
-				lc_pl = business.lc_model(times[idx],n_planet=pl,n_phot=nn)
-				fluxs[idx] = fluxs[idx] - lc_pl + 1.0	
-
-				ax.plot(times[idx],fluxs[idx],'.',color='k',markersize=bms)
-				ax.plot(times[idx],fluxs[idx],'.',color='C{}'.format(nn-1),markersize=fms)
-			removed_pls.append(pl)
-			#for aa, pl2 in enumerate(removed_pls):
-
-
-			for aa, pl2 in enumerate(pls):
-				axesls[ii].axvline(business.parameters['P_{}'.format(pl2)]['Value'],linestyle='--',color=colors[pl2])
-				if pl2 not in removed_pls:
-					lc_pl = business.lc_model(mts,n_planet=pl2,n_phot=1)
-					axesls[ii].axvline(business.parameters['P_{}'.format(pl2)]['Value'],linestyle='-',color=colors[pl2])
-					ax.plot(mts,lc_pl,'-',color='k',lw=blw)
-					ax.plot(mts,lc_pl,'-',color=colors[pl2],lw=plw)#8-len(removed_pls)))
-
-			LS = LombScargle(times, fluxs, dy=flux_errs)
-			frequency, power = LS.autopower()
-			FAP = LS.false_alarm_probability(power.max())
-			axesls[ii].semilogx(1/frequency,power,'-',lw=flw,color='k')			
-			#axesls[ii].set_xlim(0.0,max(pers)+1.05*max(pers))
-			axesls[ii].set_ylabel(r'$\rm LS \ Power$',fontsize=font)
-			ax.set_ylabel(r'$\rm Rel. \ Int.$',fontsize=font)
-
-			mper = 1/frequency[np.argmax(power)]
-			axesls[ii].axvline(mper,lw=flw,color='C7')
-			axesls[ii].text(0.7*(max(pers)+max(pers)),0.8*max(power),r'$P_{} = {:0.1f} \ \rm d$'.format('\mathrm{max}',mper),color='C7',bbox=dict(edgecolor='k',facecolor='w'))
-			axesls[ii].text(0.7*(max(pers)+max(pers)),0.4*max(power),r'$P_{} = {:0.1f} \ \rm d \ removed$'.format(pl,per),color=colors[pl],bbox=dict(edgecolor='k',facecolor='w'))
-
-			ii += 1
-
-			# 	#os = np.argsort(tt)
-		for pl in pls:
-			per = business.parameters['P_{}'.format(pl)]['Value']
-			axesp[0].axvline(1/per,linestyle='-',lw=flw,color=colors[pl])
-			axesp[1].axvline(1/per,linestyle='--',lw=flw,color=colors[pl])
-		axesp[1].loglog(frequency,power,'-',lw=flw,color='k')
-		axesp[1].set_xlim(min(frequency),max(frequency))
-		axesp[0].set_xlim(min(frequency),max(frequency))
-
-		axesls[-1].set_xlabel(r'$\rm Period \ (d)$',fontsize=font)
-		axesp[-1].set_xlabel(r'$\rm Frequency \ (c/d)$',fontsize=font)
-		for ii in range(len(axesls)-1):
-			axesls[ii].set_xticks([])
-
-
-		ax.set_xlabel(r'$\rm Time \ (BJD)$',fontsize=font)
-		fig.tight_layout()
-		fig.subplots_adjust(hspace=0.0)
-		figls.tight_layout()
-		figls.subplots_adjust(hspace=0.0)
-		figp.subplots_adjust(hspace=0.0)
-		if savefig:
-			fig.savefig('full_lc.pdf')
-			figls.savefig('LS_period.pdf')
-			figp.savefig('LS_freq.pdf')
-
-		if tls:
-			import seaborn as sns
-			blues = sns.color_palette("Blues")
-
-			c1 = business.parameters['LC1_q1']['Value']
-			c2 = business.parameters['LC1_q2']['Value']
-
-			model = transitls(times,fluxs,flux_errs)
-			results = model.power(oversampling_factor=2,
-					limb_dark='quadratic', u=[c1,c2])
-			per = results.period
-			axestls.plot(results.periods,results.power,'k',lw=flw)
-			axestls.set_xlabel(r'$\rm Period \ (days)$')
-			axestls.set_ylabel(r'$\rm SDE$')
-			axestls.set_xlim(np.amin(results.periods),np.amax(results.periods))
-			axestls.axvline(per,color=blues[2],lw=3,zorder=-1)
-			for nn in range(2,30):
-				axestls.axvline(nn*per,color=blues[0],ls='--',zorder=-2)
-				axestls.axvline(per/nn,color=blues[0],ls='--',zorder=-2)
-			if savefig: figtls.savefig('TLS_result.pdf')
-
-
-
-def plot_slope(param_fname,data_fname,
-	updated_pars=None,
-	oots=None,n_pars=0,
-	font = 12,savefig=True,path='',
-	contact_color='C3',movie_time=False,return_slopes=False,
-	no_bump=15,best_fit=True,get_vp=False):
-
-
-	plt.rc('text',usetex=plot_tex)
-
-	if not get_vp:
-		business.params_structure(param_fname)
-		business.data_structure(data_fname)
-	if updated_pars is not None:
-
-		pars = business.parameters['FPs']
-		pars = updated_pars.keys()[1:-2]
-		if n_pars == 0: n_pars = len(pars)
-		for par in pars:
-			if best_fit: idx = 4
-			else: idx = 1
-			try:
-				business.parameters[par]['Value'] = float(updated_pars[par][idx])	
-			except KeyError:
-				pass				
-	pls = business.parameters['Planets']
-	n_sl = business.data['SLs']
-
-	slopes = {}
-
-	for nn in range(1,n_sl+1):
-		slope_data = business.data['SL_{}'.format(nn)]
-		label = business.data['RV_label_{}'.format(nn)]
-		slopes['RV_'+str(nn)] = {}
-		times = []
-		for key in slope_data.keys():
-			try:
-				times.append(float(key))
-			except ValueError:
-				pass
-		times = np.asarray(times)
-		ss = np.argsort(times)
-		times = times[ss]
-		v0 = business.parameters['RVsys_{}'.format(nn)]['Value']
-		rv_m = np.zeros(len(times))
-		for pl in pls:
-			aa2_pl = [business.parameters['a{}_{}'.format(ii,pl)]['Value'] for ii in range(1,3)]
-			p2, t2 = business.parameters['P_{}'.format(pl)]['Value'],business.parameters['T0_{}'.format(pl)]['Value']
-			off_arr = np.round((times-t2)/p2)
-			n_pers = np.unique(off_arr)
-			for n_per in n_pers:
-				t_idxs = n_per == off_arr
-				t0_off2 = n_per*p2*aa2_pl[0]#0.0
-				t0_off2 += (n_per*p2)**2*aa2_pl[1]#0.0
-				rv_pl = business.rv_model(times[t_idxs],n_planet=pl,n_rv=nn,RM=False,t0_off=t0_off2)
-	
-			rv_m += rv_pl
-		rv_m += v0
-
-
-
-		for pl in pls:
-			try:
-				t0n = business.parameters['Spec_{}:T0_{}'.format(nn,pl)]['Value']
-				business.parameters['T0_{}'.format(pl)]['Value'] = t0n				
-			except KeyError:
-				pass
-
-			per, T0 = business.parameters['P_{}'.format(pl)]['Value'], business.parameters['T0_{}'.format(pl)]['Value'] 
-			ar, inc = business.parameters['a_Rs_{}'.format(pl)]['Value'], business.parameters['inc_{}'.format(pl)]['Value']*np.pi/180.
-			rp = business.parameters['Rp_Rs_{}'.format(pl)]['Value']
-			ecc, ww = business.parameters['e_{}'.format(pl)]['Value'], business.parameters['w_{}'.format(pl)]['Value']*np.pi/180.
-			b = ar*np.cos(inc)*(1 - ecc**2)/(1 + ecc*np.sin(ww))
-
-			t14 = per/np.pi * np.arcsin( np.sqrt( ((1 + rp)**2 - b**2))/(np.sin(inc)*ar)  )*np.sqrt(1 - ecc**2)/(1 + ecc*np.sin(ww))
-
-			t23 = per/np.pi * np.arcsin( np.sqrt( ((1 - rp)**2 - b**2))/(np.sin(inc)*ar)  )*np.sqrt(1 - ecc**2)/(1 + ecc*np.sin(ww))
-			if np.isnan(t14): continue
-
-
-			off_arr = np.round((times-T0)/per)
-			n_pers = np.unique(off_arr)[0]
-
-			t0_off = n_per*per*aa2_pl[0]#0.0
-			t0_off += (n_per*per)**2*aa2_pl[1]#0.0
-
-
-			model_slope = business.localRV_model(times,n_planet=pl,t0_off=t0_off)
-		
-
-			### HARD-CODED
-			darks = business.lc_model(times,n_planet=pl,n_phot=1,t0_off=t0_off)
-
-
-			idxs = [ii for ii in range(len(times))]
-			if oots is None:
-				oots = business.data['idxs_{}'.format(nn)]
-
-			print('Using indices {} as out-of-transit spectra'.format(oots))
-
-			its = [ii for ii in idxs if ii not in oots]	
-
-			pp = dynamics.time2phase(times[its],per,T0)*24*per
-
-			nvel = len(slope_data[times[0]]['vel'])
-			vels = np.zeros(shape=(nvel,len(times)))
-			oot_ccfs = np.zeros(shape=(nvel,len(oots)))
-			avg_ccf = np.zeros(nvel)
-			for ii, idx in enumerate(oots):
-				time = times[idx]
-				vel = slope_data[time]['vel'] - rv_m[idx]*1e-3
-				vels[:,idx] = vel
-				no_peak = (vel > no_bump) | (vel < -no_bump)
-				
-
-				ccf = slope_data[time]['ccf']
-				area = np.trapz(ccf,vel)
-				ccf /= area	
-
-				poly_pars = np.polyfit(vel[no_peak],ccf[no_peak],1)
-				ccf -= vel*poly_pars[0] + poly_pars[1]
-
-				oot_ccfs[:,ii] = ccf
-				avg_ccf += ccf
-
-			avg_ccf /= len(oots)
-			rvs = np.array([])
-			errs = np.array([])
-
-			lam = business.parameters['lam_{}'.format(pl)]['Value']*np.pi/180
-			vsini = business.parameters['vsini']['Value'] 
-
-
-			fit_params = business.lmfit.Parameters()
-			fnames = []
-			xs = np.array([])
-			ys = np.array([])
-			for ii, idx in enumerate(its):
-				time = times[idx]
-				vel = slope_data[time]['vel'] - rv_m[idx]*1e-3
-				vels[:,idx] = vel
-				no_peak = (vel > no_bump) | (vel < -no_bump)
-
-				cos_f, sin_f = dynamics.true_anomaly(time, T0+t0_off, ecc, per, ww)
-				xx, yy = dynamics.xy_pos(cos_f,sin_f,ecc,ww,ar,inc,lam)
-				xs = np.append(xs,xx)
-				ys = np.append(ys,yy)
-
-				ccf = slope_data[time]['ccf']
-				area = np.trapz(ccf,vel)
-				ccf /= area
-				
-				sd = np.std(ccf[no_peak])
-
-				ccf *= darks[idx]#/bright#blc[ii]		
-				shadow = avg_ccf - ccf
-				poly_pars = np.polyfit(vel[no_peak],shadow[no_peak],1)
-				
-				shadow -=  vel*poly_pars[0] + poly_pars[1]
-
-				peak = np.where((vel > -no_bump) & (vel < no_bump))
-				#print(vel)
-				#peak = np.where((vel > (xx*vsini - vsini/2)) & (vel < (xx*vsini + vsini/2)))
-				midx = np.argmax(shadow[peak])
-				amp, mu1 = shadow[peak][midx], vel[peak][midx]# get max value of CCF and location
-
-				gau_par, pcov = curve_fit(Gauss,vel,shadow,p0=[amp,xx*vsini,0.2])
-				perr = np.sqrt(np.diag(pcov))
-				rv = gau_par[1]
-				std = perr[1]
-
-
-
-				rvs = np.append(rvs,rv)
-				errs = np.append(errs,std)
-				if movie_time:
-					print('Making movie shadow.mp4 - this may take a while')
-					movie_fig = plt.figure()
-					movie_ax = movie_fig.add_subplot(111)
-					movie_ax.axhline(0.0,color='C7',linestyle='--')
-					movie_ax.plot(vel,shadow,'k',lw=2.0)
-					movie_ax.plot(vel,shadow,'C0',lw=1.5)
-					movie_ax.axvline(xx*vsini,color='C1',linestyle='-')
-					#movie_ax.plot(vel,Gauss(vel,gau_par[0],gau_par[1],gau_par[2]),'k',lw=2.0)
-					#movie_ax.plot(vel,Gauss(vel,gau_par[0],gau_par[1],gau_par[2]),'C7',lw=1.5)
-
-					movie_ax.set_xlabel(r'$\rm Velocity \ (kms/s)$',fontsize=font)
-					movie_ax.set_ylabel(r'$\rm Shadow$',fontsize=font)
-					#movie_ax.text(min(vel)+1,0.95,r'$\rm Hours \ From \ Midtransit \ {:.3f}$'.format(pp[ii]),fontsize=font)
-					fname = 'shadow_no_{:03d}.png'.format(ii)
-					fnames.append(fname)
-					movie_ax.set_ylim(-0.0004,0.001)
-					movie_fig.savefig(fname)
-					plt.close()
-
-			if movie_time:
-				import subprocess
-				import os
-				subprocess.call("ffmpeg -framerate 4 -i ./shadow_no_%3d.png -c:v libx264 -r 30 -pix_fmt yuv420p ./shadow.mp4", shell=True)
-				for fname in fnames: os.remove(fname)
-
-			slope = business.localRV_model(times[its])
-			#print(xs)
-			vsini = business.parameters['vsini']['Value']
-			rv_scale = rvs/vsini
-			erv_scale = errs/vsini
-			chi2scale = business.data['Chi2 SL_{}'.format(nn)]
-			#chi2scale = 1.0#business.data['Chi2 SL_{}'.format(nn)]
-			#erv_scale *= chi2scale
-			full = (pp > -1*t23*24/2) & (pp < 1*t23*24/2)
-			part = (pp < -1*t23*24/2) | (pp > 1*t23*24/2)
-			erv_scale[full] *= chi2scale
-			erv_scale[part] *= chi2scale*1.5
-
-			
-			print('## Spectroscopic system {}/{} ##:'.format(nn,label))
-			red_chi2 = np.sum((rv_scale - slope)**2/erv_scale**2)/(len(rv_scale)-n_pars)
-			print('\nReduced chi-squared for the slope is:\n\t {:.03f}'.format(red_chi2))
-			print('Factor to apply to get a reduced chi-squared around 1.0 is:\n\t {:.03f}\n'.format(np.sqrt(red_chi2)))
-			print('Number of data points: {}'.format(len(rv_scale)))
-			print('Number of fitting parameters: {}'.format(n_pars))
-			print('#########################'.format(nn))
-
-
-			if get_vp:
-				arr = np.zeros(shape=(len(rv_scale),3))
-				ss = np.argsort(pp)
-				arr[:,0] = times[its][ss]
-				arr[:,1] = rv_scale[ss]
-				arr[:,2] = erv_scale[ss]
-				return arr
-
-			fig = plt.figure()
-			ax = fig.add_subplot(211)
-			ax2 = fig.add_subplot(212)
-			ax.errorbar(pp,rv_scale,yerr=erv_scale,marker='o',markersize=6.0,color='k',linestyle='none',zorder=4)
-			ax.errorbar(pp,rv_scale,yerr=erv_scale,marker='o',markersize=4.0,color='C{}'.format(nn-1),linestyle='none',zorder=5)
-		
-			ax.axhline(0.0,color='C7',zorder=-1,linestyle='--')
-			ax.axhline(1.0,color='C0',zorder=-1,linestyle='--')
-			ax.axhline(-1.0,color='C0',zorder=-1,linestyle='--')
-			ax.axvline(-1*t23*24/2,linestyle='--',color=contact_color,lw=2.0)
-			ax.axvline(1*t23*24/2,linestyle='--',color=contact_color,lw=2.0)
-
-			ax.axvline(1*t14*24/2,linestyle='-',color=contact_color,lw=2.0)
-			ax.axvline(-1*t14*24/2,linestyle='-',color=contact_color,lw=2.0)
-
-			ax2.axvline(-1*t23*24/2,linestyle='--',color=contact_color,lw=2.0)
-			ax2.axvline(1*t23*24/2,linestyle='--',color=contact_color,lw=2.0)
-
-			ax2.axvline(1*t14*24/2,linestyle='-',color=contact_color,lw=2.0)
-			ax2.axvline(-1*t14*24/2,linestyle='-',color=contact_color,lw=2.0)
-
-			slope = business.localRV_model(times[its],n_planet=pl)
-			ax.plot(pp,slope,'-',color='k',lw=2.0)
-			ax.plot(pp,slope,'-',color='C7',lw=1.0)
-			ax.set_ylabel(r'$\mathrm{Local} \ \mathrm{RV} \ (v\sin i)$',fontsize=font)
-			ax2.set_xlabel(r'$\rm Hours \ From \ Midtransit$',fontsize=font)
-			ax2.set_ylabel(r'$\rm Residuals$',fontsize=font)
-
-			ax2.errorbar(pp,rv_scale-slope,yerr=erv_scale,marker='o',markersize=6.0,color='k',linestyle='none',zorder=4)
-			ax2.errorbar(pp,rv_scale-slope,yerr=erv_scale,marker='o',markersize=4.0,color='C{}'.format(nn-1),linestyle='none',zorder=5)
-			ax2.axhline(0.0,color='C7',zorder=-1,linestyle='--')
-
-			slopes['RV_'+str(nn)]['pl_'+pl] = [pp,rv_scale,erv_scale,slope,xs,ys]
-
-			plt.subplots_adjust(wspace=0.0,hspace=0.0)
-
-			if savefig: plt.savefig(path+'slope.png')
-	if return_slopes:
-		return slopes
 
 
 def plot_distortion(param_fname,data_fname,updated_pars=None,observation=False,
@@ -2564,3 +2009,744 @@ def plot_distortion(param_fname,data_fname,updated_pars=None,observation=False,
 			plt.tight_layout()
 
 			if savefig: plt.savefig(path+'distortion2.pdf')
+
+
+# =============================================================================
+# Slope of planet across disk
+# =============================================================================
+
+def plot_slope(param_fname,data_fname,
+	updated_pars=None,
+	oots=None,n_pars=0,
+	font = 12,savefig=True,path='',
+	contact_color='C3',movie_time=False,return_slopes=False,
+	no_bump=15,best_fit=True,get_vp=False):
+
+
+	plt.rc('text',usetex=plot_tex)
+
+	if not get_vp:
+		business.params_structure(param_fname)
+		business.data_structure(data_fname)
+	if updated_pars is not None:
+
+		pars = business.parameters['FPs']
+		pars = updated_pars.keys()[1:-2]
+		if n_pars == 0: n_pars = len(pars)
+		for par in pars:
+			if best_fit: idx = 4
+			else: idx = 1
+			try:
+				business.parameters[par]['Value'] = float(updated_pars[par][idx])	
+			except KeyError:
+				pass				
+	pls = business.parameters['Planets']
+	n_sl = business.data['SLs']
+
+	slopes = {}
+
+	for nn in range(1,n_sl+1):
+		slope_data = business.data['SL_{}'.format(nn)]
+		label = business.data['RV_label_{}'.format(nn)]
+		slopes['RV_'+str(nn)] = {}
+		times = []
+		for key in slope_data.keys():
+			try:
+				times.append(float(key))
+			except ValueError:
+				pass
+		times = np.asarray(times)
+		ss = np.argsort(times)
+		times = times[ss]
+		v0 = business.parameters['RVsys_{}'.format(nn)]['Value']
+		rv_m = np.zeros(len(times))
+		for pl in pls:
+			aa2_pl = [business.parameters['a{}_{}'.format(ii,pl)]['Value'] for ii in range(1,3)]
+			p2, t2 = business.parameters['P_{}'.format(pl)]['Value'],business.parameters['T0_{}'.format(pl)]['Value']
+			off_arr = np.round((times-t2)/p2)
+			n_pers = np.unique(off_arr)
+			for n_per in n_pers:
+				t_idxs = n_per == off_arr
+				t0_off2 = n_per*p2*aa2_pl[0]#0.0
+				t0_off2 += (n_per*p2)**2*aa2_pl[1]#0.0
+				rv_pl = business.rv_model(times[t_idxs],n_planet=pl,n_rv=nn,RM=False,t0_off=t0_off2)
+	
+			rv_m += rv_pl
+		rv_m += v0
+
+
+
+		for pl in pls:
+			try:
+				t0n = business.parameters['Spec_{}:T0_{}'.format(nn,pl)]['Value']
+				business.parameters['T0_{}'.format(pl)]['Value'] = t0n				
+			except KeyError:
+				pass
+
+			per, T0 = business.parameters['P_{}'.format(pl)]['Value'], business.parameters['T0_{}'.format(pl)]['Value'] 
+			ar, inc = business.parameters['a_Rs_{}'.format(pl)]['Value'], business.parameters['inc_{}'.format(pl)]['Value']*np.pi/180.
+			rp = business.parameters['Rp_Rs_{}'.format(pl)]['Value']
+			ecc, ww = business.parameters['e_{}'.format(pl)]['Value'], business.parameters['w_{}'.format(pl)]['Value']*np.pi/180.
+			b = ar*np.cos(inc)*(1 - ecc**2)/(1 + ecc*np.sin(ww))
+
+			t14 = per/np.pi * np.arcsin( np.sqrt( ((1 + rp)**2 - b**2))/(np.sin(inc)*ar)  )*np.sqrt(1 - ecc**2)/(1 + ecc*np.sin(ww))
+
+			t23 = per/np.pi * np.arcsin( np.sqrt( ((1 - rp)**2 - b**2))/(np.sin(inc)*ar)  )*np.sqrt(1 - ecc**2)/(1 + ecc*np.sin(ww))
+			if np.isnan(t14): continue
+
+
+			off_arr = np.round((times-T0)/per)
+			n_pers = np.unique(off_arr)[0]
+
+			t0_off = n_per*per*aa2_pl[0]#0.0
+			t0_off += (n_per*per)**2*aa2_pl[1]#0.0
+
+
+			model_slope = business.localRV_model(times,n_planet=pl,t0_off=t0_off)
+		
+
+			### HARD-CODED
+			darks = business.lc_model(times,n_planet=pl,n_phot=1,t0_off=t0_off)
+
+
+			idxs = [ii for ii in range(len(times))]
+			if oots is None:
+				oots = business.data['idxs_{}'.format(nn)]
+
+			print('Using indices {} as out-of-transit spectra'.format(oots))
+
+			its = [ii for ii in idxs if ii not in oots]	
+
+			pp = dynamics.time2phase(times[its],per,T0)*24*per
+
+			nvel = len(slope_data[times[0]]['vel'])
+			vels = np.zeros(shape=(nvel,len(times)))
+			oot_ccfs = np.zeros(shape=(nvel,len(oots)))
+			avg_ccf = np.zeros(nvel)
+			for ii, idx in enumerate(oots):
+				time = times[idx]
+				vel = slope_data[time]['vel'] - rv_m[idx]*1e-3
+				vels[:,idx] = vel
+				no_peak = (vel > no_bump) | (vel < -no_bump)
+				
+
+				ccf = slope_data[time]['ccf']
+				area = np.trapz(ccf,vel)
+				ccf /= area	
+
+				poly_pars = np.polyfit(vel[no_peak],ccf[no_peak],1)
+				ccf -= vel*poly_pars[0] + poly_pars[1]
+
+				oot_ccfs[:,ii] = ccf
+				avg_ccf += ccf
+
+			avg_ccf /= len(oots)
+			rvs = np.array([])
+			errs = np.array([])
+
+			lam = business.parameters['lam_{}'.format(pl)]['Value']*np.pi/180
+			vsini = business.parameters['vsini']['Value'] 
+
+
+			fit_params = business.lmfit.Parameters()
+			fnames = []
+			xs = np.array([])
+			ys = np.array([])
+			for ii, idx in enumerate(its):
+				time = times[idx]
+				vel = slope_data[time]['vel'] - rv_m[idx]*1e-3
+				vels[:,idx] = vel
+				no_peak = (vel > no_bump) | (vel < -no_bump)
+
+				cos_f, sin_f = dynamics.true_anomaly(time, T0+t0_off, ecc, per, ww)
+				xx, yy = dynamics.xy_pos(cos_f,sin_f,ecc,ww,ar,inc,lam)
+				xs = np.append(xs,xx)
+				ys = np.append(ys,yy)
+
+				ccf = slope_data[time]['ccf']
+				area = np.trapz(ccf,vel)
+				ccf /= area
+				
+				sd = np.std(ccf[no_peak])
+
+				ccf *= darks[idx]#/bright#blc[ii]		
+				shadow = avg_ccf - ccf
+				poly_pars = np.polyfit(vel[no_peak],shadow[no_peak],1)
+				
+				shadow -=  vel*poly_pars[0] + poly_pars[1]
+
+				peak = np.where((vel > -no_bump) & (vel < no_bump))
+				#print(vel)
+				#peak = np.where((vel > (xx*vsini - vsini/2)) & (vel < (xx*vsini + vsini/2)))
+				midx = np.argmax(shadow[peak])
+				amp, mu1 = shadow[peak][midx], vel[peak][midx]# get max value of CCF and location
+
+				gau_par, pcov = curve_fit(Gauss,vel,shadow,p0=[amp,xx*vsini,0.2])
+				perr = np.sqrt(np.diag(pcov))
+				rv = gau_par[1]
+				std = perr[1]
+
+
+
+				rvs = np.append(rvs,rv)
+				errs = np.append(errs,std)
+				if movie_time:
+					print('Making movie shadow.mp4 - this may take a while')
+					movie_fig = plt.figure()
+					movie_ax = movie_fig.add_subplot(111)
+					movie_ax.axhline(0.0,color='C7',linestyle='--')
+					movie_ax.plot(vel,shadow,'k',lw=2.0)
+					movie_ax.plot(vel,shadow,'C0',lw=1.5)
+					movie_ax.axvline(xx*vsini,color='C1',linestyle='-')
+					#movie_ax.plot(vel,Gauss(vel,gau_par[0],gau_par[1],gau_par[2]),'k',lw=2.0)
+					#movie_ax.plot(vel,Gauss(vel,gau_par[0],gau_par[1],gau_par[2]),'C7',lw=1.5)
+
+					movie_ax.set_xlabel(r'$\rm Velocity \ (kms/s)$',fontsize=font)
+					movie_ax.set_ylabel(r'$\rm Shadow$',fontsize=font)
+					#movie_ax.text(min(vel)+1,0.95,r'$\rm Hours \ From \ Midtransit \ {:.3f}$'.format(pp[ii]),fontsize=font)
+					fname = 'shadow_no_{:03d}.png'.format(ii)
+					fnames.append(fname)
+					movie_ax.set_ylim(-0.0004,0.001)
+					movie_fig.savefig(fname)
+					plt.close()
+
+			if movie_time:
+				import subprocess
+				import os
+				subprocess.call("ffmpeg -framerate 4 -i ./shadow_no_%3d.png -c:v libx264 -r 30 -pix_fmt yuv420p ./shadow.mp4", shell=True)
+				for fname in fnames: os.remove(fname)
+
+			slope = business.localRV_model(times[its])
+			#print(xs)
+			vsini = business.parameters['vsini']['Value']
+			rv_scale = rvs/vsini
+			erv_scale = errs/vsini
+			chi2scale = business.data['Chi2 SL_{}'.format(nn)]
+			#chi2scale = 1.0#business.data['Chi2 SL_{}'.format(nn)]
+			#erv_scale *= chi2scale
+			full = (pp > -1*t23*24/2) & (pp < 1*t23*24/2)
+			part = (pp < -1*t23*24/2) | (pp > 1*t23*24/2)
+			erv_scale[full] *= chi2scale
+			erv_scale[part] *= chi2scale*1.5
+
+			
+			print('## Spectroscopic system {}/{} ##:'.format(nn,label))
+			red_chi2 = np.sum((rv_scale - slope)**2/erv_scale**2)/(len(rv_scale)-n_pars)
+			print('\nReduced chi-squared for the slope is:\n\t {:.03f}'.format(red_chi2))
+			print('Factor to apply to get a reduced chi-squared around 1.0 is:\n\t {:.03f}\n'.format(np.sqrt(red_chi2)))
+			print('Number of data points: {}'.format(len(rv_scale)))
+			print('Number of fitting parameters: {}'.format(n_pars))
+			print('#########################'.format(nn))
+
+
+			if get_vp:
+				arr = np.zeros(shape=(len(rv_scale),3))
+				ss = np.argsort(pp)
+				arr[:,0] = times[its][ss]
+				arr[:,1] = rv_scale[ss]
+				arr[:,2] = erv_scale[ss]
+				return arr
+
+			fig = plt.figure()
+			ax = fig.add_subplot(211)
+			ax2 = fig.add_subplot(212)
+			ax.errorbar(pp,rv_scale,yerr=erv_scale,marker='o',markersize=6.0,color='k',linestyle='none',zorder=4)
+			ax.errorbar(pp,rv_scale,yerr=erv_scale,marker='o',markersize=4.0,color='C{}'.format(nn-1),linestyle='none',zorder=5)
+		
+			ax.axhline(0.0,color='C7',zorder=-1,linestyle='--')
+			ax.axhline(1.0,color='C0',zorder=-1,linestyle='--')
+			ax.axhline(-1.0,color='C0',zorder=-1,linestyle='--')
+			ax.axvline(-1*t23*24/2,linestyle='--',color=contact_color,lw=2.0)
+			ax.axvline(1*t23*24/2,linestyle='--',color=contact_color,lw=2.0)
+
+			ax.axvline(1*t14*24/2,linestyle='-',color=contact_color,lw=2.0)
+			ax.axvline(-1*t14*24/2,linestyle='-',color=contact_color,lw=2.0)
+
+			ax2.axvline(-1*t23*24/2,linestyle='--',color=contact_color,lw=2.0)
+			ax2.axvline(1*t23*24/2,linestyle='--',color=contact_color,lw=2.0)
+
+			ax2.axvline(1*t14*24/2,linestyle='-',color=contact_color,lw=2.0)
+			ax2.axvline(-1*t14*24/2,linestyle='-',color=contact_color,lw=2.0)
+
+			slope = business.localRV_model(times[its],n_planet=pl)
+			ax.plot(pp,slope,'-',color='k',lw=2.0)
+			ax.plot(pp,slope,'-',color='C7',lw=1.0)
+			ax.set_ylabel(r'$\mathrm{Local} \ \mathrm{RV} \ (v\sin i)$',fontsize=font)
+			ax2.set_xlabel(r'$\rm Hours \ From \ Midtransit$',fontsize=font)
+			ax2.set_ylabel(r'$\rm Residuals$',fontsize=font)
+
+			ax2.errorbar(pp,rv_scale-slope,yerr=erv_scale,marker='o',markersize=6.0,color='k',linestyle='none',zorder=4)
+			ax2.errorbar(pp,rv_scale-slope,yerr=erv_scale,marker='o',markersize=4.0,color='C{}'.format(nn-1),linestyle='none',zorder=5)
+			ax2.axhline(0.0,color='C7',zorder=-1,linestyle='--')
+
+			slopes['RV_'+str(nn)]['pl_'+pl] = [pp,rv_scale,erv_scale,slope,xs,ys]
+
+			plt.subplots_adjust(wspace=0.0,hspace=0.0)
+
+			if savefig: plt.savefig(path+'slope.png')
+	if return_slopes:
+		return slopes
+
+# =============================================================================
+# Radial velocity periodogram
+# =============================================================================
+
+
+def plot_rv_pgram(param_fname,data_fname,updated_pars=None,savefig=False,path='',pls=None,
+	freq_grid=None,samples_per_peak=5,savefile=False,best_fit=True):#,
+#	xminLS=0.0,xmaxLS=None):
+
+	plt.rc('text',usetex=plot_tex)
+
+	font = 15
+	plt.rc('xtick',labelsize=3*font/4)
+	plt.rc('ytick',labelsize=3*font/4)
+
+
+	bms = 6.0 # background markersize
+	fms = 4.0 # foreground markersize
+	tms = 40.0 # triangle markersize
+	flw = 1.3 # freq linewidth
+
+	business.data_structure(data_fname)
+	business.params_structure(param_fname)
+
+	if updated_pars is not None:
+		pars = business.parameters['FPs']
+		pars = updated_pars.keys()[1:-2]
+		if n_pars == 0: n_pars = len(pars)
+		idx = 1
+		if (updated_pars.shape[0] > 3) & best_fit: idx = 4
+		for par in pars:
+			try:
+				business.parameters[par]['Value'] = float(updated_pars[par][idx])	
+			except KeyError:
+				pass
+
+	n_rv = business.data['RVs']
+	if not pls:
+		pls = business.parameters['Planets']
+
+	if n_rv >= 1:
+		aa = [business.parameters['a{}'.format(ii)]['Value'] for ii in range(1,3)]
+		fig = plt.figure(figsize=(8,8))
+		figls = plt.figure(figsize=(8,8))
+		#figls_phase = plt.figure(figsize=(8,8))
+		n_subs = len(pls) + 1
+		if any(np.asarray(aa) != 0): n_subs += 1
+		axes_rvs = []
+		axes_ls = []
+		#axes_phase = []
+		for ii in range(1,n_subs+1):
+			axes_rvs.append(fig.add_subplot(n_subs,1,ii))
+			axes_ls.append(figls.add_subplot(n_subs,1,ii))
+
+
+		times, rvs, rv_errs = np.array([]), np.array([]), np.array([])
+		for nn in range(1,n_rv+1):
+			arr = business.data['RV_{}'.format(nn)]
+			time, rv, rv_err = arr[:,0].copy(), arr[:,1].copy(), arr[:,2].copy()
+			times, rvs, rv_errs = np.append(times,time), np.append(rvs,rv), np.append(rv_errs,rv_err)
+
+		zp = np.amin(times)
+
+		RMs = []
+		all_times, all_rvs, all_errs = np.array([]), np.array([]), np.array([])
+		idxs = np.array([],dtype=np.int)
+		all_rvs_signal_removed = np.array([])
+		ins_idxs = np.array([])
+
+
+		for nn in range(1,n_rv+1):
+			#label = business.data['RV_label_{}'.format(nn)]
+			arr = business.data['RV_{}'.format(nn)]
+			time, rv, rv_err = arr[:,0].copy(), arr[:,1].copy(), arr[:,2].copy()
+			v0 = business.parameters['RVsys_{}'.format(nn)]['Value']
+			jitter = business.parameters['RVsigma_{}'.format(nn)]['Value']
+			#jitter = np.exp(log_jitter)
+			#jitter = log_jitter
+			jitter_err = np.sqrt(rv_err**2 + jitter**2)
+
+			drift = aa[1]*(time-zp)**2 + aa[0]*(time-zp)
+			#RM = business.data['RM RV_{}'.format(nn)]
+
+
+			all_times = np.append(all_times,time)
+			idxs = np.append(idxs,np.ones(len(time))*nn)
+			all_rvs = np.append(all_rvs,rv-v0)
+			all_errs = np.append(all_errs,jitter_err)
+			all_rvs_signal_removed = np.append(all_rvs_signal_removed,rv-v0-drift)
+
+
+		#### REMEMBER TO INSTALL CHECK FOR RM FOR NON-TRANSITING PLANETS ####
+		#### FOR NOW RM SIGNAL IS NOT INCLUDED IN THE PLOTTED MODEL ###
+		#### IT IS HOWEVER PROPERLY REMOVED FROM THE RVS ###
+
+
+		npoints = 50000
+		unp_m = np.linspace(min(all_times)-10.,max(all_times)+10.,npoints)
+		model_rvs = np.zeros(npoints)
+		temp_rvs = aa[1]*(unp_m-zp)**2 + aa[0]*(unp_m-zp)
+		if any(temp_rvs != 0.0):
+			ax = axes_rvs[0]
+			ax.plot(unp_m,temp_rvs,'-',color='k',lw=1.0,zorder=-1)
+		model_rvs += temp_rvs
+
+
+		ax0 = axes_rvs[0]
+		ax0.errorbar(all_times,all_rvs,yerr=all_errs,marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
+		for nn in range(1,n_rv+1):
+			RM = business.data['RM RV_{}'.format(nn)]
+			label = business.data['RV_label_{}'.format(nn)]
+			idx = nn == idxs
+			ax0.errorbar(all_times[idx],all_rvs[idx],yerr=all_errs[idx],marker='o',markersize=fms,color='C{}'.format(nn-1),linestyle='none',zorder=5,label=r'$\rm {}$'.format(label))
+		ax0.legend(bbox_to_anchor=(0, 1.05, 1, 0),ncol=n_rv)
+		freqs = []
+		for ii, pl in enumerate(pls): 
+			per = business.parameters['P_{}'.format(pl)]['Value']
+			freqs.append(1/per)
+			temp_rvs = business.rv_model(unp_m,n_planet=pl,n_rv=1,RM=False)
+			ax0.plot(unp_m,temp_rvs,'-',color=colors[pl],lw=1.0,zorder=-1)
+			model_rvs += temp_rvs
+
+		ax0.plot(unp_m,model_rvs,'-',color='k',lw=2.0,zorder=-1)
+		ax0.plot(unp_m,model_rvs,'-',color='C7',lw=1.0,zorder=0)		
+
+		max_freq = max(freqs)#*2.0
+		ax0ls = axes_ls[0]
+		LS = LombScargle(all_times, all_rvs, dy=all_errs)
+		if freq_grid is None:
+			frequency, power = LS.autopower(maximum_frequency=max_freq*1.5,samples_per_peak=samples_per_peak)
+		else:			
+			power = LS.power(freq_grid)
+			frequency = freq_grid
+		FAP = LS.false_alarm_probability(power.max())
+
+
+		midx = np.argmax(power)
+		mper = frequency[midx]
+		ax0ls.plot(frequency,power,'-',color='k',lw=flw)
+		ax0.set_ylabel(r'$\rm RV \ (m/s)$',fontsize=font)
+		y1,y2 = ax0ls.get_ylim()
+		x1,x2 = ax0ls.get_xlim()
+		ax0ls.set_ylabel(r'$\rm LS \ power$',fontsize=font)
+		ax0ls.text(0.7*x2,0.8*y2,r'$P_{} = {:0.1f} \ \rm d$'.format('\mathrm{max}',1/mper),color='k',bbox=dict(edgecolor='k',facecolor='w'))
+		ax0ls.scatter(mper,y2,marker='v',facecolor='C7',edgecolor='k',s=tms,zorder=5)
+
+		ii = 1
+		if any(np.asarray(aa) != 0):
+			ax = axes_rvs[ii]
+			axls = axes_ls[ii]
+			ii += 1
+			ax.errorbar(all_times,all_rvs_signal_removed,yerr=all_errs,marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
+			for nn in range(1,n_rv+1):
+				idx = nn == idxs
+				ax.errorbar(all_times[idx],all_rvs_signal_removed[idx],yerr=all_errs[idx],marker='o',markersize=fms,color='C{}'.format(nn-1),linestyle='none',zorder=5)
+			LS2 = LombScargle(all_times, all_rvs_signal_removed, dy=all_errs)
+			if freq_grid is None:
+				frequency, power = LS2.autopower(maximum_frequency=max_freq*1.5,samples_per_peak=samples_per_peak)
+			else:			
+				power = LS.power(freq_grid)
+				frequency = freq_grid
+
+			axls.plot(frequency,power,'-',color='k',lw=flw)
+			ax.set_ylabel(r'$\rm RV \ (m/s)$',fontsize=font)
+			axls.set_ylabel(r'$\rm LS \ power$',fontsize=font)
+			model_rvs -= aa[1]*(unp_m-zp)**2 + aa[0]*(unp_m-zp)
+			ax.plot(unp_m,model_rvs,'-',color='k',lw=2.0,zorder=-1)
+			ax.plot(unp_m,model_rvs,'-',color='C7',lw=1.0,zorder=0)
+			
+
+
+			for kk, pl in enumerate(pls): 
+				temp_rvs = business.rv_model(unp_m,n_planet=pl,n_rv=1,RM=False)
+				ax.plot(unp_m,temp_rvs,'-',color=colors[pl],lw=1.0,zorder=-1)
+
+		pers = []
+		removed_pls = []
+		for jj, pl in enumerate(pls):
+			ax = axes_rvs[ii]
+			axls = axes_ls[ii]
+			axls_vert = axes_ls[ii-1]
+			ii += 1
+			per = business.parameters['P_{}'.format(pl)]['Value']
+			pers.append(per)
+
+			
+			for nn in range(1,n_rv+1):
+				label = business.data['RV_label_{}'.format(nn)]
+				arr = business.data['RV_{}'.format(nn)]
+				time = arr[:,0].copy()
+				RM = business.data['RM RV_{}'.format(nn)]
+				idx = nn == idxs
+				all_rvs_signal_removed[idx] -= business.rv_model(all_times[idx],n_planet=pl,n_rv=nn,RM=RM)
+				ax.errorbar(all_times[idx],all_rvs_signal_removed[idx],yerr=all_errs[idx],marker='o',markersize=fms,color='C{}'.format(nn-1),linestyle='none',zorder=5)
+			ax.errorbar(all_times,all_rvs_signal_removed,yerr=all_errs,marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
+			LS3 = LombScargle(all_times, all_rvs_signal_removed, dy=all_errs)
+			if freq_grid is None:
+				frequency, power = LS3.autopower(maximum_frequency=max_freq*1.5,samples_per_peak=samples_per_peak)
+			else:			
+				power = LS.power(freq_grid)
+				frequency = freq_grid
+
+			axls.plot(frequency,power,'-',color='k',lw=flw)
+			midx = np.argmax(power)
+			mper = frequency[midx]
+			y1,y2 = axls.get_ylim()
+			x1,x2 = axls.get_xlim()
+			axls.text(0.7*x2,0.8*y2,r'$P_{} = {:0.1f} \ \rm d \ removed$'.format(pl,per),color=colors[pl],bbox=dict(edgecolor='k',facecolor='w'))
+			axls.text(0.7*x2,0.4*y2,r'$P_{} = {:0.1f} \ \rm d$'.format('\mathrm{max}',1/mper),color='C7',bbox=dict(edgecolor='k',facecolor='w'))
+			#axls.axvline(mper,color='C7',zorder=-1)
+			#axls_vert.axvline(1/per,color='C{}'.format(jj),zorder=-1)
+			y1_vert,y2_vert = axls_vert.get_ylim()
+			axls.scatter(mper,y2,marker='v',facecolor='C7',edgecolor='k',s=tms,zorder=5)
+			axls_vert.scatter(1/per,y2_vert,marker='v',facecolor=colors[pl],edgecolor='k',s=tms,zorder=6)
+
+			#ax0ls.axvline(1/per,color='C{}'.format(jj))
+			ax.set_ylabel(r'$\rm RV \ (m/s)$',fontsize=font)
+			axls.set_ylabel(r'$\rm LS \ power$',fontsize=font)
+			removed_pls.append(pl)
+			model_rvs = np.zeros(npoints)
+			for kk, pl2 in enumerate(pls):
+				if pl2 not in removed_pls:
+					temp_rvs = business.rv_model(unp_m,n_planet=pl2)
+					model_rvs += temp_rvs
+					ax.plot(unp_m,temp_rvs,'-',color=colors[pl2],lw=1.0,zorder=-1)
+				else:
+					per = business.parameters['P_{}'.format(pl2)]['Value']
+					axls.scatter(1/per,0.0,marker='^',facecolor=colors[pl2],edgecolor='k',s=tms,zorder=5)
+
+
+			ax.plot(unp_m,model_rvs,'-',color='k',lw=2.0,zorder=-1)
+			ax.plot(unp_m,model_rvs,'-',color='C7',lw=1.0,zorder=0)
+
+		if savefile:
+			labels = []
+			ii = 1
+			for nn in range(1,n_rv+1):
+				idx = nn == idxs
+				label = business.data['RV_label_{}'.format(nn)]
+				if label in labels: 
+					label += str(ii)
+					ii += 1
+				labels.append(label)
+				tt, rr, ee = all_times[idx], all_rvs_signal_removed[idx], all_errs[idx]
+				arr = np.zeros(shape=(len(tt),3))
+				arr[:,0] = tt
+				arr[:,1] = rr
+				arr[:,2] = ee
+				ll = label.replace(' ','')
+				np.savetxt(ll+'_rvs_signal_removed.txt',arr)
+
+		for jj, pl in enumerate(pls):
+			per = business.parameters['P_{}'.format(pl)]['Value']
+			axls.scatter(1/per,0.0,marker='^',facecolor=colors[pl],edgecolor='k',s=tms,zorder=5)
+		# 	#axls.axvline(1/per,linestyle='--',color='C{}'.format(kk),zorder=-1)
+	
+		ax.set_xlabel(r'$\rm Time \ (BJD)$',fontsize=font)
+		axls.set_xlabel(r'$\rm Frequency \ (c/d)$',fontsize=font)
+		fig.tight_layout()
+		fig.subplots_adjust(hspace=0.0)
+		figls.tight_layout()
+		figls.subplots_adjust(hspace=0.0)
+		if savefig: fig.savefig(path+'rvs_subtracted.pdf')
+		if savefig: figls.savefig(path+'rv_periodogram.pdf')
+
+# =============================================================================
+# Light curve periodogram
+# =============================================================================
+
+def plot_lc_pgram(param_fname,data_fname,updated_pars=None,savefig=False,
+	path='',pls=None,tls = False,best_fit=True):#,
+#	xminLS=0.0,xmaxLS=None):
+	'''Periodogram from light curves.
+
+	'''
+
+
+	plt.rc('text',usetex=plot_tex)
+
+	font = 15
+	plt.rc('xtick',labelsize=3*font/4)
+	plt.rc('ytick',labelsize=3*font/4)
+
+
+	bms = 6.0 # background markersize
+	fms = 4.0 # foreground markersize
+	tms = 40.0 # triangle markersize
+	flw = 1.3 # freq linewidth
+	blw = 1.5 # back linewidth
+	plw = 1.0 # planet linewidth
+
+	business.data_structure(data_fname)
+	business.params_structure(param_fname)
+
+	if updated_pars is not None:
+		#pars = updated_pars.keys()[1:]
+		pars = business.parameters['FPs']
+		for par in pars:
+			if best_fit:
+				business.parameters[par]['Value'] = float(updated_pars[par][4])
+			else:
+				business.parameters[par]['Value'] = float(updated_pars[par][1])		
+	n_phot = business.data['LCs']
+	if not pls:
+		pls = business.parameters['Planets']
+
+	
+	if tls: from transitleastsquares import transitleastsquares as transitls
+
+	if n_phot >= 1:
+
+		npoints = 10000
+		fig = plt.figure(figsize=(8,8))
+		figls = plt.figure(figsize=(8,8))
+		figp = plt.figure()
+
+		n_pls = len(pls) + 1
+		axes = []
+		axesls = []
+		axesp = []
+		for ii in range(2): axesp.append(figp.add_subplot(2,1,ii+1))
+		if tls:
+			figtls = plt.figure()
+			axestls = figtls.add_subplot(111)
+		for nn in range(n_pls):
+			axesls.append(figls.add_subplot(n_pls,1,nn+1))
+			axes.append(fig.add_subplot(n_pls,1,nn+1))
+
+		times, fluxs, flux_errs = np.array([]), np.array([]), np.array([])
+		idxs = np.array([])
+		#ii = 0
+		ax = axes[0]
+		for nn in range(1,n_phot+1):
+			arr = business.data['LC_{}'.format(nn)]
+			time, flux, flux_err = arr[:,0].copy(), arr[:,1].copy(), arr[:,2].copy()
+
+			ax.plot(time,flux,'.',color='k',markersize=bms)
+			ax.plot(time,flux,'.',color='C{}'.format(nn-1),markersize=fms)
+			times, fluxs, flux_errs = np.append(times,time), np.append(fluxs,flux), np.append(flux_errs,flux_err)
+			idxs = np.append(idxs,np.ones(len(time))*nn)		
+			#ii += 1
+
+		LS = LombScargle(times, fluxs, dy=flux_errs)
+		frequency, power = LS.autopower()
+		FAP = LS.false_alarm_probability(power.max())
+		mper = 1/frequency[np.argmax(power)]
+
+		#axls.text(0.7*max(frequency),0.8*max(power),r'$P_{} = {:0.1f} \ \rm d \ removed$'.format(pl,per),color=colors[pl],bbox=dict(edgecolor='k',facecolor='w'))
+		axesls[0].axvline(mper,lw=flw,color='C7')
+		axesls[0].semilogx(1/frequency,power,'-',lw=flw,color='k')
+		axesp[0].loglog(frequency,power,'-',lw=flw,color='k')
+		axesp[0].set_ylabel(r'$\rm LS \ Power$',fontsize=font)
+		axesp[1].set_ylabel(r'$\rm LS \ Power$',fontsize=font)
+		axesls[0].set_ylabel(r'$\rm LS \ Power$',fontsize=font)
+		axes[0].set_ylabel(r'$\rm Rel. \ Int.$',fontsize=font)
+
+
+		mts = np.linspace(min(times)-1.0,max(times)+1.0,npoints)
+		lcs = np.ones(npoints)
+		pers = []
+		for kk,pl in enumerate(pls):
+			#for nn in range(1,n_phot+1):
+			lc_pl = business.lc_model(mts,n_planet=pl,n_phot=1)
+			#lcs += 1.0 - lc_pl
+			ax.plot(mts,lc_pl,'-',color='k',lw=blw)
+			ax.plot(mts,lc_pl,'-',color=colors[pl],lw=plw)
+			per = business.parameters['P_{}'.format(pl)]['Value']
+			axesls[0].axvline(per,color=colors[pl])
+			pers.append(per)
+
+		#axesls[0].set_xlim(0.0,max(pers)+1.05*max(pers))
+		axesls[0].text(0.7*(max(pers)+max(pers)),0.8*max(power),r'$P_{} = {:0.1f} \ \rm d $'.format('\mathrm{max}',mper),color='C7',bbox=dict(edgecolor='k',facecolor='w'))
+
+
+
+		removed_pls = []
+		ii = 1
+		for pl in pls:
+			ax = axes[ii]
+			tt_sub, fl_sub, er_sub = np.array([]), np.array([]), np.array([])
+			for nn in range(1,n_phot+1):
+				
+				idx = nn == idxs
+				lc_pl = business.lc_model(times[idx],n_planet=pl,n_phot=nn)
+				fluxs[idx] = fluxs[idx] - lc_pl + 1.0	
+
+				ax.plot(times[idx],fluxs[idx],'.',color='k',markersize=bms)
+				ax.plot(times[idx],fluxs[idx],'.',color='C{}'.format(nn-1),markersize=fms)
+			removed_pls.append(pl)
+			#for aa, pl2 in enumerate(removed_pls):
+
+
+			for aa, pl2 in enumerate(pls):
+				axesls[ii].axvline(business.parameters['P_{}'.format(pl2)]['Value'],linestyle='--',color=colors[pl2])
+				if pl2 not in removed_pls:
+					lc_pl = business.lc_model(mts,n_planet=pl2,n_phot=1)
+					axesls[ii].axvline(business.parameters['P_{}'.format(pl2)]['Value'],linestyle='-',color=colors[pl2])
+					ax.plot(mts,lc_pl,'-',color='k',lw=blw)
+					ax.plot(mts,lc_pl,'-',color=colors[pl2],lw=plw)#8-len(removed_pls)))
+
+			LS = LombScargle(times, fluxs, dy=flux_errs)
+			frequency, power = LS.autopower()
+			FAP = LS.false_alarm_probability(power.max())
+			axesls[ii].semilogx(1/frequency,power,'-',lw=flw,color='k')			
+			#axesls[ii].set_xlim(0.0,max(pers)+1.05*max(pers))
+			axesls[ii].set_ylabel(r'$\rm LS \ Power$',fontsize=font)
+			ax.set_ylabel(r'$\rm Rel. \ Int.$',fontsize=font)
+
+			mper = 1/frequency[np.argmax(power)]
+			axesls[ii].axvline(mper,lw=flw,color='C7')
+			axesls[ii].text(0.7*(max(pers)+max(pers)),0.8*max(power),r'$P_{} = {:0.1f} \ \rm d$'.format('\mathrm{max}',mper),color='C7',bbox=dict(edgecolor='k',facecolor='w'))
+			axesls[ii].text(0.7*(max(pers)+max(pers)),0.4*max(power),r'$P_{} = {:0.1f} \ \rm d \ removed$'.format(pl,per),color=colors[pl],bbox=dict(edgecolor='k',facecolor='w'))
+
+			ii += 1
+
+			# 	#os = np.argsort(tt)
+		for pl in pls:
+			per = business.parameters['P_{}'.format(pl)]['Value']
+			axesp[0].axvline(1/per,linestyle='-',lw=flw,color=colors[pl])
+			axesp[1].axvline(1/per,linestyle='--',lw=flw,color=colors[pl])
+		axesp[1].loglog(frequency,power,'-',lw=flw,color='k')
+		axesp[1].set_xlim(min(frequency),max(frequency))
+		axesp[0].set_xlim(min(frequency),max(frequency))
+
+		axesls[-1].set_xlabel(r'$\rm Period \ (d)$',fontsize=font)
+		axesp[-1].set_xlabel(r'$\rm Frequency \ (c/d)$',fontsize=font)
+		for ii in range(len(axesls)-1):
+			axesls[ii].set_xticks([])
+
+
+		ax.set_xlabel(r'$\rm Time \ (BJD)$',fontsize=font)
+		fig.tight_layout()
+		fig.subplots_adjust(hspace=0.0)
+		figls.tight_layout()
+		figls.subplots_adjust(hspace=0.0)
+		figp.subplots_adjust(hspace=0.0)
+		if savefig:
+			fig.savefig('full_lc.pdf')
+			figls.savefig('LS_period.pdf')
+			figp.savefig('LS_freq.pdf')
+
+		if tls:
+			import seaborn as sns
+			blues = sns.color_palette("Blues")
+
+			c1 = business.parameters['LC1_q1']['Value']
+			c2 = business.parameters['LC1_q2']['Value']
+
+			model = transitls(times,fluxs,flux_errs)
+			results = model.power(oversampling_factor=2,
+					limb_dark='quadratic', u=[c1,c2])
+			per = results.period
+			axestls.plot(results.periods,results.power,'k',lw=flw)
+			axestls.set_xlabel(r'$\rm Period \ (days)$')
+			axestls.set_ylabel(r'$\rm SDE$')
+			axestls.set_xlim(np.amin(results.periods),np.amax(results.periods))
+			axestls.axvline(per,color=blues[2],lw=3,zorder=-1)
+			for nn in range(2,30):
+				axestls.axvline(nn*per,color=blues[0],ls='--',zorder=-2)
+				axestls.axvline(per/nn,color=blues[0],ls='--',zorder=-2)
+			if savefig: figtls.savefig('TLS_result.pdf')
+
+
