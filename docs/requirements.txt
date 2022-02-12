@@ -1,3 +1,8 @@
 numpy
 batman
 celerite
+emcee
+pandas
+h5py
+scipy
+astropy
