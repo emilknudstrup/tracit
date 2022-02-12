@@ -35,7 +35,7 @@ extensions = [
 'sphinx.ext.coverage', 
 'sphinx.ext.todo', 
 'sphinx.ext.napoleon',
-'sphinxnotes.strike'
+#'sphinxnotes.strike'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -51,6 +51,7 @@ exclude_patterns = []
 todo_include_todos = True
 
 
+
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
@@ -62,6 +63,14 @@ html_theme = 'sphinx_rtd_theme'
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
+
+# Custom .css
+def setup(app):
+    app.add_css_file('css/custom.css')  # may also be an URL
+
+rst_prolog = '''
+.. role:: strike
+'''
 
 # Logo
 html_logo = "rot_star_logo.png"

@@ -331,7 +331,7 @@ def data_temp(filename='data_template.csv',n_phot=1,n_spec=1):
 
 
 def data_structure(file):
-	'''Structure the data for :del:`trace`.
+	'''Structure the data for :strike:`trace`.
 
 	Function that reads in the data .csv file, and structures the content in a dictionary.
 
@@ -537,7 +537,7 @@ def data_structure(file):
 
 
 def params_structure(filename):
-	'''Structure the parameters for :del:`trace`.
+	'''Structure the parameters for :strike:`trace`.
 
 	Function that reads in the parameter .csv file, and structures the content in a dictionary.
 
@@ -2269,7 +2269,7 @@ def residuals(params,parameters,data):
 def lmfitter(param_fname,data_fname,method='leastsq',eps=0.01,
 		print_fit=True):
 	'''Fit data using lmfit
-	
+
 	'''
 	#data = data_structure(data_fname)
 	#parameters = params_structure(param_fname)

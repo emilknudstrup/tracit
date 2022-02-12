@@ -2,7 +2,7 @@
 
 Usage
 ================
-The following is a demonstration on how you might want to use :del:`trace`.
+The following is a demonstration on how you might want to use :strike:`trace`.
 
 Here we will be looking at a system with 2 planets with measurements from 2 photometers and 2 spectrographs.
 
@@ -45,7 +45,7 @@ Assuming you have set the relevant parameters and included the data files correc
 
 Fitting the data
 ---------------------------
-We can find some good starting values for our parameters before we start doing an MCMC. This is done using `lmfit <https://lmfit.github.io/lmfit-py/>`_. In :del:`trace` this is done calling :py:func:`business.lmfitter`, which will return a `fit object`. We will turn into a `pandas <https://pandas.pydata.org/>`_ dataframe.
+We can find some good starting values for our parameters before we start doing an MCMC. This is done using `lmfit <https://lmfit.github.io/lmfit-py/>`_. In :strike:`trace` this is done calling :py:func:`business.lmfitter`, which will return a `fit object`. We will turn into a `pandas <https://pandas.pydata.org/>`_ dataframe.
 
 ::
 
