@@ -9,3 +9,4 @@ astropy
 matplotlib
 lmfit
 arviz
+statsmodels
