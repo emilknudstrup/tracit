@@ -5,8 +5,8 @@ emcee
 pandas
 h5py
 scipy
-astropy
 matplotlib
 lmfit
 arviz
 statsmodels
+math

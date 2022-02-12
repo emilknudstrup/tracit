@@ -23,6 +23,8 @@ Created on Wed Oct 20 11:02:15 2021
 	* Object oriented - just do it
 	
 	* Restructure - move .csv generator and reader to different module
+
+	* Check imported packages, redundancy
 '''
 
 import lmfit
@@ -37,10 +39,6 @@ import pandas as pd
 import h5py
 #import matplotlib.pyplot as plt
 
-#import seaborn as sns
-#colors = sns.color_palette()
-
-from scipy import interpolate
 import batman
 import dynamics
 import shady
@@ -48,8 +46,10 @@ import expose
 
 import stat_tools
 import constants
+
+from scipy import interpolate
 from priors import tgauss_prior, gauss_prior, flat_prior, tgauss_prior_dis, flat_prior_dis
-from astropy.modeling import models, fitting
+#from astropy.modeling import models, fitting
 from scipy.optimize import curve_fit
 import scipy.signal as scisig
 from statsmodels.nonparametric.kde import KDEUnivariate as KDE
