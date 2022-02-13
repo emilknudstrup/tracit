@@ -15,7 +15,8 @@ Created on Wed Apr 15 13:27:04 2020
 import numpy as np
 import scipy.signal as ss
 import sys
-import tracit.dynamics
+#import dynamics
+#from .dynamics import *
 # =============================================================================
 # Grids
 # =============================================================================
@@ -535,5 +536,5 @@ def absline(gridini,vel,ring_grid,
 	return vel_1d_ext, line_conv, line_conv_total, planet_rings, lum, index_error
 
 
-if __name__=='__main__':
-	print('Go!')
+# if __name__=='__main__':
+# 	print('Go!')

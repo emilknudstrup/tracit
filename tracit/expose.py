@@ -13,12 +13,16 @@ Created on Tue Jun 29 16:30:38 2021
 # tracit modules
 # =============================================================================
 
-from tracit import stat_tools
-from tracit import business
-from tracit import dynamics
-from tracit import shady
-from tracit.priors import tgauss_prior, gauss_prior, flat_prior, tgauss_prior_dis, flat_prior_dis
+# import stat_tools
+# import business
+# import dynamics
+# import shady
+# from priors import tgauss_prior, gauss_prior, flat_prior, tgauss_prior_dis, flat_prior_dis
 
+from .business import lc_model, rv_model
+from .dynamics import *#time2phase, total_duration
+#from .business import data_structure, params_structure
+#from .business import data_structure, params_structure
 
 # =============================================================================
 # external modules
@@ -51,7 +55,7 @@ def residuals(pars,x,y):
 
 	return gau-y
 
-def run_sys(nproc):
+def run_exp(nproc):
 	global plot_tex
 
 	if nproc > 4:
@@ -255,7 +259,8 @@ def create_corner(samples,labels=None,truths=None,savefig=True,fname='corner',
 # Radial velocity curve
 # =============================================================================
 
-def plot_orbit(param_fname,data_fname,updated_pars=None,
+#def plot_orbit(param_fname,data_fname,updated_pars=None,
+def plot_orbit(parameters,data,updated_pars=None,
 	savefig=False,path='',OC_rv=True,n_pars=0,
 	best_fit=True):
 	'''Plot the radial velocity curve.
@@ -292,27 +297,27 @@ def plot_orbit(param_fname,data_fname,updated_pars=None,
 	bms = 6.0 # background markersize
 	fms = 4.0 # foreground markersize
 
-	business.data_structure(data_fname)
-	business.params_structure(param_fname)
+	#business.data_structure(data_fname)
+	#business.params_structure(param_fname)
 
 	if updated_pars is not None:
-		pars = business.parameters['FPs']
+		pars = parameters['FPs']
 		pars = updated_pars.keys()[1:-2]
 		if n_pars == 0: n_pars = len(pars)
 		idx = 1
 		if (updated_pars.shape[0] > 3) & best_fit: idx = 4
 		for par in pars:
 			try:
-				business.parameters[par]['Value'] = float(updated_pars[par][idx])	
+				parameters[par]['Value'] = float(updated_pars[par][idx])	
 			except KeyError:
 				pass
 	
-	n_rv = business.data['RVs']
-	pls = business.parameters['Planets']
+	n_rv = data['RVs']
+	pls = parameters['Planets']
 
 
 	if n_rv >= 1:
-		aa = [business.parameters['a{}'.format(ii)]['Value'] for ii in range(1,3)]
+		aa = [parameters['a{}'.format(ii)]['Value'] for ii in range(1,3)]
 		fig = plt.figure(figsize=(12,6))
 		ax = fig.add_subplot(211)
 		axoc = fig.add_subplot(212)
@@ -320,7 +325,7 @@ def plot_orbit(param_fname,data_fname,updated_pars=None,
 
 		times, rvs, rv_errs = np.array([]), np.array([]), np.array([])
 		for nn in range(1,n_rv+1):
-			arr = business.data['RV_{}'.format(nn)]
+			arr = data['RV_{}'.format(nn)]
 			time, rv, rv_err = arr[:,0].copy(), arr[:,1].copy(), arr[:,2].copy()
 			times, rvs, rv_errs = np.append(times,time), np.append(rvs,rv), np.append(rv_errs,rv_err)
 
@@ -329,25 +334,25 @@ def plot_orbit(param_fname,data_fname,updated_pars=None,
 		RMs = []
 		m_rvs = np.array([])
 		for nn in range(1,n_rv+1):
-			label = business.data['RV_label_{}'.format(nn)]
-			arr = business.data['RV_{}'.format(nn)]
+			label = data['RV_label_{}'.format(nn)]
+			arr = data['RV_{}'.format(nn)]
 			time, rv, rv_err = arr[:,0].copy(), arr[:,1].copy(), arr[:,2].copy()
-			v0 = business.parameters['RVsys_{}'.format(nn)]['Value']
-			jitter = business.parameters['RVsigma_{}'.format(nn)]['Value']
+			v0 = parameters['RVsys_{}'.format(nn)]['Value']
+			jitter = parameters['RVsigma_{}'.format(nn)]['Value']
 			jitter_err = np.sqrt(rv_err**2 + jitter**2)
 			
-			#chi2scale = business.data['Chi2 RV_{}'.format(nn)]
+			#chi2scale = data['Chi2 RV_{}'.format(nn)]
 			#jitter_err *= chi2scale
 
 			drift = aa[1]*(time-zp)**2 + aa[0]*(time-zp)
-			RM = business.data['RM RV_{}'.format(nn)]
+			RM = data['RM RV_{}'.format(nn)]
 			RMs.append(RM)
 
 			ax.errorbar(time,rv-v0,yerr=jitter_err,marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
 			ax.errorbar(time,rv-v0,yerr=rv_err,marker='o',markersize=fms,color='C{}'.format(nn-1),linestyle='none',zorder=5,label=r'$\rm {}$'.format(label))
 			mnrv = np.zeros(len(time))
 			for pl in pls: 
-				mnrv += business.rv_model(time,n_planet=pl,n_rv=nn,RM=RM)
+				mnrv += rv_model(time,n_planet=pl,n_rv=nn,RM=RM)
 			axoc.errorbar(time,rv-v0-drift-mnrv,yerr=jitter_err,marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
 			axoc.errorbar(time,rv-v0-drift-mnrv,yerr=rv_err,marker='o',markersize=fms,color='C{}'.format(nn-1),linestyle='none',zorder=5)
 
@@ -371,7 +376,7 @@ def plot_orbit(param_fname,data_fname,updated_pars=None,
 		for ival in ivals:
 			tt = unp_m[ival[0]:ival[1]]
 			for pl in pls: 
-				rv_m_unp[ival[0]:ival[1]] += business.rv_model(tt,n_planet=pl,n_rv=nn,RM=calc_RM)
+				rv_m_unp[ival[0]:ival[1]] += rv_model(tt,n_planet=pl,n_rv=nn,RM=calc_RM)
 				rv_m_unp[ival[0]:ival[1]] += aa[1]*(tt-zp)**2 + aa[0]*(tt-zp)
 
 		ax.errorbar(unp_m,rv_m_unp,color='k',lw=1.)
@@ -388,23 +393,23 @@ def plot_orbit(param_fname,data_fname,updated_pars=None,
 
 
 		for pl in pls:
-			per = business.parameters['P_{}'.format(pl)]['Value']
-			t0 = business.parameters['T0_{}'.format(pl)]['Value']
-			aR = business.parameters['a_Rs_{}'.format(pl)]['Value']
-			rp = business.parameters['Rp_Rs_{}'.format(pl)]['Value']
-			inc = business.parameters['inc_{}'.format(pl)]['Value']
-			ecc = business.parameters['e_{}'.format(pl)]['Value']
-			ww = business.parameters['w_{}'.format(pl)]['Value']
-			K = business.parameters['K_{}'.format(pl)]['Value']
-			dur = dynamics.total_duration(per,rp,aR,inc*np.pi/180.,ecc,ww*np.pi/180.)*24
+			per = parameters['P_{}'.format(pl)]['Value']
+			t0 = parameters['T0_{}'.format(pl)]['Value']
+			aR = parameters['a_Rs_{}'.format(pl)]['Value']
+			rp = parameters['Rp_Rs_{}'.format(pl)]['Value']
+			inc = parameters['inc_{}'.format(pl)]['Value']
+			ecc = parameters['e_{}'.format(pl)]['Value']
+			ww = parameters['w_{}'.format(pl)]['Value']
+			K = parameters['K_{}'.format(pl)]['Value']
+			dur = total_duration(per,rp,aR,inc*np.pi/180.,ecc,ww*np.pi/180.)*24
 			if np.isfinite(dur): x1, x2 = -1*dur/2-1.0,dur/2+1.0
 
-			aa_pl = [business.parameters['a{}_{}'.format(ii,pl)]['Value'] for ii in range(1,3)]
+			aa_pl = [parameters['a{}_{}'.format(ii,pl)]['Value'] for ii in range(1,3)]
 
 
 			RMs = []
 			for nn in range(1,n_rv+1):
-				RM = business.data['RM RV_{}'.format(nn)]
+				RM = data['RM RV_{}'.format(nn)]
 				RMs.append(RM)
 			calc_RM = any(RMs)
 			if calc_RM and np.isfinite(dur):
@@ -421,33 +426,31 @@ def plot_orbit(param_fname,data_fname,updated_pars=None,
 
 			for nn in range(1,n_rv+1):
 				try:
-					t0n = business.parameters['Spec_{}:T0_{}'.format(nn,pl)]['Value']
-					business.parameters['T0_{}'.format(pl)]['Value'] = t0n				
+					t0n = parameters['Spec_{}:T0_{}'.format(nn,pl)]['Value']
+					parameters['T0_{}'.format(pl)]['Value'] = t0n				
 				except KeyError:
-					#business.parameters['T0_{}'.format(pl)]['Value'] = t0
+					#parameters['T0_{}'.format(pl)]['Value'] = t0
 					pass
-				label = business.data['RV_label_{}'.format(nn)]
-				arr = business.data['RV_{}'.format(nn)]
+				label = data['RV_label_{}'.format(nn)]
+				arr = data['RV_{}'.format(nn)]
 				time, rv, rv_err = arr[:,0].copy(), arr[:,1].copy(), arr[:,2].copy()
-				v0 = business.parameters['RVsys_{}'.format(nn)]['Value']
-				log_jitter = business.parameters['RVsigma_{}'.format(nn)]['Value']
+				v0 = parameters['RVsys_{}'.format(nn)]['Value']
+				log_jitter = parameters['RVsigma_{}'.format(nn)]['Value']
 				#jitter = np.exp(log_jitter)
 				jitter = log_jitter
 				jitter_err = np.sqrt(rv_err**2 + jitter**2)
-				chi2scale = business.data['Chi2 RV_{}'.format(nn)]
-				jitter_err *= chi2scale
 
 
 
 				drift = aa[1]*(time-zp)**2 + aa[0]*(time-zp)			
-				RM = business.data['RM RV_{}'.format(nn)]
+				RM = data['RM RV_{}'.format(nn)]
 				for pl2 in pls: 
 					if pl != pl2:			
-						aa2_pl = [business.parameters['a{}_{}'.format(ii,pl2)]['Value'] for ii in range(1,3)]
-						p2, t2 = business.parameters['P_{}'.format(pl2)]['Value'],business.parameters['T0_{}'.format(pl2)]['Value']
+						aa2_pl = [parameters['a{}_{}'.format(ii,pl2)]['Value'] for ii in range(1,3)]
+						p2, t2 = parameters['P_{}'.format(pl2)]['Value'],parameters['T0_{}'.format(pl2)]['Value']
 						try:
-							t0n = business.parameters['Spec_{}:T0_{}'.format(nn,pl2)]
-							business.parameters['T0_{}'.format(pl)]['Value'] = t0n				
+							t0n = parameters['Spec_{}:T0_{}'.format(nn,pl2)]
+							parameters['T0_{}'.format(pl)]['Value'] = t0n				
 						except KeyError:
 							pass
 						off_arr = np.round((time-t2)/p2)
@@ -459,13 +462,13 @@ def plot_orbit(param_fname,data_fname,updated_pars=None,
 							t0_off2 += (n_per*p2)**2*aa2_pl[1]#0.0
 							#t0_off2 *= -1#0.0
 							t0_off2 *= 0.0
-							rv[t_idxs] -= business.rv_model(time[t_idxs],n_planet=pl2,n_rv=nn,RM=RM,t0_off=t0_off2)
+							rv[t_idxs] -= rv_model(time[t_idxs],n_planet=pl2,n_rv=nn,RM=RM,t0_off=t0_off2)
 				
 
 				off_arr = np.round((time-t0)/per)
 				n_pers = np.unique(off_arr)
 				pp = np.zeros(len(time))
-				plo = np.zeros(len(time))#business.rv_model(time,n_planet=pl,n_rv=nn,RM=RM)
+				plo = np.zeros(len(time))#rv_model(time,n_planet=pl,n_rv=nn,RM=RM)
 				for n_per in n_pers:
 					t_idxs = n_per == off_arr
 					t0_off = n_per*per*aa_pl[0]#0.0
@@ -474,10 +477,10 @@ def plot_orbit(param_fname,data_fname,updated_pars=None,
 					#(n_per*per)**2*aa[1]#0.0
 					#t0_off *= 0#-1#(n_per*per)**2*aa[1]#0.0
 
-					pp[t_idxs] = dynamics.time2phase(time[t_idxs],per,t0+t0_off)
-					#pp[t_idxs] = dynamics.time2phase(time[t_idxs],per,t0)
-					plo[t_idxs] = business.rv_model(time[t_idxs],n_planet=pl,n_rv=nn,RM=RM,t0_off=t0_off)
-				#plo = business.rv_model(time,n_planet=pl,n_rv=nn,RM=RM)
+					pp[t_idxs] = time2phase(time[t_idxs],per,t0+t0_off)
+					#pp[t_idxs] = time2phase(time[t_idxs],per,t0)
+					plo[t_idxs] = rv_model(time[t_idxs],n_planet=pl,n_rv=nn,RM=RM,t0_off=t0_off)
+				#plo = rv_model(time,n_planet=pl,n_rv=nn,RM=RM)
 
 				axpl.errorbar(pp,rv-v0-drift,yerr=jitter_err,marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
 				#axpl.errorbar(pp,rv-v0-drift,yerr=rv_err,marker='o',markersize=6.0,color='k',linestyle='none',zorder=4)
@@ -501,8 +504,8 @@ def plot_orbit(param_fname,data_fname,updated_pars=None,
 
 				
 			model_time = np.linspace(t0-0.1,t0+per+0.1,2000)
-			model_pp = dynamics.time2phase(model_time,per,t0)
-			rv_m = business.rv_model(model_time,n_planet=pl,n_rv=nn,RM=calc_RM)#,t0_off=t0_off)
+			model_pp = time2phase(model_time,per,t0)
+			rv_m = rv_model(model_time,n_planet=pl,n_rv=nn,RM=calc_RM)#,t0_off=t0_off)
 
 			ss = np.argsort(model_pp)
 			axpl.plot(model_pp[ss],rv_m[ss],linestyle='-',color='k',lw=1.5,zorder=6)
@@ -539,7 +542,8 @@ def plot_orbit(param_fname,data_fname,updated_pars=None,
 # =============================================================================
 
 
-def plot_lightcurve(param_fname,data_fname,updated_pars=None,savefig=False,
+#def plot_lightcurve(param_fname,data_fname,updated_pars=None,savefig=False,
+def plot_lightcurve(parameters,data,updated_pars=None,savefig=False,
 	path='',n_pars=0,errorbar=True,best_fit=True):
 	'''Plot the light curve.
 
@@ -578,8 +582,10 @@ def plot_lightcurve(param_fname,data_fname,updated_pars=None,savefig=False,
 
 
 
-	business.data_structure(data_fname)
-	business.params_structure(param_fname)
+	#business.data_structure(data_fname)
+	#business.params_structure(param_fname)
+	#data_structure(data_fname)
+	#params_structure(param_fname)
 
 	if updated_pars is not None:
 		pars = business.parameters['FPs']
@@ -592,8 +598,8 @@ def plot_lightcurve(param_fname,data_fname,updated_pars=None,savefig=False,
 				business.parameters[par]['Value'] = float(updated_pars[par][idx])	
 			except KeyError:
 				pass
-	n_phot= business.data['LCs']
-	pls = business.parameters['Planets']
+	n_phot = data['LCs']
+	pls = parameters['Planets']
 
 
 
@@ -607,7 +613,7 @@ def plot_lightcurve(param_fname,data_fname,updated_pars=None,savefig=False,
 		time_range = []
 		flux_range = []
 		for nn in range(1,n_phot+1):
-			arr = business.data['LC_{}'.format(nn)]
+			arr = data['LC_{}'.format(nn)]
 			time_range.append(min(arr[:,0]))
 			time_range.append(max(arr[:,0]))
 			flux_range.append(min(arr[:,1]))
@@ -618,15 +624,15 @@ def plot_lightcurve(param_fname,data_fname,updated_pars=None,savefig=False,
 		min_fl = min(flux_range)
 		off = 0.
 		for nn in range(1,n_phot+1):
-			arr = business.data['LC_{}'.format(nn)]
-			label = business.data['LC_label_{}'.format(nn)]
+			arr = data['LC_{}'.format(nn)]
+			label = data['LC_label_{}'.format(nn)]
 			time, fl, fl_err = arr[:,0].copy(), arr[:,1].copy(), arr[:,2].copy()
 
 
-			log_jitter = business.parameters['LCsigma_{}'.format(nn)]['Value']
+			log_jitter = parameters['LCsigma_{}'.format(nn)]['Value']
 			jitter_err = np.sqrt(fl_err**2 + np.exp(log_jitter)**2)
 
-			deltamag = business.parameters['LCblend_{}'.format(nn)]['Value']
+			deltamag = parameters['LCblend_{}'.format(nn)]['Value']
 			dilution = 10**(-deltamag/2.5)	
 
 			flux_m = np.ones(len(times))
@@ -636,16 +642,16 @@ def plot_lightcurve(param_fname,data_fname,updated_pars=None,savefig=False,
 			in_transit_model = np.array([],dtype=np.int)
 
 			for pl in pls:
-				aa = [business.parameters['a{}_{}'.format(ii,pl)]['Value'] for ii in range(1,3)]
+				aa = [parameters['a{}_{}'.format(ii,pl)]['Value'] for ii in range(1,3)]
 				try:
-					t0n = business.parameters['Phot_{}:T0_{}'.format(nn,pl)]['Value']
+					t0n = parameters['Phot_{}:T0_{}'.format(nn,pl)]['Value']
 				except KeyError:
 					pass
 
 
 				t0_off = 0.0
 				
-				flux_oc_pl = business.lc_model(time,n_planet=pl,n_phot=nn,t0_off=t0_off)
+				flux_oc_pl = lc_model(time,n_planet=pl,n_phot=nn,t0_off=t0_off)
 
 				if deltamag > 0.0:
 					flux_oc_pl = flux_oc_pl/(1 + dilution) + dilution/(1+dilution)
@@ -654,21 +660,21 @@ def plot_lightcurve(param_fname,data_fname,updated_pars=None,savefig=False,
 
 				flux_oc -= (1 - flux_oc_pl)
 
-				flux_model = business.lc_model(times,n_planet=pl,n_phot=nn)
+				flux_model = lc_model(times,n_planet=pl,n_phot=nn)
 				if deltamag > 0.0:
 					flux_model = flux_model/(1 + dilution) + dilution/(1+dilution)
 				flux_m -= 1 - flux_model  
 
-				per, t0 = business.parameters['P_{}'.format(pl)]['Value'],business.parameters['T0_{}'.format(pl)]['Value']
-				ph = dynamics.time2phase(time,per,t0)*per*24
-				ph_model = dynamics.time2phase(times,per,t0)*per*24
+				per, t0 = parameters['P_{}'.format(pl)]['Value'],parameters['T0_{}'.format(pl)]['Value']
+				ph = time2phase(time,per,t0)*per*24
+				ph_model = time2phase(times,per,t0)*per*24
 
-				aR = business.parameters['a_Rs_{}'.format(pl)]['Value']
-				rp = business.parameters['Rp_Rs_{}'.format(pl)]['Value']
-				inc = business.parameters['inc_{}'.format(pl)]['Value']
-				ecc = business.parameters['e_{}'.format(pl)]['Value']
-				ww = business.parameters['w_{}'.format(pl)]['Value']
-				dur = dynamics.total_duration(per,rp,aR,inc*np.pi/180.,ecc,ww*np.pi/180.)*24
+				aR = parameters['a_Rs_{}'.format(pl)]['Value']
+				rp = parameters['Rp_Rs_{}'.format(pl)]['Value']
+				inc = parameters['inc_{}'.format(pl)]['Value']
+				ecc = parameters['e_{}'.format(pl)]['Value']
+				ww = parameters['w_{}'.format(pl)]['Value']
+				dur = total_duration(per,rp,aR,inc*np.pi/180.,ecc,ww*np.pi/180.)*24
 				
 				indxs = np.where((ph < (dur/2 + 6)) & (ph > (-dur/2 - 6)))[0]
 				in_transit = np.append(in_transit,indxs)
@@ -682,15 +688,15 @@ def plot_lightcurve(param_fname,data_fname,updated_pars=None,savefig=False,
 
 
 
-			trend = business.data['Detrend LC_{}'.format(nn)]
-			plot_gp = business.data['GP LC_{}'.format(nn)]
+			trend = data['Detrend LC_{}'.format(nn)]
+			plot_gp = data['GP LC_{}'.format(nn)]
 			if (trend == 'poly') or (trend == True) or (trend == 'savitsky') or plot_gp:
 				ax.plot(time,fl+off,marker='.',markersize=6.0,color='C7',linestyle='none',alpha=0.5,label=r'$\rm {} \ w/o \ detrending$'.format(label))
 			if (trend == 'poly') or (trend == True):
 				tr_fig = plt.figure(figsize=(12,6))
 				ax_tr = tr_fig.add_subplot(111)
 
-				deg_w = business.data['Poly LC_{}'.format(nn)]
+				deg_w = data['Poly LC_{}'.format(nn)]
 				in_transit.sort()
 				in_transit = np.unique(in_transit)
 				
@@ -740,7 +746,7 @@ def plot_lightcurve(param_fname,data_fname,updated_pars=None,savefig=False,
 				ax_sg = sg_fig.add_subplot(111)
 
 				temp_fl = fl - flux_oc + 1
-				window = business.data['FW LC_{}'.format(nn)]
+				window = data['FW LC_{}'.format(nn)]
 
 				gap = 0.5
 
@@ -777,9 +783,9 @@ def plot_lightcurve(param_fname,data_fname,updated_pars=None,savefig=False,
 				gp_fig = plt.figure(figsize=(12,6))
 				ax_gp = gp_fig.add_subplot(111)
 
-				loga = business.parameters['LC_{}_GP_log_a'.format(nn)]['Value']
-				logc = business.parameters['LC_{}_GP_log_c'.format(nn)]['Value']
-				gp = business.data['LC_{} GP'.format(nn)]
+				loga = parameters['LC_{}_GP_log_a'.format(nn)]['Value']
+				logc = parameters['LC_{}_GP_log_c'.format(nn)]['Value']
+				gp = data['LC_{} GP'.format(nn)]
 
 				gp.set_parameter_vector(np.array([loga,logc]))
 				gp.compute(time,jitter_err)
@@ -850,21 +856,21 @@ def plot_lightcurve(param_fname,data_fname,updated_pars=None,savefig=False,
 
 
 			for ii, pl in enumerate(pls):
-				aa = [business.parameters['a{}_{}'.format(ii,pl)]['Value'] for ii in range(1,3)]
-				per, t0 = business.parameters['P_{}'.format(pl)]['Value'],business.parameters['T0_{}'.format(pl)]['Value']
+				aa = [parameters['a{}_{}'.format(ii,pl)]['Value'] for ii in range(1,3)]
+				per, t0 = parameters['P_{}'.format(pl)]['Value'],parameters['T0_{}'.format(pl)]['Value']
 				try:
-					t0n = business.parameters['Phot_{}:T0_{}'.format(nn,pl)]['Value']
-					business.parameters['T0_{}'.format(pl)]['Value'] = t0n				
+					t0n = parameters['Phot_{}:T0_{}'.format(nn,pl)]['Value']
+					parameters['T0_{}'.format(pl)]['Value'] = t0n				
 				except KeyError:
 					pass				
-				aR = business.parameters['a_Rs_{}'.format(pl)]['Value']
-				rp = business.parameters['Rp_Rs_{}'.format(pl)]['Value']
-				inc = business.parameters['inc_{}'.format(pl)]['Value']
-				ecc = business.parameters['e_{}'.format(pl)]['Value']
-				ww = business.parameters['w_{}'.format(pl)]['Value']
+				aR = parameters['a_Rs_{}'.format(pl)]['Value']
+				rp = parameters['Rp_Rs_{}'.format(pl)]['Value']
+				inc = parameters['inc_{}'.format(pl)]['Value']
+				ecc = parameters['e_{}'.format(pl)]['Value']
+				ww = parameters['w_{}'.format(pl)]['Value']
 				#dur = duration(per,rp,aR,inc)
-				dur = dynamics.total_duration(per,rp,aR,inc*np.pi/180.,ecc,ww*np.pi/180.)
-				full = dynamics.full_duration(per,rp,aR,inc*np.pi/180.,ecc,ww*np.pi/180.)
+				dur = total_duration(per,rp,aR,inc*np.pi/180.,ecc,ww*np.pi/180.)
+				#full = dynamics.full_duration(per,rp,aR,inc*np.pi/180.,ecc,ww*np.pi/180.)
 				if np.isfinite(dur):
 					dur *= 24
 					figpl = plt.figure()
@@ -872,7 +878,7 @@ def plot_lightcurve(param_fname,data_fname,updated_pars=None,savefig=False,
 					axpl = figpl.add_subplot(211)
 					axocpl = figpl.add_subplot(212,sharex=axpl)
 
-					tt = dynamics.time2phase(times,per,t0)*24*per#(time%per - t0%per)/per
+					tt = time2phase(times,per,t0)*24*per#(time%per - t0%per)/per
 					ss = np.argsort(tt)
 
 
@@ -887,7 +893,7 @@ def plot_lightcurve(param_fname,data_fname,updated_pars=None,savefig=False,
 						t0_off = 0.0#(n_per*per)**2*aa[1]#0.0
 
 						idxs = n_per == off_arr
-						phase = dynamics.time2phase(time[idxs],per,t0+t0_off)*24*per
+						phase = time2phase(time[idxs],per,t0+t0_off)*24*per
 						ff = fl[idxs]
 						jerr = jitter_err[idxs]
 						ferr = fl_err[idxs]
@@ -978,7 +984,7 @@ def create_shadow(phase,vel,shadow,exp_phase,per,
 		ext = '.pdf'
 		fname = fname.split('.')[0] + ext
 	
-	plt.rc('text',usetex=True)
+	plt.rc('text',usetex=plot_tex)
 	plt.rc('xtick',labelsize=3*font/4)
 	plt.rc('ytick',labelsize=3*font/4)	
 	## sort in phase

@@ -25,6 +25,8 @@ Created on Wed Oct 20 11:02:15 2021
 	* Restructure - move .csv generator and reader to different module
 
 	* Check imported packages, redundancy
+
+	* Make overwrite boolean for ``params_temp`` and ``data_temp`.
 '''
 # =============================================================================
 # tracit modules
@@ -35,12 +37,16 @@ Created on Wed Oct 20 11:02:15 2021
 # import tracit.expose as expose
 # import tracit.stat_tools as stat_tools
 # import tracit.constants as constants
-
-from tracit import expose
-from tracit import stat_tools
-from tracit import dynamics
-from tracit import shady
-from tracit.priors import tgauss_prior, gauss_prior, flat_prior, tgauss_prior_dis, flat_prior_dis
+#import expose
+# import stat_tools
+# import dynamics
+# import shady
+# from priors import tgauss_prior, gauss_prior, flat_prior, tgauss_prior_dis, flat_prior_dis
+# import .expose
+# import .stat_tools
+from .dynamics import *
+# import .shady
+# from .priors import tgauss_prior, gauss_prior, flat_prior, tgauss_prior_dis, flat_prior_dis
 
 
 # =============================================================================
@@ -68,15 +74,12 @@ import scipy.signal as scisig
 from statsmodels.nonparametric.kde import KDEUnivariate as KDE
 
 #def run_params(nproc):
-def run_sys(nproc):
-	#global plot_tex
+def run_bus(nproc):
 	global mpath
-	expose.run_sys(nproc)
+	
 	if nproc > 4:
-		#plot_tex = False
 		mpath = './'
 	else:
-		#plot_tex = True
 		mpath = '/home/emil/Desktop/PhD/exoplanets'
 
 def str2bool(arg):
@@ -302,31 +305,42 @@ def data_temp(filename='data_template.csv',n_phot=1,n_spec=1):
 
 	'''
 	ph = ['Handle','Light curve:','Instrument','LC Filename','Units',
-		'Fit LC','Oversample factor','Exposure time (min.)','Detrend','Poly. deg./filt. w.','LC chi2 scaling',
+		'Fit LC','Oversample factor','Exposure time (min.)','Detrend','Poly. deg./filt. w.',
 		'Gaussian Process','GP type',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ']
 	
 	sp = ['Handle','Radial velocities:','Instrument','RV Filename','Units',
-		'Fit RV','Fit RM','RV chi2 scaling','Lineshape:','Fit LS','LS Filename',
+		'Fit RV','Fit RM','Lineshape:','Fit LS','LS Filename',
 		'Units','Disk Resolution','Ring Thickness','LS chi2 scaling','Fit OOT',
 		'Only fit OOT','OOT chi2 scaling','OOT indices','Slope','Fit SL','SL Filename','Units','SL chi2 scaling','Gaussian Process','GP type']
 
+	# print(len(sp))
+	# print(len(ph))
 	df = pd.DataFrame(columns = ['Photometry']+['##--_--_--_--##']*(len(sp)-1))
 	df.loc[0] = ph
 	nn = 1
+	ii = 1
+	# print(len(['Phot_{}'.format(ii),'.txt file',' ','lc*{}.txt'.format(ii),
+	# 				'BJD & Relative brightness','true',1,2,'false',1,'false','Matern32',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ']))
 	for ii in range(1,n_phot+1): 
-		df.loc[nn] = ['Phot_{}'.format(ii),'Single .txt file',' ','lc*{}.txt'.format(ii),
-					'BJD & Relative brightness','true',1,2,'false',1,1,'false','Matern32',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ']
+		df.loc[nn] = ['Phot_{}'.format(ii),'.txt file',' ','lc*{}.txt'.format(ii),
+					'BJD & Relative brightness','true',1,2,'false',1,'false','Matern32',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ']
 		nn += 1
-	
 	df.loc[nn] = ['Spectroscopy']+['##^vv^^\/^^^v##']*(len(ph)-1)
 	nn += 1
 	df.loc[nn] = sp
 	nn += 1
+	# print(
+	# 	len(['Spec_{}'.format(ii),'.txt file',' ','rv*{}.txt'.format(ii),
+	# 				'BJD & m/s','true','false',1.0,'One .hdf5 file /bjd/[vel,ccf]',
+	# 				'false','*.hdf5','BJD & km/s',100,20,1.0,'false','false',1.0,'0,1,2',
+	# 				'One .hdf5 file /bjd/[vel,ccf]','false','*.hdf5','BJD & km/s',1.0,' '])
+
+	# 	)
 	for ii in range(1,n_spec+1): 
-		df.loc[nn] = ['Spec_{}'.format(ii),'Single .txt file',' ','rv*{}.txt'.format(ii),
-					'BJD & m/s','true','false',1.0,'One .hdf5 file /bjd/[vel,ccf]',
+		df.loc[nn] = ['Spec_{}'.format(ii),'.txt file',' ','rv*{}.txt'.format(ii),
+					'BJD & m/s','true','false','.hdf5 file /bjd/[vel,ccf]',
 					'false','*.hdf5','BJD & km/s',100,20,1.0,'false','false',1.0,'0,1,2',
-					'One .hdf5 file /bjd/[vel,ccf]','false','*.hdf5','BJD & km/s',1.0]
+					'.hdf5 file /bjd/[vel,ccf]','false','*.hdf5','BJD & km/s',1.0,' ',' ']
 		nn += 1
 
 	df.to_csv(filename,index=False)
@@ -384,7 +398,7 @@ def data_structure(file):
 		data['LC_{}'.format(ii)] = phot_arr
 		data['OF LC_{}'.format(ii)] = int(df_phot['Oversample factor'][ii])
 		data['Exp. LC_{}'.format(ii)] = float(df_phot['Exposure time (min.)'][ii])/(24*60)
-		data['Chi2 LC_{}'.format(ii)] = float(df_phot['LC chi2 scaling'][ii])
+		#data['Chi2 LC_{}'.format(ii)] = float(df_phot['LC chi2 scaling'][ii])
 		data['GP LC_{}'.format(ii)] = str2bool(df_phot['Gaussian Process'][ii])
 		
 		trend = df_phot['Detrend'][ii]
@@ -451,7 +465,7 @@ def data_structure(file):
 		data['RV_label_{}'.format(ii)] = df_spec['Instrument'][ii]
 		data['Fit RV_{}'.format(ii)] = str2bool(df_spec['Fit RV'][ii])
 		data['RM RV_{}'.format(ii)] = str2bool(df_spec['Fit RM'][ii])
-		data['Chi2 RV_{}'.format(ii)] = float(df_spec['RV chi2 scaling'][ii])
+		#data['Chi2 RV_{}'.format(ii)] = float(df_spec['RV chi2 scaling'][ii])
 		rfile = df_spec['RV Filename'][ii]
 		if rfile.find('*') != -1: rfile = glob.glob(rfile)
 		else: rfile = [rfile]
@@ -546,6 +560,9 @@ def data_structure(file):
 
 	data['LSs'] = n_ls
 	data['SLs'] = n_sl
+
+
+	return data
 
 
 
@@ -735,7 +752,7 @@ def params_structure(filename):
 	## Planets
 	parameters['Planets'] = pls
 
-	#return parameters
+	return parameters
 	#global parameters
 
 #def start_vals(parameters,nwalkers,ndim):
@@ -822,7 +839,7 @@ def lc_model(time,n_planet='b',n_phot=1,
 def rv_model(time,n_planet='b',n_rv=1,RM=False,t0_off=0.0):
 	pllabel = '_{}'.format(n_planet)
 	
-	orbpars = dynamics.OrbitalParams()
+	orbpars = OrbitalParams()
 	per = parameters['P'+pllabel]['Value']
 	orbpars.per = per
 	orbpars.K = parameters['K'+pllabel]['Value']
@@ -849,7 +866,7 @@ def rv_model(time,n_planet='b',n_rv=1,RM=False,t0_off=0.0):
 
 	if RM:
 		label = 'RV{}'.format(n_rv)	
-		stelpars = dynamics.StellarParams()
+		stelpars = StellarParams()
 		stelpars.vsini = parameters['vsini']['Value']
 		stelpars.zeta = parameters['zeta']['Value']
 		### HARD-CODED
@@ -882,9 +899,9 @@ def rv_model(time,n_planet='b',n_rv=1,RM=False,t0_off=0.0):
 			qs = []
 		orbpars.cs = qs
 
-		calcRV = dynamics.get_RV(time,orbpars,RM=RM,stelpars=stelpars,mpath=mpath)
+		calcRV = get_RV(time,orbpars,RM=RM,stelpars=stelpars,mpath=mpath)
 	else:
-		calcRV = dynamics.get_RV(time,orbpars)
+		calcRV = get_RV(time,orbpars)
 	return calcRV
 
 def ini_grid(rad_disk=100,thickness=20):

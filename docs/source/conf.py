@@ -13,15 +13,15 @@
 import os
 import sys
 #sys.path.insert(0, os.path.abspath('../..'))
-sys.path.insert(0, os.path.abspath('../../tracer'))
 #sys.path.insert(0, os.path.abspath('../..'))
-
-#import tracer
-
+#sys.path.insert(0, os.path.abspath('../../tracit/tracit'))
+sys.path.insert(0, os.path.abspath('../..'))
+#import tracit
+#print(tracit.expo)
 
 # -- Project information -----------------------------------------------------
 
-project = 'tracer'
+project = 'tracit'
 copyright = '2022, Emil Knudstrup'
 author = 'Emil Knudstrup'
 

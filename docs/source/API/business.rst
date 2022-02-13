@@ -4,5 +4,5 @@ business
 ================
 This is the API for the business module.
 
-.. automodule:: business
+.. automodule:: tracit.business
 	:members:

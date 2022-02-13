@@ -773,5 +773,5 @@ def get_rel_vsini(b, lam):
     x2 = np.sqrt(1 - b**2)*np.cos(lam) + b*np.sin(lam)
     return x1, x2
 
-if __name__=='__main__':
-  print('Go!')
+# if __name__=='__main__':
+#   print('Go!')

@@ -4,5 +4,5 @@ expose
 ================
 This is the API for the expose module.
 
-.. automodule:: expose
+.. automodule:: tracit.expose
 	:members:

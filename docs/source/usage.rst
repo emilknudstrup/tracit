@@ -2,7 +2,7 @@
 
 Usage
 ================
-The following is a demonstration on how you might want to use :strike:`trace`.
+The following is a demonstration on how you might want to use :strike:`tracit`.
 
 Here we will be looking at a system with 2 planets with measurements from 2 photometers and 2 spectrographs.
 
