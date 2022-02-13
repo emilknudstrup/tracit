@@ -27,20 +27,20 @@ Created on Wed Oct 20 11:02:15 2021
 	* Check imported packages, redundancy
 '''
 # =============================================================================
-# umbra modules
+# tracit modules
 # =============================================================================
 
-# import umbra.dynamics as dynamics
-# import umbra.shady as shady
-# import umbra.expose as expose
-# import umbra.stat_tools as stat_tools
-# import umbra.constants as constants
+# import tracit.dynamics as dynamics
+# import tracit.shady as shady
+# import tracit.expose as expose
+# import tracit.stat_tools as stat_tools
+# import tracit.constants as constants
 
-from umbra import expose
-from umbra import stat_tools
-from umbra import dynamics
-from umbra import shady
-from umbra.priors import tgauss_prior, gauss_prior, flat_prior, tgauss_prior_dis, flat_prior_dis
+from tracit import expose
+from tracit import stat_tools
+from tracit import dynamics
+from tracit import shady
+from tracit.priors import tgauss_prior, gauss_prior, flat_prior, tgauss_prior_dis, flat_prior_dis
 
 
 # =============================================================================
@@ -344,7 +344,7 @@ def data_temp(filename='data_template.csv',n_phot=1,n_spec=1):
 
 
 def data_structure(file):
-	'''Structure the data for :strike:`umbra`.
+	'''Structure the data for :strike:`tracit`.
 
 	Function that reads in the data .csv file, and structures the content in a dictionary.
 
@@ -550,7 +550,7 @@ def data_structure(file):
 
 
 def params_structure(filename):
-	'''Structure the parameters for :strike:`umbra`.
+	'''Structure the parameters for :strike:`tracit`.
 
 	Function that reads in the parameter .csv file, and structures the content in a dictionary.
 
