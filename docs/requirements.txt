@@ -10,3 +10,4 @@ lmfit
 arviz
 statsmodels
 astropy
+nbsphinx
