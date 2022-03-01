@@ -567,7 +567,7 @@ def get_RM(cos_f,sin_f,ww,ecc,ar,inc,rp,c1,c2,lam,vsini,
     wd = os.getcwd()
     os.chdir(mpath)
     run_input = ['./new_analytic7.exe']
-    pars = [c1,c2,vsini,rp,beta,gamma,zeta,alpha,cos_is,nn]
+    pars = [c1,c2,vsini,rp,xi,gamma,zeta,alpha,cos_is,nn]
     for par in pars: run_input.append(str(par))    
     
     RM = subprocess.check_output(run_input + xy)

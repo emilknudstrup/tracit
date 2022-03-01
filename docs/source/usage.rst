@@ -1,6 +1,6 @@
 .. _Usage:
 
-Usage
+General usage
 ================
 The following is a demonstration on how you might want to use :strike:`tracit`.
 
@@ -48,7 +48,7 @@ Assuming you have set the relevant parameters and included the data files correc
 
 Fitting the data
 ---------------------------
-We can find some good starting values for our parameters before we start doing an MCMC. This is done using `lmfit <https://lmfit.github.io/lmfit-py/>`_. In :strike:`trace` this is done calling :py:func:`business.lmfitter`, which will return a `fit object`. We will turn into a `pandas.DataFrame <https://pandas.pydata.org/>`_ .
+We can find some good starting values for our parameters before we start doing an MCMC. This is done using `lmfit <https://lmfit.github.io/lmfit-py/>`_. In :strike:`tracit` this is done calling :py:func:`business.lmfitter`, which will return a `fit object`. We will turn into a `pandas.DataFrame <https://pandas.pydata.org/>`_ .
 
 ::
 

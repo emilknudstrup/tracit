@@ -10,26 +10,30 @@
 
 :strike:`tracit`'s aim is to shed light on key orbital parameters in exoplanet systems.
 
-This is done through modelling of light curves and radial velocity curves, but :strike:`tracit` is specifically designed with the Rossiter-McLaughlin effect in mind.
+This is done through modelling of light curves and radial velocity curves. However, :strike:`tracit` is specifically designed with the Rossiter-McLaughlin effect in mind, be it through the planetary shadow, subplanetary velocities, or radial velocities.
 
 
 References and acknowledgements
 -------------------------------
 
-The planetary shadow is modelled following the approach in:
+The planetary shadow is modelled following the approaches in:
    * `Albrecht et al. (2007) <https://ui.adsabs.harvard.edu/abs/2007A%26A...474..565A/abstract>`_
+   * `Albrecht et al. (2013) <https://ui.adsabs.harvard.edu/abs/2013ApJ...771...11A/abstract>`_
    
 The RM effect as seen in the RVs is modelled using the software presented in:
    * `Hirano et al. (2011) <https://ui.adsabs.harvard.edu/abs/2011ApJ...742...69H/abstract>`_
 
 :strike:`tracit` has been used in:
+   * `Hjorth et al. (2021) <https://ui.adsabs.harvard.edu/abs/2021PNAS..11820174H/abstract>`_
    * `Knudstrup & Albrecht (2021) <https://ui.adsabs.harvard.edu/abs/2021arXiv211114968K/abstract>`_
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
    :caption: Usage
 
    usage
+   examples/hd332231/fit.ipynb
+
 
 .. toctree::
    :maxdepth: 2

@@ -16,7 +16,7 @@ import numpy as np
 import scipy.signal as ss
 import sys
 #import dynamics
-#from .dynamics import *
+from .dynamics import true_anomaly, xy_pos
 # =============================================================================
 # Grids
 # =============================================================================
@@ -200,8 +200,8 @@ def transit_ring(vel,vel_ext,ring_LD,mu_grid,mu_mean,lum,
 
 	rp = int(round(Rp_Rs*radius))
 	pl_grid, pl_vel, mu = grid(rp)
-	cos_f, sin_f = dynamics.true_anomaly(time,Tw,ecc,per,w)
-	xx, yy = dynamics.xy_pos(cos_f,sin_f,ecc,w,a_Rs,inc,lam)
+	cos_f, sin_f = true_anomaly(time,Tw,ecc,per,w)
+	xx, yy = xy_pos(cos_f,sin_f,ecc,w,a_Rs,inc,lam)
 	xnorm, ynorm = xx*radius, yy*radius
 	x_off, y_off = np.rint(xnorm), np.rint(ynorm)
 	x_pl, y_pl = abs(x_off)-rp, abs(y_off)-rp

@@ -26,7 +26,12 @@ Created on Wed Oct 20 11:02:15 2021
 
 	* Check imported packages, redundancy
 
-	* Make overwrite boolean for ``params_temp`` and ``data_temp`.
+	* Make overwrite boolean for ``params_temp`` and ``data_temp``.
+	
+	* Make it possible to look at shadow without giving a file for the RVs ``data_structure``.
+
+	* Instead of looping over the number of spectroscopic systems (n_rv), it would be better to loop over the handles directly (Spec_1).
+	* ^Same goes for the photometry.
 '''
 # =============================================================================
 # tracit modules
@@ -45,8 +50,9 @@ Created on Wed Oct 20 11:02:15 2021
 # import .expose
 # import .stat_tools
 from .dynamics import *
-# import .shady
-# from .priors import tgauss_prior, gauss_prior, flat_prior, tgauss_prior_dis, flat_prior_dis
+from .stat_tools import plot_autocorr, create_chains, create_corner, hpd, significantFormat
+from .shady import grid, grid_ring, absline_star, absline
+from .priors import tgauss_prior, gauss_prior, flat_prior, tgauss_prior_dis, flat_prior_dis
 
 
 # =============================================================================
@@ -228,8 +234,8 @@ def params_temp(filename='parameter_template.csv',
 	for ii in range(1,n_phot+1):
 		star['LCblend_{}'.format(ii)] = ['Dilution (deltaMag=-2.5log(F2/F1)) photometer {}'.format(ii),' ',r'$\rm \delta M{}$'.format('_{LC,'+str(ii)+'}'),0.0,0.5,0.0,7.0]
 		star['LCsigma_{}'.format(ii)] = ['Log jitter photometer {}'.format(ii),' ',r'$\rm \log \sigma{}$'.format('_{LC,'+str(ii)+'}'),-30,0.05,-50,1.0]
-		star['LC_{}_GP_log_a'.format(ii)] = ['GP log amplitude, photometer {}'.format(ii),' ',r'$\rm \log a{}$'.format('_{LC,'+str(ii)+'}'),-7,0.05,-20.0,5.0]
-		star['LC_{}_GP_log_c'.format(ii)] = ['GP log exponent, photometer {}'.format(ii),' ',r'$\rm \log c{}$'.format('_{LC,'+str(ii)+'}'),-0.7,0.05,-5.0,5.0]
+		star['LC_{}_GP_log_a'.format(ii)] = ['GP log amplitude, photometer {}'.format(ii),' ',r'$\rm \log A{}$'.format('_{LC,'+str(ii)+'}'),-7,0.05,-20.0,5.0]
+		star['LC_{}_GP_log_c'.format(ii)] = ['GP log time scale, photometer {}'.format(ii),' ',r'$\rm \log \tau{} \ (days)$'.format('_{LC,'+str(ii)+'}'),-0.7,0.05,-5.0,5.0]
 		label = 'LC'+str(ii)
 		set_LD(star,LD_law,label)
 
@@ -237,6 +243,8 @@ def params_temp(filename='parameter_template.csv',
 	for ii in range(1,n_spec+1):
 		star['RVsys_{}'.format(ii)] = ['Systemic velocity instrument {}'.format(ii),'m/s',r'$\gamma_{} \ \rm (m/s)$'.format(ii),0.0,1.,-20.,20.]
 		star['RVsigma_{}'.format(ii)] = ['Jitter RV instrument {}'.format(ii),'m/s',r'$\rm \sigma{} \ (m/s)$'.format('_{RV,'+str(ii)+'}'),0.0,1.0,0.0,100.]
+		star['RV_{}_GP_log_a'.format(ii)] = ['GP log amplitude, CCF {}'.format(ii),' ',r'$\rm \log a{}$'.format('_{RV,'+str(ii)+'}'),-7,0.05,-20.0,5.0]
+		star['RV_{}_GP_log_c'.format(ii)] = ['GP log exponent, CCF {}'.format(ii),' ',r'$\rm \log c{}$'.format('_{RV,'+str(ii)+'}'),-0.7,0.05,-5.0,5.0]
 		label = 'RV'+str(ii)
 		set_LD(star,LD_law,label)
 
@@ -566,7 +574,7 @@ def data_structure(file):
 
 
 
-def params_structure(filename):
+def params_structure(filename,updated_pars=None,best_fit=True):
 	'''Structure the parameters for :strike:`tracit`.
 
 	Function that reads in the parameter .csv file, and structures the content in a dictionary.
@@ -574,6 +582,12 @@ def params_structure(filename):
 	:param filename: Path to the parameter file, e.g., `./par.csv`.
 	:type filename: str
 
+	:param updated_pars: Updated parameters. Default ``None``.
+	:type updated_pars: :py:class:`pandas.DataFrame`, optional
+
+	:param best_fit: Whether to use best-fit as opposed to median from MCMC. Default ``True``.
+	:type best_fit: bool, optional
+	
 	.. note::
 		Using global variable to prevent having to pickle and pass the data to the modules every time the code is called,
 		see `emcee <https://emcee.readthedocs.io/en/stable/tutorials/parallel/#pickling-data-transfer-arguments>`_'s documention.
@@ -752,6 +766,16 @@ def params_structure(filename):
 	## Planets
 	parameters['Planets'] = pls
 
+	if updated_pars is not None:
+		pars = updated_pars.keys()[1:-2]
+		idx = 1
+		if (updated_pars.shape[0] > 3) & best_fit: idx = 4
+		for par in pars:
+			try:
+				parameters[par]['Value'] = float(updated_pars[par][idx])	
+			except KeyError:
+				pass
+
 	return parameters
 	#global parameters
 
@@ -906,9 +930,9 @@ def rv_model(time,n_planet='b',n_rv=1,RM=False,t0_off=0.0):
 
 def ini_grid(rad_disk=100,thickness=20):
 	## Make initial grid
-	start_grid, vel, mu = shady.grid(rad_disk) #make grid of stellar disk
+	start_grid, vel, mu = grid(rad_disk) #make grid of stellar disk
 	## The grid is made into rings for faster calculation of the macroturbulence (approx. constant in each ring)
-	ring_grid, vel, mu_grid, mu_mean = shady.grid_ring(rad_disk,thickness) 
+	ring_grid, vel, mu_grid, mu_mean = grid_ring(rad_disk,thickness) 
 	
 	return start_grid, ring_grid, vel, mu, mu_grid, mu_mean
 
@@ -921,13 +945,26 @@ def ls_model(time,
 	## Planet parameters
 	per = parameters['P'+pllabel]['Value']
 	T0 = parameters['T0'+pllabel]['Value'] + t0_off
-	
+
 	inc = parameters['inc'+pllabel]['Value']*np.pi/180.
 	a_Rs = parameters['a_Rs'+pllabel]['Value']
 	b = a_Rs*np.cos(inc)
 	rp = parameters['Rp_Rs'+pllabel]['Value']
 	ecc = parameters['e'+pllabel]['Value']
 	omega = parameters['w'+pllabel]['Value']
+
+    ## With this you supply the mid-transit time 
+    ## and then the time of periastron is calculated
+    ## from S. R. Kane et al. (2009), PASP, 121, 886. DOI: 10.1086/648564
+	if (ecc > 1e-5) & (omega != 90.):
+		f = np.pi/2 - omega*np.pi/180.
+		ew = 2*np.arctan(np.tan(f/2)*np.sqrt((1 - ecc)/(1 + ecc)))
+		Tw = T0 - per/(2*np.pi)*(ew - ecc*np.sin(ew))
+	else:
+		Tw = T0
+
+	T0 = Tw
+	
 	lam = parameters['lam'+pllabel]['Value']
 
 	omega = omega%360
@@ -965,7 +1002,7 @@ def ls_model(time,
 
 
 	if oot:
-		vel_1d, line_conv, lum = shady.absline_star(start_grid,vel_grid,ring_grid,
+		vel_1d, line_conv, lum = absline_star(start_grid,vel_grid,ring_grid,
 			mu,mu_mean,
 			vsini,conv_par,zeta,cs=qs
 			)
@@ -975,7 +1012,7 @@ def ls_model(time,
 		return vel_1d, line_oot_norm, lum
 
 	## Make shadow                   
-	vel_1d, line_conv, line_transit, planet_rings, lum, index_error = shady.absline(
+	vel_1d, line_conv, line_transit, planet_rings, lum, index_error = absline(
 																	start_grid,vel_grid,ring_grid,
 																	mu,mu_mean,mu_grid,
 																	vsini,conv_par,zeta,
@@ -1014,13 +1051,13 @@ def localRV_model(time,n_planet='b',t0_off=0.0):
 	omega *= np.pi/180.
 
 	lam *= np.pi/180.
-	pp = dynamics.time2phase(time,per,T0)*per*24
+	pp = time2phase(time,per,T0)*per*24
 
-	tau = dynamics.total_duration(per,rp,a_Rs,inc,ecc,omega)
+	tau = total_duration(per,rp,a_Rs,inc,ecc,omega)
 	x1 = -24*tau/2
 	x2 = 24*tau/2
 	
-	y1, y2 = dynamics.get_rel_vsini(a_Rs*np.cos(inc),lam)
+	y1, y2 = get_rel_vsini(a_Rs*np.cos(inc),lam)
 	y1 *= -1
 	a = (y2 - y1)/(x2 - x1)
 	b = y1 - x1*a
@@ -1207,20 +1244,20 @@ def lnprob(positions):
 
 				if (trend == 'poly') or (trend == True):
 					per, t0 = parameters['P_{}'.format(pl)]['Value'],parameters['T0_{}'.format(pl)]['Value']
-					ph = dynamics.time2phase(time,per,t0)*per*24
+					ph = time2phase(time,per,t0)*per*24
 					aR = parameters['a_Rs_{}'.format(pl)]['Value']
 					rp = parameters['Rp_Rs_{}'.format(pl)]['Value']
 					inc = parameters['inc_{}'.format(pl)]['Value']
 					ecc = parameters['e_{}'.format(pl)]['Value']
 					ww = parameters['w_{}'.format(pl)]['Value']
-					dur = dynamics.total_duration(per,rp,aR,inc*np.pi/180.,ecc,ww*np.pi/180.)*24
+					dur = total_duration(per,rp,aR,inc*np.pi/180.,ecc,ww*np.pi/180.)*24
 					
 					indxs = np.where((ph < (dur/2 + 6)) & (ph > (-dur/2 - 6)))[0]
 					in_transit = np.append(in_transit,indxs)				
 
 
 			
-			chi2scale = data['Chi2 LC_{}'.format(nn)]
+			#chi2scale = data['Chi2 LC_{}'.format(nn)]
 			
 			n_dps += len(flux)
 
@@ -1315,7 +1352,7 @@ def lnprob(positions):
 			log_jitter = parameters['RVsigma_{}'.format(nn)]['Value']
 			jitter = log_jitter
 			sigma = np.sqrt(rv_err**2 + jitter**2)
-			chi2scale = data['Chi2 RV_{}'.format(nn)]
+			#chi2scale = data['Chi2 RV_{}'.format(nn)]
 
 			if add_drift: 
 				rv_times, rvs, ervs = np.append(rv_times,time), np.append(rvs,rv), np.append(ervs,sigma)  
@@ -1455,7 +1492,8 @@ def lnprob(positions):
 			## Used to create shadow for in-transit CCFs
 			## Shift CCFs to star rest frame
 			## and detrend CCFs
-			oot_sd_b = []
+			oot_sd = []
+			# oot_sd_b = []
 			for ii, idx in enumerate(oots):
 				time = times[idx]
 				vel = shadow_data[time]['vel'] - rv_m[idx]*1e-3
@@ -1464,19 +1502,33 @@ def lnprob(positions):
 				
 
 				ccf = shadow_data[time]['ccf']
+
+				zp_idx = np.argmin(ccf)
+				zp_x = abs(vel[zp_idx])
 				
-				area = np.trapz(ccf,vel)
-				ccf /= area	
+				under_curve = (vel < zp_x) & (vel > -zp_x)
+				#area = np.trapz(ccf[under_curve],vel[under_curve])
 
-				vv,cc = get_binned(vels[:,idx],ccf)
-				no_peak_b = (vv > 15) | (vv < -15)
-				oot_sd_b.append(np.std(cc[no_peak_b]))
+				ccf_u = ccf[under_curve]
+				vel_u = vel[under_curve]
+				pos = ccf_u > 0.0
+				ccf_p = ccf_u[pos]
+				vel_p = vel_u[pos]
+				area = np.trapz(ccf_p,vel_p)
 
-					
+				ccf /= abs(area)
+				oot_sd.append(np.std(ccf[no_peak]))
+				
+				# area = np.trapz(ccf,vel)
+				# ccf /= area	
+
+				# vv,cc = get_binned(vels[:,idx],ccf)
+				# no_peak_b = (vv > 15) | (vv < -15)
+				# oot_sd_b.append(np.std(cc[no_peak_b]))
+				#cc -= vv*poly_pars[0] + poly_pars[1]
+	
 				poly_pars = np.polyfit(vel[no_peak],ccf[no_peak],1)
-	
 				ccf -= vel*poly_pars[0] + poly_pars[1]
-	
 	
 				oot_ccfs[:,ii] = ccf
 				avg_ccf += ccf
@@ -1484,33 +1536,58 @@ def lnprob(positions):
 			avg_ccf /= len(oots)
 			avg_vel /= len(oots)
 
-			## Here we simply fit our average out-of-transit CCF
-			## to an out-of-transit model CCF
-			## Hard-coded
-			log_jitter = parameters['RVsigma_{}'.format(nn)]['Value']
-			jitter = log_jitter
-			jitter = 0.0
-
-
-			
 			model_int = interpolate.interp1d(vel_model,model_ccf,kind='cubic',fill_value='extrapolate')
 			newline = model_int(avg_vel)
-			
-			vv,cc = get_binned(avg_vel,avg_ccf)
-			vv,ncc = get_binned(avg_vel,newline)
-			
-			sd = np.mean(oot_sd_b)
-			unc = np.ones(len(vv))*sd
-
+			sd = np.mean(oot_sd)
+			unc = np.ones(len(avg_vel))*sd
 			chi2scale_oot = data['Chi2 OOT_{}'.format(nn)]
-			#chi2scale_oot = 5.245
 			unc *= chi2scale_oot
-
+			
 			if fit_oot:
-				chisq += chi2(ncc,cc,unc)
-				log_prob += lnlike(ncc,cc,unc)
+				# log_jitter = parameters['RVsigma_{}'.format(nn)]['Value']
+				# jitter = np.exp(log_jitter)
+				
+				# model_int = interpolate.interp1d(vel_model,model_ccf,kind='cubic',fill_value='extrapolate')
+				# newline = model_int(avg_vel)
+				
+				# sd = np.mean(oot_sd)
+				
+				# unc = np.ones(len(vel))*np.sqrt((np.mean(oot_sd)**2 + jitter**2))
 
-				n_dps += len(cc)
+				# loga = parameters['RV_{}_GP_log_a'.format(nn)]['Value']
+				# logc = parameters['RV_{}_GP_log_c'.format(nn)]['Value']
+				# gp = data['LC_{} GP'.format(nn)]
+
+				# residuals = newline
+
+				# gp.set_parameter_vector(np.array([loga,logc]))
+				# gp.compute(time,sigma)
+				# lprob = gp.log_likelihood(res_flux)
+
+				# log_prob += lprob#lnlike(flux_m,flux,sigma)
+				# chisq += -2*lprob - np.sum(np.log(2*np.pi*unc**2))#chi2(flux_m,flux,sigma)
+				#print(len(vel),len(avg_ccf),len(model_ccf))
+				chisq += chi2(newline,avg_ccf,unc)
+				log_prob += lnlike(newline,avg_ccf,unc)
+
+				n_dps += len(vel)
+
+
+			# vv,cc = get_binned(avg_vel,avg_ccf)
+			# vv,ncc = get_binned(avg_vel,newline)
+			
+			# sd = np.mean(oot_sd_b)
+			# unc = np.ones(len(vv))*sd
+
+			# chi2scale_oot = data['Chi2 OOT_{}'.format(nn)]
+			# #chi2scale_oot = 5.245
+			# unc *= chi2scale_oot
+
+			# if fit_oot:
+			# 	chisq += chi2(ncc,cc,unc)
+			# 	log_prob += lnlike(ncc,cc,unc)
+
+			# 	n_dps += len(cc)
 		
 			if not only_oot:
 				chi2scale_shadow = data['Chi2 LS_{}'.format(nn)]
@@ -1518,6 +1595,7 @@ def lnprob(positions):
 				## Again shift CCFs to star rest frame
 				## and detrend CCFs
 				## Compare to shadow model
+				jitter = 0
 				for ii, idx in enumerate(its):
 					#arr = data[time]
 					time = times[idx]
@@ -1539,20 +1617,29 @@ def lnprob(positions):
 					ishadow = ff(vel)
 
 
-					vv,ss = get_binned(vel,shadow)
+					# vv,ss = get_binned(vel,shadow)
 
-					no_peak = (vv > 15) | (vv < -15)
-					sd = np.std(ss[no_peak])
-					poly_pars = np.polyfit(vv[no_peak],ss[no_peak],1)
-					nvv,nss = get_binned(vel,ishadow)
+					# no_peak = (vv > 15) | (vv < -15)
+					# sd = np.std(ss[no_peak])
+					# poly_pars = np.polyfit(vv[no_peak],ss[no_peak],1)
+					# nvv,nss = get_binned(vel,ishadow)
 
-					unc = np.ones(len(vv))*np.sqrt(sd**2 + jitter**2)
+					# unc = np.ones(len(vv))*np.sqrt(sd**2 + jitter**2)
+					
+					poly_pars = np.polyfit(vel[no_peak],ccf[no_peak],1)
+					
+					unc = np.ones(len(vel))*np.sqrt(sd**2 + jitter**2)
 					unc *= chi2scale_shadow
 
-					chisq += chi2(ss,nss + vv*poly_pars[0] + poly_pars[1],unc)
-					log_prob += lnlike(ss,nss + vv*poly_pars[0] + poly_pars[1],unc)
+					chisq += chi2(ccf,ishadow + vel*poly_pars[0] + poly_pars[1],unc)
+					log_prob += lnlike(ccf,ishadow + vel*poly_pars[0] + poly_pars[1],unc)
+					
+					n_dps += len(ccf)
+					
+					# chisq += chi2(ss,nss + vv*poly_pars[0] + poly_pars[1],unc)
+					# log_prob += lnlike(ss,nss + vv*poly_pars[0] + poly_pars[1],unc)
 
-					n_dps += len(ss)
+					# n_dps += len(ss)
 
 	for nn in range(1,n_sl+1):
 		if data['Fit SL_{}'.format(nn)]:
@@ -1637,9 +1724,9 @@ def lnprob(positions):
 
 
 				#fit_params = lmfit.Parameters()
-				cos_f, sin_f = dynamics.true_anomaly(times[its], T0, ecc, P, ww)
+				cos_f, sin_f = true_anomaly(times[its], T0, ecc, P, ww)
 				#print(cos_f)
-				xxs, yys = dynamics.xy_pos(cos_f,sin_f,ecc,ww,ar,inc,lam)
+				xxs, yys = xy_pos(cos_f,sin_f,ecc,ww,ar,inc,lam)
 				rvs = np.array([])
 				errs = np.array([])
 				for ii, idx in enumerate(its):
@@ -1649,8 +1736,8 @@ def lnprob(positions):
 					no_peak = (vel > 15) | (vel < -15)
 
 					xx = xxs[idx]
-					#cos_f, sin_f = dynamics.true_anomaly(time, T0, ecc, P, ww)
-					#xx, yy = dynamics.xy_pos(cos_f,sin_f,ecc,ww,ar,inc,lam)
+					#cos_f, sin_f = true_anomaly(time, T0, ecc, P, ww)
+					#xx, yy = xy_pos(cos_f,sin_f,ecc,ww,ar,inc,lam)
 					
 					#ccf = np.zeros(len(vel))
 					#shadow_arr = shadow_data[time]['ccf']
@@ -1702,7 +1789,7 @@ def lnprob(positions):
 				erv_scale = errs/vsini
 
 
-				pp = dynamics.time2phase(times[its],per,T0)*24*per
+				pp = time2phase(times[its],per,T0)*24*per
 
 				chi2scale = data['Chi2 SL_{}'.format(nn)]
 				erv_scale *= chi2scale
@@ -1727,7 +1814,7 @@ def mcmc(param_fname,data_fname,maxdraws,nwalkers,
 		stop_converged=True):
 
 
-	run_sys(nproc)
+	run_bus(nproc)
 	#data = data_structure(data_fname)
 	#parameters = params_structure(param_fname)
 	params_structure(param_fname)
@@ -1816,7 +1903,7 @@ def mcmc(param_fname,data_fname,maxdraws,nwalkers,
 	## - chain is longer than 100 times the estimated autocorrelation time 
 	## - & this estimate changed by less than 1%.
 	if plot_convergence:
-		expose.plot_autocorr(autocorr,index,kk)
+		plot_autocorr(autocorr,index,kk)
 		# figc = plt.figure()
 		# axc = figc.add_subplot(111)
 		# nn, yy = 1000*np.arange(1,index+1), autocorr[:index]
@@ -1836,6 +1923,9 @@ def check_convergence(filename='samples.h5', sampler=None,
 					plot_chains=True, plot_corner=True,chain_ival=5,
 					save_df=True,results_filename='results.csv',
 					n_auto=4,per_burn=None,plot_priors=True):
+	'''Check convergence and diagnostics.
+
+	'''
 	if filename:
 		reader = emcee.backends.HDFBackend(filename)	
 	elif sampler:
@@ -1876,7 +1966,7 @@ def check_convergence(filename='samples.h5', sampler=None,
 		comp = {}
 		for ii, fp in enumerate(fit_params):
 			val = np.median(last_flat[:,ii])
-			hpds = stat_tools.hpd(last_flat[:,ii],0.68)
+			hpds = hpd(last_flat[:,ii],0.68)
 			lower = val - hpds[0]
 			upper = hpds[1] - val
 			sigma = np.mean([lower,upper])
@@ -1917,7 +2007,7 @@ def check_convergence(filename='samples.h5', sampler=None,
 	raw_samples = reader.get_chain()
 	## plot the trace/chains
 	if plot_chains:
-		expose.create_chains(samples,labels=labels,savefig=True,ival=chain_ival)
+		create_chains(raw_samples,labels=labels,savefig=True,ival=chain_ival)
 	del raw_samples
 
 
@@ -1951,14 +2041,14 @@ def check_convergence(filename='samples.h5', sampler=None,
 			hands += ['e_{}'.format(pl), 'w_{}'.format(pl)]
 
 			# val_ecc = np.median(ecc)
-			# hpds_ecc = stat_tools.hpd(ecc,0.68)
+			# hpds_ecc = hpd(ecc,0.68)
 			# lower_ecc = val_ecc - hpds_ecc[0]
 			# upper_ecc = hpds_ecc[1] - val_ecc
 			# results['e_{}'.format(pl)] = [val_ecc,lower_ecc,upper_ecc]
 
 			# omega = omega%360
 			# val_omega = np.median(omega)
-			# hpds_omega = stat_tools.hpd(omega,0.68)
+			# hpds_omega = hpd(omega,0.68)
 			# lower_omega = val_omega - hpds_omega[0]
 			# upper_omega = hpds_omega[1] - val_omega
 			# results['w_{}'.format(pl)] = [val_omega,lower_omega,upper_omega]
@@ -2127,27 +2217,22 @@ def check_convergence(filename='samples.h5', sampler=None,
 		mode = ksupport[mode_idx]
 
 		val = np.median(all_samples[:,i])
-		bounds = stat_tools.hpd(all_samples[:,i], 0.68)
+		bounds = hpd(all_samples[:,i], 0.68)
 
 		qs.append([bounds[0],val,bounds[1]])
 		#print(qs[i][1],qs[i][1]-qs[i][0],qs[i][2]-qs[i][1])
-		val, low, up = stat_tools.significantFormat(qs[i][1],qs[i][1]-qs[i][0],qs[i][2]-qs[i][1])
+		val, low, up = significantFormat(qs[i][1],qs[i][1]-qs[i][0],qs[i][2]-qs[i][1])
 		#print(mode,mode-qs[i][0],qs[i][2]-mode)
-		mode, _, _ = stat_tools.significantFormat(mode,mode-qs[i][0],qs[i][2]-mode)
+		mode, _, _ = significantFormat(mode,mode-qs[i][0],qs[i][2]-mode)
 
 		label = labels[i][:-1] + '=' + str(val) + '_{-' + str(low) + '}^{+' + str(up) + '}'
 		value_formats.append(label)
 
-		#best_idx = np.argmax(log_prob_samples)
-		best_idx = np.argmin(chi2_samples)
-		#print(val,mode)
+		best_idx = np.argmax(log_prob_samples)
+		#best_idx = np.argmin(chi2_samples)
 		best_fit = all_samples[best_idx,i]
-		#print(labels[i][:-1],best_fit,qs[i])
-		#print(best_fit,best_fit-qs[i][0],qs[i][2]-best_fit)
-		#print(low,up)
-		best_val, _, _ = stat_tools.significantFormat(best_fit,float(low),float(up))
-		#print(best_val)
-		#best_val, _, _ = stat_tools.significantFormat(best_fit,best_fit-qs[i][0],qs[i][2]-best_fit)
+		best_val, _, _ = significantFormat(best_fit,float(low),float(up))
+		#best_val, _, _ = significantFormat(best_fit,best_fit-qs[i][0],qs[i][2]-best_fit)
 
 		hand = hands[i]
 		try:
@@ -2177,7 +2262,7 @@ def check_convergence(filename='samples.h5', sampler=None,
 			for i, fp in enumerate(fps): priors[i] = [parameters[fp]['Prior'],parameters[fp]['Prior_vals'][0],parameters[fp]['Prior_vals'][1],parameters[fp]['Prior_vals'][2],parameters[fp]['Prior_vals'][3]]
 		else:
 			priors = None
-		expose.create_corner(all_samples,labels=labels,truths=None,savefig=True,priors=priors,quantiles=qs,diag_titles=value_formats)
+		create_corner(all_samples,labels=labels,truths=None,savefig=True,priors=priors,quantiles=qs,diag_titles=value_formats)
 
 	return res_df
 
