@@ -7,9 +7,13 @@ Created on Tue Jun 29 16:30:38 2021
 
 .. todo::
     * Look at autocorrelation plot.
+
     * Where should autocorr, chains, and corner be?
+	
 	* Move ini_grid to :py:func:`business.data_structure`
+	
 	* Remove all the stuff regarding 't0_off'
+	
 	* Remove at least one of the gaussian functions
 """
 # =============================================================================

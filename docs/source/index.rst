@@ -19,7 +19,10 @@ References and acknowledgements
 The planetary shadow is modelled following the approaches in:
    * `Albrecht et al. (2007) <https://ui.adsabs.harvard.edu/abs/2007A%26A...474..565A/abstract>`_
    * `Albrecht et al. (2013) <https://ui.adsabs.harvard.edu/abs/2013ApJ...771...11A/abstract>`_
-   
+
+The subplanetary velocities are modelled following the approach in:
+   * `Albrecht et al. (2011) <https://ui.adsabs.harvard.edu/abs/2011ApJ...738...50A/abstract>`_
+
 The RM effect as seen in the RVs is modelled using the software presented in:
    * `Hirano et al. (2011) <https://ui.adsabs.harvard.edu/abs/2011ApJ...742...69H/abstract>`_
 
