@@ -31,12 +31,18 @@ The RM effect as seen in the RVs is modelled using the software presented in:
    * `Knudstrup & Albrecht (2021) <https://ui.adsabs.harvard.edu/abs/2021arXiv211114968K/abstract>`_
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Usage
 
    usage
    examples/hd332231/fit.ipynb
+   examples/shadow_hd332231/fit.ipynb
 
+.. toctree::
+   :maxdepth: 1
+   :caption: The RM effect
+
+   rm
 
 .. toctree::
    :maxdepth: 2

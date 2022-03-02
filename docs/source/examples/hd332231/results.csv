@@ -1,13 +1,13 @@
 Parameter,Rp_Rs_b,lam_b,LC1_q_sum,LC1_q1,LC1_q2,lnL,chi2
 Label,$(R_\mathrm{p}/R_\star)\rm _b$,$\lambda \rm _b \ (^\circ)$,$q_1 + q_2: \rm LC1$,$q_1: \ \rm LC1$,$q_2: \ \rm LC1$,$\ln \mathcal{L}$,$\chi^2$
-Median,0.06849,-24,0.568,0.266,0.302,7354.3,1.5514
-Lower,0.00022,6,0.021,0.010,0.010,0.6,0.0017
-Upper,0.00016,6,0.016,0.008,0.008,1.1,0.0010
-Best-fit,0.06849,-25,0.570,0.267,0.303,7355.4,1.5496
-Mode,0.06851,-26,0.572,0.268,0.304,7354.9,1.5505
+Median,0.06848,-25,0.567,0.265,0.301,7354.2,1.5516
+Lower,0.00018,6,0.021,0.011,0.011,0.7,0.0018
+Upper,0.00021,6,0.017,0.009,0.009,1.2,0.0011
+Best-fit,0.06849,-25,0.569,0.266,0.302,7355.4,1.5496
+Mode,0.06846,-27,0.567,0.265,0.301,7354.8,1.5506
 Prior,uni,uni,tgauss,Derived,Derived,Derived,Derived
 Location,0.04,-90.0,0.542,Derived,Derived,Derived,Derived
 Width,0.05,10.0,0.1,Derived,Derived,Derived,Derived
 Lower,0.0,-180.0,0.0,Derived,Derived,Derived,Derived
 Upper,0.1,180.0,2.0,Derived,Derived,Derived,Derived
-Rhat,1.0122315947621972,1.0096384644821337,1.0104691311793779,Derived,Derived,Derived,Derived
+Rhat,1.0102239817951075,1.0085349510995478,1.0079807514730528,Derived,Derived,Derived,Derived
