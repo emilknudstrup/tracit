@@ -51,9 +51,14 @@ The RM effect as seen in the RVs is modelled using the software presented in:
    API/expose
    API/shady
    API/business
+   API/structure
    API/dynamics
 
+.. toctree::
+   :maxdepth: 2
+   :caption: CCF
 
+   CCF/shazam
 
 Indices and tables
 ==================

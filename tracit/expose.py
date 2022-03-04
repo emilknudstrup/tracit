@@ -6,9 +6,9 @@ Created on Tue Jun 29 16:30:38 2021
 @author: emil
 
 .. todo::
-    * Look at autocorrelation plot.
+	* Look at autocorrelation plot.
 
-    * Where should autocorr, chains, and corner be?
+	* Where should autocorr, chains, and corner be?
 	
 	* Move ini_grid to :py:func:`business.data_structure`
 	
@@ -473,7 +473,7 @@ def plot_lightcurve(parameters,data,updated_pars=None,savefig=False,
 			in_transit_model = np.array([],dtype=np.int)
 
 			for pl in pls:
-				aa = [parameters['a{}_{}'.format(ii,pl)]['Value'] for ii in range(1,3)]
+				#aa = [parameters['a{}_{}'.format(ii,pl)]['Value'] for ii in range(1,3)]
 				try:
 					t0n = parameters['Phot_{}:T0_{}'.format(nn,pl)]['Value']
 				except KeyError:
@@ -688,7 +688,7 @@ def plot_lightcurve(parameters,data,updated_pars=None,savefig=False,
 
 
 			for ii, pl in enumerate(pls):
-				aa = [parameters['a{}_{}'.format(ii,pl)]['Value'] for ii in range(1,3)]
+				#aa = [parameters['a{}_{}'.format(ii,pl)]['Value'] for ii in range(1,3)]
 				per, t0 = parameters['P_{}'.format(pl)]['Value'],parameters['T0_{}'.format(pl)]['Value']
 				try:
 					t0n = parameters['Phot_{}:T0_{}'.format(nn,pl)]['Value']

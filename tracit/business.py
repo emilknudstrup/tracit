@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Created on Wed Oct 20 11:02:15 2021
-
-@author: emil
-"""
 
 '''
 .. todo::
@@ -32,6 +27,10 @@ Created on Wed Oct 20 11:02:15 2021
 
 	* Instead of looping over the number of spectroscopic systems (n_rv), it would be better to loop over the handles directly (Spec_1).
 	* ^Same goes for the photometry.
+
+	* Fix hard-code in `no_peak`
+	
+	* Check `poly_pars` CCFs
 '''
 # =============================================================================
 # tracit modules
@@ -53,7 +52,7 @@ from .dynamics import *
 from .stat_tools import plot_autocorr, create_chains, create_corner, hpd, significantFormat
 from .shady import grid, grid_ring, absline_star, absline
 from .priors import tgauss_prior, gauss_prior, flat_prior, tgauss_prior_dis, flat_prior_dis
-
+#from .structure import ini_data
 
 # =============================================================================
 # external modules
@@ -80,10 +79,33 @@ import scipy.signal as scisig
 from statsmodels.nonparametric.kde import KDEUnivariate as KDE
 
 #def run_params(nproc):
-def run_bus(nproc):
-	global mpath
+def run_bus(par,dat,nproc=1):
+	'''Set global parameters.
+
+	Initialize the `structure.par_struct` and `structure.dat_struct` dictionaries as global parameters.
 	
-	if nproc > 4:
+	:param par: Name for the parameters dict from `structure.par_struct`.
+	:type par: dict
+
+	:param dat: Name for the data dict from `structure.dat_struct`.
+	:type dat: dict
+	
+	:param nproc: Number of CPUs. Default 1.
+	:type nproc: int	
+
+	.. note::
+		Using global variable to prevent having to pickle and pass the data to the modules every time the code is called,
+		see `emcee <https://emcee.readthedocs.io/en/stable/tutorials/parallel/#pickling-data-transfer-arguments>`_'s documention.
+	'''
+
+	global mpath
+
+	global parameters
+	parameters = par.copy()
+	global data
+	data = dat.copy()
+
+	if nproc > 5:
 		mpath = './'
 	else:
 		mpath = '/home/emil/Desktop/PhD/exoplanets'
@@ -1502,6 +1524,8 @@ def lnprob(positions):
 				
 
 				ccf = shadow_data[time]['ccf']
+				poly_pars = np.polyfit(vel[no_peak],ccf[no_peak],1)
+				ccf -= vel*poly_pars[0] + poly_pars[1]
 
 				zp_idx = np.argmin(ccf)
 				zp_x = abs(vel[zp_idx])
@@ -1527,8 +1551,6 @@ def lnprob(positions):
 				# oot_sd_b.append(np.std(cc[no_peak_b]))
 				#cc -= vv*poly_pars[0] + poly_pars[1]
 	
-				poly_pars = np.polyfit(vel[no_peak],ccf[no_peak],1)
-				ccf -= vel*poly_pars[0] + poly_pars[1]
 	
 				oot_ccfs[:,ii] = ccf
 				avg_ccf += ccf
@@ -1604,6 +1626,9 @@ def lnprob(positions):
 					no_peak = (vel > 15) | (vel < -15)
 						
 					ccf = shadow_data[time]['ccf']
+					poly_pars = np.polyfit(vel[no_peak],ccf[no_peak],1)
+					ccf -= vel*poly_pars[0] + poly_pars[1]
+					
 					area = np.trapz(ccf,vel)
 					ccf /= area
 					
@@ -1626,13 +1651,12 @@ def lnprob(positions):
 
 					# unc = np.ones(len(vv))*np.sqrt(sd**2 + jitter**2)
 					
-					poly_pars = np.polyfit(vel[no_peak],ccf[no_peak],1)
 					
 					unc = np.ones(len(vel))*np.sqrt(sd**2 + jitter**2)
 					unc *= chi2scale_shadow
 
-					chisq += chi2(ccf,ishadow + vel*poly_pars[0] + poly_pars[1],unc)
-					log_prob += lnlike(ccf,ishadow + vel*poly_pars[0] + poly_pars[1],unc)
+					chisq += chi2(ccf,ishadow,unc)
+					log_prob += lnlike(ccf,ishadow,unc)
 					
 					n_dps += len(ccf)
 					
@@ -1693,11 +1717,11 @@ def lnprob(positions):
 						
 
 						ccf = slope_data[time]['ccf']
+						poly_pars = np.polyfit(vel[no_peak],ccf[no_peak],1)
+						ccf -= vel*poly_pars[0] + poly_pars[1]
 						area = np.trapz(ccf,vel)
 						ccf /= area	
 
-						poly_pars = np.polyfit(vel[no_peak],ccf[no_peak],1)
-						ccf -= vel*poly_pars[0] + poly_pars[1]
 
 
 						oot_ccfs[:,ii] = ccf
@@ -1744,6 +1768,9 @@ def lnprob(positions):
 					#ccf = 1 - shadow_arr/np.median(shadow_arr[no_peak])
 
 					ccf = slope_data[time]['ccf']
+					poly_pars = np.polyfit(vel[no_peak],shadow[no_peak],1)
+					
+					ccf -= vel*poly_pars[0] + poly_pars[1]
 					area = np.trapz(ccf,vel)
 					ccf /= area
 					
@@ -1751,9 +1778,6 @@ def lnprob(positions):
 
 					ccf *= darks[idx]#/bright#blc[ii]		
 					shadow = avg_ccf - ccf
-					poly_pars = np.polyfit(vel[no_peak],shadow[no_peak],1)
-					
-					shadow -= vel*poly_pars[0] + poly_pars[1]
 
 					#peak = np.where((vel > -15) & (vel < 15))
 					peak = np.where((vel > (xx*vsini - vsini/2)) & (vel < (xx*vsini + vsini/2)))
