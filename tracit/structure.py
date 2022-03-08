@@ -12,6 +12,7 @@ Created on Wed Mar  2 20:30:39 2022
 """
 import string
 import numpy as np
+import h5py
 
 def par_struct(n_phot=1,n_spec=1,n_planets=1,LD_law='quad',
 	fps=[],cons=[],LD_lincombs=[],updated_pars=None):
@@ -193,8 +194,110 @@ def par_struct(n_phot=1,n_spec=1,n_planets=1,LD_law='quad',
 
 	return parameters
 
-def update_pars(rdf,parameters,best_fit=True):
+def check_fps(parameters):
+	'''Check fitting parameters.
 
+	Run an initial check of the fitting parameters to avoid stepping in, for instance, both :math:`i` and :math:`\cos i`.
+
+	:param parameters: The parameters.
+	:type parameters: dict
+
+	'''
+
+	fps = parameters['FPs']
+	pls = parameters['Planets']
+
+	for pl in pls:
+		if 'ecosw_{}'.format(pl) in fps:
+			try:
+				fps.remove('e_b')
+			except ValueError:
+				pass
+			try:
+				fps.remove('w_b')
+			except ValueError:
+				pass
+			if not 'esinw_{}'.format(pl) in fps:
+				fps.append('esinw_{}'.format(pl))
+		if 'esinw_{}'.format(pl) in fps:
+			try:
+				fps.remove('e_b')
+			except ValueError:
+				pass
+			try:
+				fps.remove('w_b')
+			except ValueError:
+				pass
+			if not 'ecosw_{}'.format(pl) in fps:
+				fps.append('ecosw_{}'.format(pl))
+		if 'cosi_{}'.format(pl) in fps:
+			try:
+				fps.remove('i_b')
+			except ValueError:
+				pass
+
+	LD_lincombs = parameters['LinCombs']
+	for LDlc in LD_lincombs:
+		LD1 = LDlc + '1'
+		LD2 = LDlc + '2'
+		try:
+			fps.remove(LD1)
+		except ValueError:
+			pass
+		try:
+			fps.remove(LD1)
+		except ValueError:
+			pass
+		ldsum = LDlc+'_sum'
+		if ldsum not in fps:
+			fps.append(ldsum)
+
+# def ini_pars(parameters):
+# 	LD_lincombs = parameters['LinCombs']
+
+# 	for LDhandle in LD_lincombs:
+# 		LDhandle1 = LDhandle + '1'
+# 		LDhandle2 = LDhandle + '2'
+# 		sumhandle = LDhandle + '_sum'
+# 		parameters['FPs'].append(sumhandle)
+# 		diffhandle = LDhandle + '_diff'
+# 		parameters[sumhandle] = {
+# 			'Unit'         : ndf[LDhandle1][0],
+# 			'Label'        : r'$q_1 + q_2: \rm {}$'.format(LDhandle1.split('_')[0]),
+# 			'Value'        : True,
+# 			'Value'        : float(ndf[LDhandle1][2]) + float(ndf[LDhandle2][2]),
+# 			'Prior_vals'   : [float(ndf[LDhandle1][2]) + float(ndf[LDhandle2][2]),0.1,0.0,2.0],
+# 			'Prior'        : 'tgauss',
+# 			'Distribution' : 'tgauss',
+# 			'Fix' : False
+# 		}			
+# 		parameters[diffhandle] = {
+# 			'Unit'         : ndf[LDhandle1][0],
+# 			'Label'        : r'$q_1 - q_2: \rm {}$'.format(LDhandle1.split('_')[0]),
+# 			'Value'        : float(ndf[LDhandle1][2]) - float(ndf[LDhandle2][2]),
+# 			'Prior_vals'   : [float(ndf[LDhandle1][2]) - float(ndf[LDhandle2][2]),0.1,-1.0,1.0],
+# 			'Prior'        : 'gauss',
+# 			'Distribution' : ndf[handle][7],
+# 			'Fix' : False
+# 		}
+
+
+def update_pars(rdf,parameters,best_fit=True):
+	'''Update parameters.
+
+	Updates the parameters dictionary.
+
+	:param rdf: Results from fit or MCMC.
+	:type rdf: `pandas.DataFrame`
+
+	:param parameters: The parameters.
+	:type parameters: dict
+
+	:param best_fit: Use best-fitting (:math:`max(\log \mathcal{L})`), if `False` median is used.
+	:type best_fit: bool
+
+
+	'''
 	pars = rdf.keys()[1:-2]
 	idx = 1
 	if (rdf.shape[0] > 3) & best_fit: idx = 4
@@ -257,6 +360,7 @@ def dat_struct(n_phot=1,n_rvs=1,n_ls=0,n_sl=0):
 
 		data['Resolution_{}'.format(ii)] = 100 # Disc resolution
 		data['Thickness_{}'.format(ii)] = 20 # Ring thickness
+		data['PSF_{}'.format(ii)] = 1.1 # Ring thickness
 		data['Only_OOT_{}'.format(ii)] = False#str2bool(df_spec['Only fit OOT'][ii])
 		data['OOT_{}'.format(ii)] = False#str2bool(df_spec['Fit OOT'][ii])
 		#idxs = df_spec['OOT indices'][ii]
@@ -279,7 +383,10 @@ def ini_data(data):
 	'''Initialize the data.
 
 	Load in data and initialize the GP (if `True`).
-
+	
+	:param data: The data.
+	:type data: dict
+	
 	'''
 
 	#global data
@@ -312,6 +419,7 @@ def ini_data(data):
 		fname = data['LS filename_{}'.format(ii)]
 		with h5py.File(fname,'r') as ff:
 			shadow_data = {}
+			times = []
 			for key in ff.keys():
 				times.append(float(key))
 			times = np.asarray(times)
@@ -324,6 +432,22 @@ def ini_data(data):
 					'vel' : raw_vel,
 					'ccf' : arr[:,1]
 					}
+		try:
+			data['Resolution_{}'.format(ii)]
+		except KeyError:
+			data['Resolution_{}'.format(ii)] = 100 # Disc resolution
+		try:
+			data['Thickness_{}'.format(ii)]
+		except KeyError:
+			data['Thickness_{}'.format(ii)] = 20 # Ring thickness
+		try:
+			data['PSF_{}'.format(ii)]
+		except KeyError:
+			data['PSF_{}'.format(ii)] = 1.1 # Point spread function of spectrograph (km/s)
+		try:
+			data['idxs_{}'.format(ii)] 
+		except KeyError:
+			data['idxs_{}'.format(ii)] = [0,1,2] # OOT indices
 
 		data['LS_{}'.format(ii)] = shadow_data	
 

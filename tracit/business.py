@@ -841,15 +841,14 @@ def get_binned(x,y,binfactor=4,yerr=np.array([])):
 
 
 def lc_model(time,n_planet='b',n_phot=1,
-	supersample_factor=30,exp_time=0.0208,
-	t0_off=0.0):
+	supersample_factor=30,exp_time=0.0208):
 	lclabel = 'LC{}'.format(n_phot)
 	pllabel = '_{}'.format(n_planet)
 
 	batpars = batman.TransitParams()
 	per = parameters['P'+pllabel]['Value']
 	batpars.per = per
-	t0 = parameters['T0'+pllabel]['Value']# + t0_off
+	t0 = parameters['T0'+pllabel]['Value']
 	batpars.t0 = 0.0#t0#parameters['T0'+pllabel]['Value']
 	inc = parameters['inc'+pllabel]['Value']
 	batpars.inc = inc
@@ -882,7 +881,7 @@ def lc_model(time,n_planet='b',n_phot=1,
 
 	return model_flux
 
-def rv_model(time,n_planet='b',n_rv=1,RM=False,t0_off=0.0):
+def rv_model(time,n_planet='b',n_rv=1,RM=False):
 	pllabel = '_{}'.format(n_planet)
 	
 	orbpars = OrbitalParams()
@@ -896,7 +895,7 @@ def rv_model(time,n_planet='b',n_rv=1,RM=False,t0_off=0.0):
 	orbpars.ecc = ecc
 	orbpars.RVsys = 0.0
 
-	T0 = parameters['T0'+pllabel]['Value'] + t0_off
+	T0 = parameters['T0'+pllabel]['Value']
 
     ## With this you supply the mid-transit time 
     ## and then the time of periastron is calculated
@@ -961,12 +960,12 @@ def ini_grid(rad_disk=100,thickness=20):
 
 def ls_model(time,
 	start_grid,ring_grid,vel_grid,mu,mu_grid,mu_mean,rad_disk,
-	n_planet='b',n_rv=1,oot=False,t0_off=0.0):
+	n_planet='b',n_rv=1,oot=False):
 	pllabel = '_{}'.format(n_planet)
 	
 	## Planet parameters
 	per = parameters['P'+pllabel]['Value']
-	T0 = parameters['T0'+pllabel]['Value'] + t0_off
+	T0 = parameters['T0'+pllabel]['Value']
 
 	inc = parameters['inc'+pllabel]['Value']*np.pi/180.
 	a_Rs = parameters['a_Rs'+pllabel]['Value']
@@ -1000,11 +999,15 @@ def ls_model(time,
 	label = 'RV{}'.format(n_rv)	
 	
 	LD_law =  parameters[label+'_q1']['Unit']
-	fix = parameters[label+'_q1']['Fix']
-	if fix != False:
-		LDlabel = fix.split('_')[0]
-	else:
-		LDlabel = label
+	print(label)
+	# fix = parameters[label+'_q1']['Fix']
+	# if fix != False:
+	# 	LDlabel = fix.split('_')[0]
+	# else:
+	# 	LDlabel = label
+	LDlabel = label
+
+
 	if LD_law == 'quadratic':
 		q1, q2 = parameters[LDlabel+'_q1']['Value'], parameters[LDlabel+'_q2']['Value']
 		qs = [q1,q2]
@@ -1019,8 +1022,9 @@ def ls_model(time,
 	vsini = parameters['vsini']['Value']
 	zeta = parameters['zeta']['Value']
 	xi = parameters['xi']['Value']
-	### HARD-CODED
-	conv_par = np.sqrt(xi**2 + 1.1**2)#parameters['xi']['Value']
+	psf = data['PSF_{}'.format(n_rv)]
+
+	conv_par = np.sqrt(xi**2 + psf**2)#parameters['xi']['Value']
 
 
 	if oot:
@@ -1054,12 +1058,12 @@ def ls_model(time,
 	
 	return vel_1d, shadow, line_oot_norm, planet_rings, lum, index_error
 
-def localRV_model(time,n_planet='b',t0_off=0.0):
+def localRV_model(time,n_planet='b'):
 	pllabel = '_{}'.format(n_planet)
 	 
 	## Planet parameters
 	per = parameters['P'+pllabel]['Value']
-	T0 = parameters['T0'+pllabel]['Value'] + t0_off
+	T0 = parameters['T0'+pllabel]['Value']
 	
 	inc = parameters['inc'+pllabel]['Value']*np.pi/180.
 	a_Rs = parameters['a_Rs'+pllabel]['Value']
@@ -1238,11 +1242,6 @@ def lnprob(positions):
 			if (trend == 'poly') or (trend == True): in_transit = np.array([],dtype=np.int)
 
 			for pl in pls:
-
-
-
-
-				aa_pl = [parameters['a{}_{}'.format(ii,pl)]['Value'] for ii in range(1,3)]
 				try:
 					t0n = parameters['Phot_{}:T0_{}'.format(nn,pl)]['Value']
 					parameters['T0_{}'.format(pl)]['Value'] = t0n				
@@ -1250,19 +1249,14 @@ def lnprob(positions):
 					pass
 
 				per, t0 = parameters['P_{}'.format(pl)]['Value'],parameters['T0_{}'.format(pl)]['Value']
-				off_arr = np.round((time-t0)/per)
-				n_pers = np.unique(off_arr)
-				for n_per in n_pers:
-					t_idxs = n_per == off_arr
-					t0_off = 0.0#(n_per*per)**2*aa_pl[1]#0.0
 
-					flux_pl = lc_model(time[t_idxs],n_planet=pl,n_phot=nn,
-								supersample_factor=ofactor,exp_time=exp,t0_off=t0_off)
-					if deltamag > 0.0:
-						dilution = 10**(-deltamag/2.5)
-						flux_pl = flux_pl/(1 + dilution) + dilution/(1+dilution)
+				flux_pl = lc_model(time,n_planet=pl,n_phot=nn,
+							supersample_factor=ofactor,exp_time=exp)
+				if deltamag > 0.0:
+					dilution = 10**(-deltamag/2.5)
+					flux_pl = flux_pl/(1 + dilution) + dilution/(1+dilution)
 
-					flux_m[t_idxs] -= (1 - flux_pl)
+				flux_m -= (1 - flux_pl)
 
 				if (trend == 'poly') or (trend == True):
 					per, t0 = parameters['P_{}'.format(pl)]['Value'],parameters['T0_{}'.format(pl)]['Value']
@@ -1388,17 +1382,9 @@ def lnprob(positions):
 					parameters['T0_{}'.format(pl)]['Value'] = t0n				
 				except KeyError:
 					pass
-				aa_pl = [parameters['a{}_{}'.format(ii,pl)]['Value'] for ii in range(1,3)]
 				per, t0 = parameters['P_{}'.format(pl)]['Value'],parameters['T0_{}'.format(pl)]['Value']
-				off_arr = np.round((time-t0)/per)
-				n_pers = np.unique(off_arr)
-				for n_per in n_pers:
-					t_idxs = n_per == off_arr
-					t0_off = n_per*per*aa_pl[0]#0.0
-					t0_off += (n_per*per)**2*aa_pl[1]#0.0
-					t0_off = 0.0#(n_per*per)**2*aa_pl[1]#0.0
-					rv_pl = rv_model(time[t_idxs],n_planet=pl,n_rv=nn,RM=calc_RM,t0_off=t0_off)
-					rv_m[t_idxs] += rv_pl
+				rv_pl = rv_model(time,n_planet=pl,n_rv=nn,RM=calc_RM)
+				rv_m += rv_pl
 			model_rvs = np.append(model_rvs,rv_m)
 			n_dps += len(rvs)
 
@@ -1439,15 +1425,7 @@ def lnprob(positions):
 				except KeyError:
 					pass
 				p2, t02 = parameters['P_{}'.format(pl)]['Value'], parameters['T0_{}'.format(pl)]['Value'] 
-				aa2_pl = [parameters['a{}_{}'.format(ii,pl)]['Value'] for ii in range(1,3)]
-				off_arr2 = np.round((times-t02)/p2)
-				n_pers = np.unique(off_arr2)
-				for n_per in n_pers:
-					t_idxs = n_per == off_arr2
-					t0_off = n_per*p2*aa2_pl[0]#0.0
-					t0_off += (n_per*p2)*aa2_pl[1]#0.0
-					t0_off = 0.#(n_per*p2)*aa2_pl[1]#0.0
-					rv_pl = rv_model(times[t_idxs],n_planet=pl,n_rv=nn,RM=False,t0_off=t0_off)
+				rv_pl = rv_model(times,n_planet=pl,n_rv=nn,RM=False)
 				rv_m[t_idxs] += rv_pl
 			rv_m += v0
 
@@ -1468,13 +1446,6 @@ def lnprob(positions):
 				pass
 
 			P, T0 = parameters['P_{}'.format(pl)]['Value'], parameters['T0_{}'.format(pl)]['Value'] 
-			aa_pl = [parameters['a{}_{}'.format(ii,pl)]['Value'] for ii in range(1,3)]
-
-			off_arr = np.round((times-T0)/P)
-			n_per = np.unique(off_arr)
-			t0_off = n_per*P*aa_pl[0]
-			t0_off += (n_per*P)**2*aa_pl[1]
-			t0_off = 0.
 
 			resol = data['Resolution_{}'.format(nn)]
 			start_grid = data['Start_grid_{}'.format(nn)]
@@ -1497,7 +1468,7 @@ def lnprob(positions):
 					#parameters,time,start_grid,ring_grid,
 					times,start_grid,ring_grid,
 					vel_grid,mu,mu_grid,mu_mean,resol,
-					n_rv=nn,t0_off=t0_off
+					n_rv=nn,
 					)
 				if index_error:
 					return -np.inf, -np.inf

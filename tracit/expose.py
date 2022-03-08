@@ -12,8 +12,6 @@ Created on Tue Jun 29 16:30:38 2021
 	
 	* Move ini_grid to :py:func:`business.data_structure`
 	
-	* Remove all the stuff regarding 't0_off'
-	
 	* Remove at least one of the gaussian functions
 """
 # =============================================================================
@@ -232,7 +230,6 @@ def plot_orbit(parameters,data,updated_pars=None,
 			dur = total_duration(per,rp,aR,inc*np.pi/180.,ecc,ww*np.pi/180.)*24
 			if np.isfinite(dur): x1, x2 = -1*dur/2-1.0,dur/2+1.0
 
-			aa_pl = [parameters['a{}_{}'.format(ii,pl)]['Value'] for ii in range(1,3)]
 
 
 			RMs = []
@@ -274,40 +271,17 @@ def plot_orbit(parameters,data,updated_pars=None,
 				RM = data['RM RV_{}'.format(nn)]
 				for pl2 in pls: 
 					if pl != pl2:			
-						aa2_pl = [parameters['a{}_{}'.format(ii,pl2)]['Value'] for ii in range(1,3)]
-						p2, t2 = parameters['P_{}'.format(pl2)]['Value'],parameters['T0_{}'.format(pl2)]['Value']
 						try:
 							t0n = parameters['Spec_{}:T0_{}'.format(nn,pl2)]
 							parameters['T0_{}'.format(pl)]['Value'] = t0n				
 						except KeyError:
 							pass
-						off_arr = np.round((time-t2)/p2)
-						n_pers = np.unique(off_arr)
-						pp = np.zeros(len(time))
-						for n_per in n_pers:
-							t_idxs = n_per == off_arr
-							t0_off2 = n_per*p2*aa2_pl[0]#0.0
-							t0_off2 += (n_per*p2)**2*aa2_pl[1]#0.0
-							#t0_off2 *= -1#0.0
-							t0_off2 *= 0.0
-							rv[t_idxs] -= rv_model(time[t_idxs],n_planet=pl2,n_rv=nn,RM=RM,t0_off=t0_off2)
+						rv -= rv_model(time,n_planet=pl2,n_rv=nn,RM=RM)
 				
 
-				off_arr = np.round((time-t0)/per)
-				n_pers = np.unique(off_arr)
-				pp = np.zeros(len(time))
-				plo = np.zeros(len(time))#rv_model(time,n_planet=pl,n_rv=nn,RM=RM)
-				for n_per in n_pers:
-					t_idxs = n_per == off_arr
-					t0_off = n_per*per*aa_pl[0]#0.0
-					t0_off += (n_per*per)**2*aa_pl[1]#0.0
-					t0_off = 0.0
-					#(n_per*per)**2*aa[1]#0.0
-					#t0_off *= 0#-1#(n_per*per)**2*aa[1]#0.0
 
-					pp[t_idxs] = time2phase(time[t_idxs],per,t0+t0_off)
-					#pp[t_idxs] = time2phase(time[t_idxs],per,t0)
-					plo[t_idxs] = rv_model(time[t_idxs],n_planet=pl,n_rv=nn,RM=RM,t0_off=t0_off)
+				pp = time2phase(time,per,t0)
+				plo = rv_model(time,n_planet=pl,n_rv=nn,RM=RM)
 				#plo = rv_model(time,n_planet=pl,n_rv=nn,RM=RM)
 
 				axpl.errorbar(pp,rv-v0-drift,yerr=jitter_err,marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
@@ -333,7 +307,7 @@ def plot_orbit(parameters,data,updated_pars=None,
 				
 			model_time = np.linspace(t0-0.1,t0+per+0.1,2000)
 			model_pp = time2phase(model_time,per,t0)
-			rv_m = rv_model(model_time,n_planet=pl,n_rv=nn,RM=calc_RM)#,t0_off=t0_off)
+			rv_m = rv_model(model_time,n_planet=pl,n_rv=nn,RM=calc_RM)
 
 			ss = np.argsort(model_pp)
 			axpl.plot(model_pp[ss],rv_m[ss],linestyle='-',color='k',lw=1.5,zorder=6)
@@ -473,16 +447,14 @@ def plot_lightcurve(parameters,data,updated_pars=None,savefig=False,
 			in_transit_model = np.array([],dtype=np.int)
 
 			for pl in pls:
-				#aa = [parameters['a{}_{}'.format(ii,pl)]['Value'] for ii in range(1,3)]
 				try:
 					t0n = parameters['Phot_{}:T0_{}'.format(nn,pl)]['Value']
 				except KeyError:
 					pass
 
 
-				t0_off = 0.0
 				
-				flux_oc_pl = lc_model(time,n_planet=pl,n_phot=nn,t0_off=t0_off)
+				flux_oc_pl = lc_model(time,n_planet=pl,n_phot=nn)
 
 				if deltamag > 0.0:
 					flux_oc_pl = flux_oc_pl/(1 + dilution) + dilution/(1+dilution)
@@ -688,7 +660,6 @@ def plot_lightcurve(parameters,data,updated_pars=None,savefig=False,
 
 
 			for ii, pl in enumerate(pls):
-				#aa = [parameters['a{}_{}'.format(ii,pl)]['Value'] for ii in range(1,3)]
 				per, t0 = parameters['P_{}'.format(pl)]['Value'],parameters['T0_{}'.format(pl)]['Value']
 				try:
 					t0n = parameters['Phot_{}:T0_{}'.format(nn,pl)]['Value']
@@ -717,37 +688,27 @@ def plot_lightcurve(parameters,data,updated_pars=None,savefig=False,
 					axpl.plot(tt[ss],flux_m_pls[pl][ss],color='k',lw=2.0,zorder=7)
 					axpl.plot(tt[ss],flux_m_pls[pl][ss],color='C7',lw=1.0,zorder=8)
 
-					off_arr = np.round((time-t0)/per)
-					n_pers = np.unique(off_arr)
+
+					phase = time2phase(time,per,t0)*24*per
 
 
-					for n_per in n_pers:
-						t0_off = 0.0#(n_per*per)**2*aa[1]#0.0
+					if errorbar:
+						axpl.errorbar(phase,fl,yerr=jitter_err,linestyle='none',marker='.',markersize=0.1,color='k')
+						axpl.errorbar(phase,fl,yerr=fl_err,linestyle='none',color='C{}'.format(nn-1))
 
-						idxs = n_per == off_arr
-						phase = time2phase(time[idxs],per,t0+t0_off)*24*per
-						ff = fl[idxs]
-						jerr = jitter_err[idxs]
-						ferr = fl_err[idxs]
-						mfl = flux_oc[idxs]
+					axpl.plot(phase,fl,'.',markersize=6.0,color='k')
+					axpl.plot(phase,fl,'.',markersize=4.0,color='C{}'.format(nn-1))
+					
 
-						if errorbar:
-							axpl.errorbar(phase,ff,yerr=jerr,linestyle='none',marker='.',markersize=0.1,color='k')
-							axpl.errorbar(phase,ff,yerr=ferr,linestyle='none',color='C{}'.format(nn-1))
+					axpl.set_xlim(-1*dur/2-2.5,dur/2+2.5)
+					axpl.set_ylabel(r'$\rm Relative \ Brightness$',fontsize=font)
 
-						axpl.plot(phase,ff,'.',markersize=6.0,color='k')
-						axpl.plot(phase,ff,'.',markersize=4.0,color='C{}'.format(nn-1))
-						
-
-						axpl.set_xlim(-1*dur/2-2.5,dur/2+2.5)
-						axpl.set_ylabel(r'$\rm Relative \ Brightness$',fontsize=font)
-
-						axocpl.axhline(0.0,linestyle='--',color='C7')
-						if errorbar:
-							axocpl.errorbar(phase,ff - mfl,yerr=jerr,linestyle='none',marker='.',markersize=0.1,color='k')
-							axocpl.errorbar(phase,ff - mfl,yerr=ferr,linestyle='none',marker='.',markersize=0.1,color='C{}'.format(nn-1))
-						axocpl.plot(phase,ff - mfl,'.',markersize=6.0,color='k')
-						axocpl.plot(phase,ff - mfl,'.',markersize=4.0,color='C{}'.format(nn-1))
+					axocpl.axhline(0.0,linestyle='--',color='C7')
+					if errorbar:
+						axocpl.errorbar(phase,fl - flux_oc,yerr=jitter_err,linestyle='none',marker='.',markersize=0.1,color='k')
+						axocpl.errorbar(phase,fl - flux_oc,yerr=fl_err,linestyle='none',marker='.',markersize=0.1,color='C{}'.format(nn-1))
+					axocpl.plot(phase,fl - flux_oc,'.',markersize=6.0,color='k')
+					axocpl.plot(phase,fl - flux_oc,'.',markersize=4.0,color='C{}'.format(nn-1))
 
 
 
@@ -920,7 +881,6 @@ def plot_shadow(parameters,data,updated_pars=None,oots=None,n_pars=0,
 	for pl in pls:
 		P, T0 = parameters['P_{}'.format(pl)]['Value'], parameters['T0_{}'.format(pl)]['Value'] 
 
-		aa_pl = [parameters['a{}_{}'.format(ii,pl)]['Value'] for ii in range(1,3)]
 
 		ar, inc = parameters['a_Rs_{}'.format(pl)]['Value'], parameters['inc_{}'.format(pl)]['Value']*np.pi/180.
 		rp = parameters['Rp_Rs_{}'.format(pl)]['Value']
@@ -954,15 +914,8 @@ def plot_shadow(parameters,data,updated_pars=None,oots=None,n_pars=0,
 			rv_m = np.zeros(len(times))
 			for pl in pls:
 				p2, t02 = parameters['P_{}'.format(pl)]['Value'], parameters['T0_{}'.format(pl)]['Value'] 
-				aa2_pl = [parameters['a{}_{}'.format(ii,pl)]['Value'] for ii in range(1,3)]
-				off_arr2 = np.round((times-t02)/p2)
-				n_pers = np.unique(off_arr2)
-				for n_per in n_pers:
-					t_idxs = n_per == off_arr2
-					t0_off = n_per*p2*aa2_pl[0]#0.0
-					t0_off += (n_per*p2)*aa2_pl[1]#0.0
-					rv_pl = rv_model(times[t_idxs],n_planet=pl,n_rv=nn,RM=False,t0_off=t0_off)
-				rv_m[t_idxs] += rv_pl
+				rv_pl = rv_model(times,n_planet=pl,n_rv=nn,RM=False)
+				rv_m += rv_pl
 			rv_m += v0
 
 
@@ -970,15 +923,10 @@ def plot_shadow(parameters,data,updated_pars=None,oots=None,n_pars=0,
 			thick = data['Thickness_{}'.format(nn)]
 			start_grid, ring_grid, vel_grid, mu, mu_grid, mu_mean = ini_grid(resol,thick)
 
-			off_arr = np.round((times-T0)/P)
-			n_per = np.unique(off_arr)
-			t0_off = n_per*P*aa_pl[0]
-			t0_off += (n_per*P)**2*aa_pl[1]
 
 			vel_model, shadow_model, model_ccf, darks, oot_lum, index_error = ls_model(
 				times,start_grid,ring_grid,
 				vel_grid,mu,mu_grid,mu_mean,resol,
-				t0_off=t0_off
 				)
 
 			vel_m_arr = np.asarray([vel_model]*len(times))
@@ -1247,7 +1195,7 @@ def plot_oot_ccf(parameters,data,updated_pars=None,oots=None,n_pars=0,chi2_scale
 
 	n_ls = data['LSs']
 	pls = parameters['Planets']
-	print(n_ls)
+
 	for nn in range(1,n_ls+1):
 		label = data['RV_label_{}'.format(nn)]
 
@@ -1840,7 +1788,7 @@ def plot_oot_ccf2(parameters,data,updated_pars=None,oots=None,n_pars=0,chi2_scal
 		label = data['RV_label_{}'.format(nn)]
 
 		shadow_data = data['LS_{}'.format(nn)]
-		chi2scale = data['Chi2 OOT_{}'.format(nn)]
+		#chi2scale = data['Chi2 OOT_{}'.format(nn)]
 
 		times = []
 		for key in shadow_data.keys():
@@ -1952,7 +1900,7 @@ def plot_oot_ccf2(parameters,data,updated_pars=None,oots=None,n_pars=0,chi2_scal
 		vn,ncc = get_binned(vels[:,idx],newline)
 		unc_b = np.ones(len(vv))*np.sqrt((np.mean(oot_sd_b)**2 + jitter**2))
 		unc = np.ones(len(vel))*np.sqrt((np.mean(oot_sd_b)**2 + jitter**2))
-		unc_b *= chi2scale
+		#unc_b *= chi2scale
 		red_chi2 = np.sum((cc-ncc)**2/unc_b**2)/(len(cc)-n_pars)
 		print('## Spectroscopic system {}/{} ##:'.format(nn,label))
 		print('\nReduced chi-squared for the oot CCF is:\n\t {:.03f}'.format(red_chi2))
@@ -2134,15 +2082,8 @@ def plot_distortion(param_fname,data_fname,updated_pars=None,observation=False,
 		v0 = business.parameters['RVsys_{}'.format(nn)]['Value']
 		rv_m = np.zeros(len(times))
 		for pl in pls:
-			aa2_pl = [business.parameters['a{}_{}'.format(ii,pl)]['Value'] for ii in range(1,3)]
 			p2, t2 = business.parameters['P_{}'.format(pl)]['Value'],business.parameters['T0_{}'.format(pl)]['Value']
-			off_arr = np.round((times-t2)/p2)
-			n_pers = np.unique(off_arr)
-			for n_per in n_pers:
-				t_idxs = n_per == off_arr
-				t0_off2 = n_per*p2*aa2_pl[0]#0.0
-				t0_off2 += (n_per*p2)**2*aa2_pl[1]#0.0
-				rv_pl = business.rv_model(times[t_idxs],n_planet=pl,n_rv=nn,RM=False,t0_off=t0_off2)
+			rv_pl = business.rv_model(times,n_planet=pl,n_rv=nn,RM=False)
 	
 			rv_m += rv_pl
 		rv_m += v0
@@ -2170,16 +2111,10 @@ def plot_distortion(param_fname,data_fname,updated_pars=None,observation=False,
 			if np.isnan(t14): continue
 
 
-			off_arr = np.round((times-T0)/per)
-			n_pers = np.unique(off_arr)[0]
-	
-			t0_off = n_per*per*aa2_pl[0]#0.0
-			t0_off += (n_per*per)**2*aa2_pl[1]#0.0
-
-			model_slope = business.localRV_model(times,n_planet=pl,t0_off=t0_off)				
+			model_slope = business.localRV_model(times,n_planet=pl)				
 
 			### HARD-CODED
-			darks = business.lc_model(times,n_planet=pl,n_phot=1,t0_off=t0_off)
+			darks = business.lc_model(times,n_planet=pl,n_phot=1)
 
 
 			idxs = [ii for ii in range(len(times))]
@@ -2196,7 +2131,7 @@ def plot_distortion(param_fname,data_fname,updated_pars=None,observation=False,
 				vel_model, shadow_model, _, _, _, _ = business.ls_model(
 					times,start_grid,ring_grid,
 					vel_grid,mu,mu_grid,mu_mean,resol,
-					t0_off=t0_off,oot=False,n_planet=pl,n_rv=nn
+					oot=False,n_planet=pl,n_rv=nn
 					)
 
 				vel_m_arr = np.asarray([vel_model]*len(times))
@@ -2246,7 +2181,7 @@ def plot_distortion(param_fname,data_fname,updated_pars=None,observation=False,
 				vels[:,ii] = vel
 				no_peak = (vel > no_bump) | (vel < -no_bump)
 
-				cos_f, sin_f = dynamics.true_anomaly(time, T0+t0_off, ecc, per, ww)
+				cos_f, sin_f = dynamics.true_anomaly(time, T0, ecc, per, ww)
 				xx, yy = dynamics.xy_pos(cos_f,sin_f,ecc,ww,ar,inc,lam)
 				# xs = np.append(xs,xx)
 				# ys = np.append(ys,yy)
@@ -2431,15 +2366,8 @@ def plot_slope(param_fname,data_fname,
 		v0 = business.parameters['RVsys_{}'.format(nn)]['Value']
 		rv_m = np.zeros(len(times))
 		for pl in pls:
-			aa2_pl = [business.parameters['a{}_{}'.format(ii,pl)]['Value'] for ii in range(1,3)]
 			p2, t2 = business.parameters['P_{}'.format(pl)]['Value'],business.parameters['T0_{}'.format(pl)]['Value']
-			off_arr = np.round((times-t2)/p2)
-			n_pers = np.unique(off_arr)
-			for n_per in n_pers:
-				t_idxs = n_per == off_arr
-				t0_off2 = n_per*p2*aa2_pl[0]#0.0
-				t0_off2 += (n_per*p2)**2*aa2_pl[1]#0.0
-				rv_pl = business.rv_model(times[t_idxs],n_planet=pl,n_rv=nn,RM=False,t0_off=t0_off2)
+			rv_pl = business.rv_model(times,n_planet=pl,n_rv=nn,RM=False)
 	
 			rv_m += rv_pl
 		rv_m += v0
@@ -2464,19 +2392,11 @@ def plot_slope(param_fname,data_fname,
 			t23 = per/np.pi * np.arcsin( np.sqrt( ((1 - rp)**2 - b**2))/(np.sin(inc)*ar)  )*np.sqrt(1 - ecc**2)/(1 + ecc*np.sin(ww))
 			if np.isnan(t14): continue
 
-
-			off_arr = np.round((times-T0)/per)
-			n_pers = np.unique(off_arr)[0]
-
-			t0_off = n_per*per*aa2_pl[0]#0.0
-			t0_off += (n_per*per)**2*aa2_pl[1]#0.0
-
-
-			model_slope = business.localRV_model(times,n_planet=pl,t0_off=t0_off)
+			model_slope = business.localRV_model(times,n_planet=pl)
 		
 
 			### HARD-CODED
-			darks = business.lc_model(times,n_planet=pl,n_phot=1,t0_off=t0_off)
+			darks = business.lc_model(times,n_planet=pl,n_phot=1)
 
 
 			idxs = [ii for ii in range(len(times))]
@@ -2528,7 +2448,7 @@ def plot_slope(param_fname,data_fname,
 				vels[:,idx] = vel
 				no_peak = (vel > no_bump) | (vel < -no_bump)
 
-				cos_f, sin_f = dynamics.true_anomaly(time, T0+t0_off, ecc, per, ww)
+				cos_f, sin_f = dynamics.true_anomaly(time, T0, ecc, per, ww)
 				xx, yy = dynamics.xy_pos(cos_f,sin_f,ecc,ww,ar,inc,lam)
 				xs = np.append(xs,xx)
 				ys = np.append(ys,yy)
