@@ -7,7 +7,8 @@ Created on Wed Apr 15 13:27:04 2020
 
 .. todo::
 	* Finish documentation
-	* Make it faster?
+	* Make it faster? numba?
+		-Look at resolution
 	* Some arrays seem to be passed on and created multiple times -- redundant?
 	* We do create our light curve... use that?
 """
@@ -17,6 +18,7 @@ import scipy.signal as ss
 import sys
 #import dynamics
 from .dynamics import true_anomaly, xy_pos
+
 # =============================================================================
 # Grids
 # =============================================================================
@@ -99,7 +101,7 @@ def grid_ring(Rs,thick,xoff=0.,yoff=0.):
 	:param yoff: Potential offset in y-direction. Default 0.
 	:type yoff: float, optional 
 
-	:return: rings of same mu, velocity grid, mu, approx :math:`\mu` in each ring
+	:return: rings of same :math:`\mu`, velocity grid, radial :math:`\mu` values, approx :math:`\mu` in each ring
 	:rtype: (array, array, array, array)
 
 	'''

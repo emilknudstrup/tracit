@@ -371,7 +371,6 @@ def true_anomaly(time, Tw, ecc, per, ww):#, T0=True):
     '''
     
     n = 2.0*np.pi/per
-    
     # ## With this you supply the mid-transit time 
     # ## and then the time of periastron is calculated
     # ## from S. R. Kane et al. (2009), PASP, 121, 886. DOI: 10.1086/648564
@@ -482,7 +481,7 @@ def xy_pos(cos_f,sin_f,ecc,ww,ar,inc,lam):
 
     ## Rotate our coordinate system, such that the projected obliquity becomes the new y-axis
     x = x_old*np.cos(lam) - y_old*np.sin(lam)
-    y = x_old*np.sin(lam) + y_old*np.cos(lam)   
+    y = x_old*np.sin(lam) + y_old*np.cos(lam)
     return x, y
 
 

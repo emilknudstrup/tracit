@@ -13,6 +13,7 @@ Created on Tue Jun 29 16:30:38 2021
 	* Move ini_grid to :py:func:`business.data_structure`
 	
 	* Remove at least one of the gaussian functions
+
 """
 # =============================================================================
 # tracit modules
@@ -23,7 +24,8 @@ Created on Tue Jun 29 16:30:38 2021
 # import dynamics
 # import shady
 
-from .business import lc_model, rv_model, ini_grid, ls_model, get_binned
+#from .business import lc_model, rv_model, ini_grid, ls_model, get_binned
+from .business import lc_model, rv_model, ls_model, localRV_model, get_binned
 from .dynamics import *#time2phase, total_duration
 #from .business import data_structure, params_structure
 #from .business import data_structure, params_structure
@@ -40,7 +42,7 @@ from scipy.optimize import curve_fit
 from scipy.signal import savgol_filter
 from astropy.timeseries import LombScargle
 from matplotlib.gridspec import GridSpec
-
+import lmfit
 
 def Gauss(x, amp, mu,sig ):
 	y = amp*np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
@@ -192,7 +194,7 @@ def plot_orbit(parameters,data,updated_pars=None,
 			print('#########################'.format(nn))
 
 		calc_RM = any(RMs)
-		
+
 		npoints = 50000
 		unp_m = np.linspace(min(times)-10.,max(times)+10.,npoints)
 
@@ -832,7 +834,7 @@ def create_shadow(phase,vel,shadow,exp_phase,per,
 
 def plot_shadow(parameters,data,updated_pars=None,oots=None,n_pars=0,
 	cmap='gray',contact_color='C3',font = 12,savefig=True,path='',
-	no_bump=15,best_fit=True,xmin=None,xmax=None,tickfontsize=10):
+	best_fit=True,xmin=None,xmax=None,tickfontsize=10):
 
 	
 
@@ -892,9 +894,9 @@ def plot_shadow(parameters,data,updated_pars=None,oots=None,n_pars=0,
 
 		for nn in range(1,n_ls+1):
 			shadow_data = data['LS_{}'.format(nn)]
-			label = data['RV_label_{}'.format(nn)]
+			label = data['LS_label_{}'.format(nn)]
 			jitter = 0.0
-			chi2scale = data['Chi2 LS_{}'.format(nn)]
+			#chi2scale = data['Chi2 LS_{}'.format(nn)]
 			times = []
 
 			for key in shadow_data.keys():
@@ -919,10 +921,20 @@ def plot_shadow(parameters,data,updated_pars=None,oots=None,n_pars=0,
 			rv_m += v0
 
 
+			#resol = data['Resolution_{}'.format(nn)]
+			#thick = data['Thickness_{}'.format(nn)]
+			#start_grid, ring_grid, vel_grid, mu, mu_grid, mu_mean = ini_grid(resol,thick)
+			
 			resol = data['Resolution_{}'.format(nn)]
 			thick = data['Thickness_{}'.format(nn)]
-			start_grid, ring_grid, vel_grid, mu, mu_grid, mu_mean = ini_grid(resol,thick)
+			#start_grid, ring_grid, vel_grid, mu, mu_grid, mu_mean = ini_grid(resol,thick)
 
+			start_grid = data['Start_grid_{}'.format(nn)]
+			ring_grid = data['Ring_grid_{}'.format(nn)]
+			vel_grid = data['Velocity_{}'.format(nn)]
+			mu = data['mu_{}'.format(nn)]
+			mu_grid = data['mu_grid_{}'.format(nn)]
+			mu_mean	= data['mu_mean_{}'.format(nn)]
 
 			vel_model, shadow_model, model_ccf, darks, oot_lum, index_error = ls_model(
 				times,start_grid,ring_grid,
@@ -945,41 +957,63 @@ def plot_shadow(parameters,data,updated_pars=None,oots=None,n_pars=0,
 			nvel = len(shadow_data[times[0]]['vel'])
 
 
-			avg_ccf = np.zeros(nvel)
 
+			nvel = len(shadow_data[times[0]]['vel'])
 
+			vel_res = data['Velocity_resolution_{}'.format(nn)]
+
+			#vel_min, vel_max = min(shadow_data[times[0]]['vel']), max(shadow_data[times[0]]['vel'])
+			#span  = (vel_max - vel_min)
+			#vels = np.arange(vel_min+span/10,vel_max-span/10,vel_res)
+			#vels = np.arange(vel_min+span/10,vel_max-span/10,vel_res)
+			#avg_ccf = np.zeros(len(vels))
+			vels = np.array([])
+			
+			no_bump = data['No_bump_{}'.format(nn)]
 
 			oot_sd_b = []
 			for ii, idx in enumerate(oots):
 				time = times[idx]
 				vel = shadow_data[time]['vel'] - rv_m[idx]*1e-3
+				if not ii:
+					vel_min, vel_max = min(vel), max(vel)
+					span  = (vel_max - vel_min)
+					vels = np.arange(vel_min+span/10,vel_max-span/10,vel_res)
+					avg_ccf = np.zeros(len(vels))
+				#vels = np.arange(vel_min+span/10,vel_max-span/10,vel_res)
+
 				ccf = shadow_data[time]['ccf']
 
-				zp_idx = np.argmin(ccf)
-				zp_x = abs(vel[zp_idx])
+				no_peak = (vel > no_bump) | (vel < -no_bump)
+				poly_pars = np.polyfit(vel[no_peak],ccf[no_peak],1)
+				ccf -= (poly_pars[0]*vel + poly_pars[1])
+				# zp_idx = np.argmin(ccf)
+				# zp_x = abs(vel[zp_idx])
 				
-				under_curve = (vel < zp_x) & (vel > -zp_x)
+				# under_curve = (vel < zp_x) & (vel > -zp_x)
 
-				ccf_u = ccf[under_curve]
-				vel_u = vel[under_curve]
-				pos = ccf_u > 0.0
-				ccf_p = ccf_u[pos]
-				vel_p = vel_u[pos]
-				area = np.trapz(ccf_p,vel_p)
+				# ccf_u = ccf[under_curve]
+				# vel_u = vel[under_curve]
+				# pos = ccf_u > 0.0
+				# ccf_p = ccf_u[pos]
+				# vel_p = vel_u[pos]
+				# area = np.trapz(ccf_p,vel_p)
+				
+				area = np.trapz(ccf,vel)
 						
 				ccf /= area	
 
-
-				no_peak = (vel > no_bump) | (vel < -no_bump)
+				ccf_int = interpolate.interp1d(vel,ccf,kind='cubic',fill_value='extrapolate')
+				nccf = ccf_int(vels)
+				avg_ccf += nccf
 					
-				poly_pars = np.polyfit(vel[no_peak],ccf[no_peak],1)
 	
 
-				avg_ccf += ccf
+				#avg_ccf += ccf
 			avg_ccf /= len(oots)
 
 
-			obs_shadows = np.zeros(shape=(len(times),len(vel)))
+			obs_shadows = np.zeros(shape=(len(times),len(vels)))
 			int_shadows = np.zeros(shape=(len(times),len(vel_model)))
 			
 			red_chi2_avg = []
@@ -998,49 +1032,58 @@ def plot_shadow(parameters,data,updated_pars=None,oots=None,n_pars=0,
 
 				no_peak = (vel > no_bump) | (vel < -no_bump)
 
-				zp_idx = np.argmin(ccf)
-				zp_x = abs(vel[zp_idx])
+				poly_pars = np.polyfit(vel[no_peak],ccf[no_peak],1)
+				ccf -= (poly_pars[0]*vel + poly_pars[1])
+				# zp_idx = np.argmin(ccf)
+				# zp_x = abs(vel[zp_idx])
 				
-				under_curve = (vel < zp_x) & (vel > -zp_x)
+				# under_curve = (vel < zp_x) & (vel > -zp_x)
 
-				ccf_u = ccf[under_curve]
-				vel_u = vel[under_curve]
-				pos = ccf_u > 0.0
-				ccf_p = ccf_u[pos]
-				vel_p = vel_u[pos]
-				area = np.trapz(ccf_p,vel_p)
+				# ccf_u = ccf[under_curve]
+				# vel_u = vel[under_curve]
+				# pos = ccf_u > 0.0
+				# ccf_p = ccf_u[pos]
+				# vel_p = vel_u[pos]
+				# area = np.trapz(ccf_p,vel_p)
+
+				area = np.trapz(ccf,vel)
 
 				ccf /= area
 				#areas = np.append(areas,area)
 				
 
 				ccf *= darks[idx]/bright#blc[idx]		
-				shadow = avg_ccf - ccf
-				poly_pars = np.polyfit(vel[no_peak],shadow[no_peak],1)
+
+				ccf_int = interpolate.interp1d(vel,ccf,kind='cubic',fill_value='extrapolate')
+				nccf = ccf_int(vels)
+					
+				shadow = avg_ccf - nccf
 				#p0s = np.append(p0s,poly_pars[0])
 				#p1s = np.append(p1s,poly_pars[1])
 								
 
-				int_to_model = interpolate.interp1d(vel,shadow,kind='cubic',fill_value='extrapolate')
+				int_to_model = interpolate.interp1d(vels,shadow,kind='cubic',fill_value='extrapolate')
 				ishadow = int_to_model(vel_model)
 				obs_shadows[idx,:] = shadow# - (poly_pars[0]*vel + poly_pars[1])
 				
 				int_shadows[idx,:] = ishadow
 
-				no_peak = (vel > no_bump) | (vel < -no_bump)
+				no_peak = (vels > no_bump) | (vels < -no_bump)
 				
 				int_to_obs = interpolate.interp1d(vel_model,shadow_model[idx],kind='cubic',fill_value='extrapolate')
-				model_to_obs = int_to_obs(vel)
+				model_to_obs = int_to_obs(vels)
 
 
-				vv,cc = get_binned(vel,shadow)
-				vn,ncc = get_binned(vel,model_to_obs)	
+				vv,cc = get_binned(vels,shadow)
+				vn,ncc = get_binned(vels,model_to_obs)	
 				no_peak_b = (vv > no_bump) | (vv < -no_bump)
 				sd = np.std(cc[no_peak_b])
-				unc_b = np.ones(len(vv))*np.sqrt((sd**2 + jitter**2))*chi2scale
+				#unc_b = np.ones(len(vv))*np.sqrt((sd**2 + jitter**2))*chi2scale
+				unc_b = np.ones(len(vv))*np.sqrt((sd**2 + jitter**2))
 				red_chi2 = np.sum((cc-ncc)**2/unc_b**2)/(len(cc)-n_pars)
 				
-				unc = np.ones(len(vel))*np.sqrt((np.std(shadow[no_peak])**2 + jitter**2))*chi2scale
+				#unc = np.ones(len(vel))*np.sqrt((np.std(shadow[no_peak])**2 + jitter**2))*chi2scale
+				unc = np.ones(len(vels))*np.sqrt((np.std(shadow[no_peak])**2 + jitter**2))
 				red_chi2 = np.sum((shadow-model_to_obs)**2/unc**2)/(len(shadow)/4 - n_pars)
 				nps.append(len(shadow)/4)
 				red_chi2_avg.append(red_chi2)
@@ -1056,18 +1099,9 @@ def plot_shadow(parameters,data,updated_pars=None,oots=None,n_pars=0,
 			print('#########################')
 
 			phase = time2phase(times,P,T0) #phase of observing times
-			exptime = np.mean(np.diff(times))*np.ones(len(times))*24*60*60
-			exptime_phase = exptime/(P*24.*60.*60.) #exptimes converted to phase-units for making shadow figure
-			#zmin, zmax = np.min(int_shadows), np.max(int_shadows)
-			#zmin, zmax = -0.01, 0.01
-			#zmin, zmax = np.min(shadow_model), np.max(shadow_model)
-			#zmin, zmax = np.min(shadow_model), np.max(shadow_model)
-			#zmin = np.min(int_shadows)
-			#zmax = abs(zmin)
-			#zmin, zmax = np.min(int_shadows), np.max(int_shadows)
-			#zmin = np.min(int_shadows)
-			#zmax = abs(zmin)
-			#zmin, zmax = -0.0085,0.0085
+			exptime = np.mean(np.diff(times))*np.ones(len(times))*24.*3600.
+			exptime_phase = exptime/(P*24.*3600.) #exptimes converted to phase-units for making shadow figure
+
 			zmin = np.min(-1*shadow_model)
 			zmax = abs(zmin)
 
@@ -1096,16 +1130,20 @@ def plot_shadow(parameters,data,updated_pars=None,oots=None,n_pars=0,
 									vsini=vsini,zmin=zmin,zmax=zmax,contour=False,ax=ax3,colorbar=False,latex=plot_tex);# plt.show()
 
 
+			if xmax != None: x2 = xmax
+			else: x2 = max(vels)
+			if xmin != None: x1 = xmin
+			else: x1 = min(vels)
 			for ax in axes:
-				x1, x2 = ax.get_xlim()
+				#x1, x2 = ax.get_xlim()
 				y1, y2 = ax.get_ylim()
 				ax.axhline(-1*t23*24/2,linestyle='--',color=contact_color,lw=2.0)
 				ax.axhline(1*t23*24/2,linestyle='--',color=contact_color,lw=2.0)
 
 				ax.axhline(1*t14*24/2,linestyle='-',color=contact_color,lw=2.0)
 				ax.axhline(-1*t14*24/2,linestyle='-',color=contact_color,lw=2.0)
-				if xmax != None: x2 = xmax
-				if xmin != None: x1 = xmin
+				#if xmax != None: x2 = xmax
+				#if xmin != None: x1 = xmin
 				ax.set_xlim(x1,x2)
 				ax.set_ylim(y1,y2)
 
@@ -1134,20 +1172,24 @@ def plot_shadow(parameters,data,updated_pars=None,oots=None,n_pars=0,
 
 			axres2.set_ylim(min(phase),max(phase))
 
-			if (xmin != None) & (xmax != None):
-				keep = (vel_m_arr[0,:] > xmin) & (vel_m_arr[0,:] < xmax)
-				vel_m = vel_m_arr[0,keep]
-				res1 = res1[keep]
-			elif xmax != None:
-				keep = vel_m_arr[0,:] < xmax
-				vel_m = vel_m_arr[0,keep]
-				res1 = res1[keep]
-			elif xmin != None:
-				keep = vel_m_arr[0,:] > xmin
-				vel_m = vel_m_arr[0,keep]
-				res1 = res1[keep]
-			else:
-				vel_m = vel_m_arr[0,:]
+			# if (xmin != None) & (xmax != None):
+			# 	keep = (vel_m_arr[0,:] > xmin) & (vel_m_arr[0,:] < xmax)
+			# 	vel_m = vel_m_arr[0,keep]
+			# 	res1 = res1[keep]
+			# elif xmax != None:
+			# 	keep = vel_m_arr[0,:] < xmax
+			# 	vel_m = vel_m_arr[0,keep]
+			# 	res1 = res1[keep]
+			# elif xmin != None:
+			# 	keep = vel_m_arr[0,:] > xmin
+			# 	vel_m = vel_m_arr[0,keep]
+			# 	res1 = res1[keep]
+			# else:
+			# 	vel_m = vel_m_arr[0,:]
+
+			keep = (vel_m_arr[0,:] > x1) & (vel_m_arr[0,:] < x2)
+			vel_m = vel_m_arr[0,keep]
+			res1 = res1[keep]
 
 			axres1.plot(vel_m,res1,'k-')
 			axres1.set_xticks([])
@@ -1785,7 +1827,7 @@ def plot_oot_ccf2(parameters,data,updated_pars=None,oots=None,n_pars=0,chi2_scal
 				pass	
 	
 	for nn in range(1,n_ls+1):
-		label = data['RV_label_{}'.format(nn)]
+		label = data['LS_label_{}'.format(nn)]
 
 		shadow_data = data['LS_{}'.format(nn)]
 		#chi2scale = data['Chi2 OOT_{}'.format(nn)]
@@ -1811,7 +1853,14 @@ def plot_oot_ccf2(parameters,data,updated_pars=None,oots=None,n_pars=0,chi2_scal
 
 		resol = data['Resolution_{}'.format(nn)]
 		thick = data['Thickness_{}'.format(nn)]
-		start_grid, ring_grid, vel_grid, mu, mu_grid, mu_mean = ini_grid(resol,thick)
+		#start_grid, ring_grid, vel_grid, mu, mu_grid, mu_mean = ini_grid(resol,thick)
+
+		start_grid = data['Start_grid_{}'.format(nn)]
+		ring_grid = data['Ring_grid_{}'.format(nn)]
+		vel_grid = data['Velocity_{}'.format(nn)]
+		mu = data['mu_{}'.format(nn)]
+		mu_grid = data['mu_grid_{}'.format(nn)]
+		mu_mean	= data['mu_mean_{}'.format(nn)]
 
 
 		vel_model, model_ccf, oot_lum = ls_model(
@@ -1832,11 +1881,23 @@ def plot_oot_ccf2(parameters,data,updated_pars=None,oots=None,n_pars=0,chi2_scal
 		its = [ii for ii in idxs if ii not in oots]	
 		
 		nvel = len(shadow_data[times[0]]['vel'])
-		vels = np.zeros(shape=(nvel,len(times)))
-		oot_ccfs = np.zeros(shape=(nvel,len(oots)))
+		
+		#vels = np.zeros(shape=(nvel,len(times)))
 		#in_ccfs = np.zeros(shape=(nvel,len(its)))
-		avg_ccf = np.zeros(nvel)
-		avg_vel = np.zeros(nvel)
+		#avg_ccf = np.zeros(nvel)
+		#avg_vel = np.zeros(nvel)
+
+		vel_res = data['Velocity_resolution_{}'.format(nn)]
+
+		# vel_min, vel_max = min(shadow_data[times[0]]['vel']), max(shadow_data[times[0]]['vel'])
+		# span  = (vel_max - vel_min)
+		# vels = np.arange(vel_min+span/10,vel_max-span/10,vel_res)
+		vels = np.array([])
+
+		#avg_ccf = np.zeros(len(vels))
+		#oot_ccfs = np.zeros(shape=(len(vels),len(oots)))
+		
+		no_bump = data['No_bump_{}'.format(nn)]
 
 		## Create average out-of-transit CCF
 		## Used to create shadow for in-transit CCFs
@@ -1846,7 +1907,14 @@ def plot_oot_ccf2(parameters,data,updated_pars=None,oots=None,n_pars=0,chi2_scal
 		for ii, idx in enumerate(oots):
 			time = times[idx]
 			vel = shadow_data[time]['vel'] - rv_m[idx]*1e-3
-			vels[:,idx] = vel
+			if not ii:
+				vel_min, vel_max = min(vel), max(vel)
+				span  = (vel_max - vel_min)
+				vels = np.arange(vel_min+span/10,vel_max-span/10,vel_res)
+				avg_ccf = np.zeros(len(vels))
+				oot_ccfs = np.zeros(shape=(len(vels),len(oots)))
+
+			#vels[:,idx] = vel
 			no_peak = (vel > no_bump) | (vel < -no_bump)
 
 			ccf = shadow_data[time]['ccf']
@@ -1854,31 +1922,35 @@ def plot_oot_ccf2(parameters,data,updated_pars=None,oots=None,n_pars=0,chi2_scal
 
 			ccf -= vel*poly_pars[0] + poly_pars[1]
 
-			zp_idx = np.argmin(ccf)
-			zp_x = abs(vel[zp_idx])
+			# zp_idx = np.argmin(ccf)
+			# zp_x = abs(vel[zp_idx])
 			
-			under_curve = (vel < zp_x) & (vel > -zp_x)
+			# under_curve = (vel < zp_x) & (vel > -zp_x)
 
-			ccf_u = ccf[under_curve]
-			vel_u = vel[under_curve]
-			pos = ccf_u > 0.0
-			ccf_p = ccf_u[pos]
-			vel_p = vel_u[pos]
-			area = np.trapz(ccf_p,vel_p)
+			# ccf_u = ccf[under_curve]
+			# vel_u = vel[under_curve]
+			# pos = ccf_u > 0.0
+			# ccf_p = ccf_u[pos]
+			# vel_p = vel_u[pos]
+			# area = np.trapz(ccf_p,vel_p)
 
+			area = np.trapz(ccf,vel)
 			ccf /= abs(area)
 
-			vv,cc = get_binned(vels[:,idx],ccf)
+			ccf_int = interpolate.interp1d(vel,ccf,kind='cubic',fill_value='extrapolate')
+			nccf = ccf_int(vels)
+
+			vv,cc = get_binned(vels,nccf)
 			no_peak_b = (vv > no_bump) | (vv < -no_bump)
 			oot_sd_b.append(np.std(cc[no_peak_b]))
 				
 
-			oot_ccfs[:,ii] = ccf
-			avg_ccf += ccf
-			avg_vel += vel
+			oot_ccfs[:,ii] = nccf
+			avg_ccf += nccf
+			#avg_vel += vel
 
 		avg_ccf /= len(oots)
-		avg_vel /= len(oots)
+		#avg_vel /= len(oots)
 
 
 
@@ -1891,15 +1963,15 @@ def plot_oot_ccf2(parameters,data,updated_pars=None,oots=None,n_pars=0,chi2_scal
 		jitter = 0.0
 
 		model_int = interpolate.interp1d(vel_model,model_ccf,kind='cubic',fill_value='extrapolate')
-		newline = model_int(vels[:,idx])
+		newline = model_int(vels)
 
 
 
 		#unc = np.ones(len(vel))*np.mean(oot_sd_b)*jitter
-		vv,cc = get_binned(vels[:,idx],avg_ccf)
-		vn,ncc = get_binned(vels[:,idx],newline)
+		vv,cc = get_binned(vels,avg_ccf)
+		vn,ncc = get_binned(vels,newline)
 		unc_b = np.ones(len(vv))*np.sqrt((np.mean(oot_sd_b)**2 + jitter**2))
-		unc = np.ones(len(vel))*np.sqrt((np.mean(oot_sd_b)**2 + jitter**2))
+		unc = np.ones(len(vels))*np.sqrt((np.mean(oot_sd_b)**2 + jitter**2))
 		#unc_b *= chi2scale
 		red_chi2 = np.sum((cc-ncc)**2/unc_b**2)/(len(cc)-n_pars)
 		print('## Spectroscopic system {}/{} ##:'.format(nn,label))
@@ -1914,15 +1986,15 @@ def plot_oot_ccf2(parameters,data,updated_pars=None,oots=None,n_pars=0,chi2_scal
 		ax1_ccf = figccf.add_subplot(211)
 		ax2_ccf = figccf.add_subplot(212)
 
-		ax1_ccf.plot(vels[:,idx],avg_ccf,'-',color='k',label=r'$\rm Observed\ avg. \ CCF$',lw=5.0,zorder=0)
-		ax1_ccf.plot(vels[:,idx],newline,'--',color='C7',label=r'$\rm Model \ CCF$',lw=2.0)
-		ax2_ccf.plot(vels[:,idx],avg_ccf  - newline,color='k',linestyle='-',lw=5.0,zorder=0)#,mfc='C7')
+		ax1_ccf.plot(vels,avg_ccf,'-',color='k',label=r'$\rm Observed\ avg. \ CCF$',lw=5.0,zorder=0)
+		ax1_ccf.plot(vels,newline,'--',color='C7',label=r'$\rm Model \ CCF$',lw=2.0)
+		ax2_ccf.plot(vels,avg_ccf  - newline,color='k',linestyle='-',lw=5.0,zorder=0)#,mfc='C7')
 		out = (vv < -no_bump) | (no_bump < vv)
-		out2 = (vels[:,idx] < -no_bump) | (no_bump < vels[:,idx])
-		ax2_ccf.errorbar(vels[:,idx][out2],avg_ccf[out2]  - newline[out2],yerr=unc[out2],color='k',marker='.',mfc='C7',linestyle='none')
+		out2 = (vels < -no_bump) | (no_bump < vels)
+		ax2_ccf.errorbar(vels[out2],avg_ccf[out2]  - newline[out2],yerr=unc[out2],color='k',marker='.',mfc='C7',linestyle='none')
 		for ii, idx in enumerate(oots):
-			ax1_ccf.plot(vels[:,idx],oot_ccfs[:,ii],zorder=0,label=r'$\rm OOT\ idx.\ {}$'.format(idx),lw=1.0)
-			ax2_ccf.plot(vels[:,idx],oot_ccfs[:,ii] - newline,zorder=0,lw=1.0)
+			ax1_ccf.plot(vels,oot_ccfs[:,ii],zorder=0,label=r'$\rm OOT\ idx.\ {}$'.format(idx),lw=1.0)
+			ax2_ccf.plot(vels,oot_ccfs[:,ii] - newline,zorder=0,lw=1.0)
 
 
 		ax2_ccf.errorbar(vv[out],cc[out]-ncc[out],yerr=unc_b[out],color='k',marker='o',mfc='C3',ecolor='C3',linestyle='none')
@@ -1988,13 +2060,13 @@ def plot_oot_ccf2(parameters,data,updated_pars=None,oots=None,n_pars=0,chi2_scal
 
 
 			ax1.axhline(0.0,color='C7',linestyle='--')
-			ax1.plot(vel,avg_ccf,'k-',lw=4.0,label=r'$\rm Observed\ avg.$')
+			ax1.plot(vels,avg_ccf,'k-',lw=4.0,label=r'$\rm Observed\ avg.$')
 			ax2.axhline(0.0,color='k')
 
 			for ii, idx in enumerate(its):
 				time = times[idx]
 				vel = shadow_data[time]['vel'] - rv_m[idx]*1e-3
-				vels[:,idx] = vel
+				#vels[:,idx] = vel
 				no_peak = (vel > no_bump) | (vel < -no_bump)
 				
 
@@ -2003,29 +2075,34 @@ def plot_oot_ccf2(parameters,data,updated_pars=None,oots=None,n_pars=0,chi2_scal
 
 				ccf -= vel*poly_pars[0] + poly_pars[1]
 
-				zp_idx = np.argmin(ccf)
-				zp_x = abs(vel[zp_idx])
+				# zp_idx = np.argmin(ccf)
+				# zp_x = abs(vel[zp_idx])
 
-				under_curve = (vel < zp_x) & (vel > -zp_x)
+				# under_curve = (vel < zp_x) & (vel > -zp_x)
 
-				ccf_u = ccf[under_curve]
-				vel_u = vel[under_curve]
-				pos = ccf_u > 0.0
-				ccf_p = ccf_u[pos]
-				vel_p = vel_u[pos]
-				area = np.trapz(ccf_p,vel_p)
+				# ccf_u = ccf[under_curve]
+				# vel_u = vel[under_curve]
+				# pos = ccf_u > 0.0
+				# ccf_p = ccf_u[pos]
+				# vel_p = vel_u[pos]
+				# area = np.trapz(ccf_p,vel_p)
+				
+				area = np.trapz(ccf,vel)
 				
 				ccf /= abs(area)
 				
 				ccf *= darks[idx]/bright#blc[idx]
 
-				vv,cc = get_binned(vels[:,idx],ccf)
+		
+				ccf_int = interpolate.interp1d(vel,ccf,kind='cubic',fill_value='extrapolate')
+				nccf = ccf_int(vels)	
+
+				vv,cc = get_binned(vels,nccf)
 				no_peak_b = (vv > no_bump) | (vv < -no_bump)
 				oot_sd_b.append(np.std(cc[no_peak_b]))
-					
 
-				ax1.plot(vel,ccf,'-',color=cmap(ii),lw=1.0)
-				ax2.plot(vel,ccf-avg_ccf,'-',color=cmap(ii),lw=1.0)
+				ax1.plot(vels,nccf,'-',color=cmap(ii),lw=1.0)
+				ax2.plot(vels,nccf-avg_ccf,'-',color=cmap(ii),lw=1.0)
 
 
 			ax1.legend(fancybox=True,shadow=True,fontsize=0.9*font)
@@ -2320,7 +2397,7 @@ def plot_distortion(param_fname,data_fname,updated_pars=None,observation=False,
 # Slope of planet across disk
 # =============================================================================
 
-def plot_slope(param_fname,data_fname,
+def plot_slope(parameters,data,
 	updated_pars=None,
 	oots=None,n_pars=0,
 	font = 12,savefig=True,path='',
@@ -2330,29 +2407,52 @@ def plot_slope(param_fname,data_fname,
 
 	plt.rc('text',usetex=plot_tex)
 
-	if not get_vp:
-		business.params_structure(param_fname)
-		business.data_structure(data_fname)
+	# if not get_vp:
+	# 	business.params_structure(param_fname)
+	# 	business.data_structure(data_fname)
+	# if updated_pars is not None:
+
+	# 	pars = business.parameters['FPs']
+	# 	pars = updated_pars.keys()[1:-2]
+	# 	if n_pars == 0: n_pars = len(pars)
+	# 	for par in pars:
+	# 		if best_fit: idx = 4
+	# 		else: idx = 1
+	# 		try:
+	# 			business.parameters[par]['Value'] = float(updated_pars[par][idx])	
+	# 		except KeyError:
+	# 			pass				
+	# pls = business.parameters['Planets']
+	# n_sl = business.data['SLs']
+
+
+	if n_pars == 0: n_pars = len(parameters['FPs'])
+	
+	pls = parameters['Planets']
+	n_sl = data['SLs']
+	# def time2phase(time,per,T0):
+	# 	phase = ((time-T0)%per)/per
+	# 	for ii in range(len(phase)):
+	# 		if phase[ii] > 0.5: phase[ii] = phase[ii] - 1
+	# 	return phase
 	if updated_pars is not None:
 
-		pars = business.parameters['FPs']
+		pars = parameters['FPs']
 		pars = updated_pars.keys()[1:-2]
 		if n_pars == 0: n_pars = len(pars)
+		idx = 1
+		if (updated_pars.shape[0] > 3) & best_fit: idx = 4
 		for par in pars:
-			if best_fit: idx = 4
-			else: idx = 1
 			try:
-				business.parameters[par]['Value'] = float(updated_pars[par][idx])	
+				parameters[par]['Value'] = float(updated_pars[par][idx])	
 			except KeyError:
-				pass				
-	pls = business.parameters['Planets']
-	n_sl = business.data['SLs']
+				pass	
 
 	slopes = {}
 
 	for nn in range(1,n_sl+1):
-		slope_data = business.data['SL_{}'.format(nn)]
-		label = business.data['RV_label_{}'.format(nn)]
+		slope_data = data['SL_{}'.format(nn)]
+		label = data['SL_label_{}'.format(nn)]
 		slopes['RV_'+str(nn)] = {}
 		times = []
 		for key in slope_data.keys():
@@ -2363,11 +2463,11 @@ def plot_slope(param_fname,data_fname,
 		times = np.asarray(times)
 		ss = np.argsort(times)
 		times = times[ss]
-		v0 = business.parameters['RVsys_{}'.format(nn)]['Value']
+		v0 = parameters['RVsys_{}'.format(nn)]['Value']
 		rv_m = np.zeros(len(times))
 		for pl in pls:
-			p2, t2 = business.parameters['P_{}'.format(pl)]['Value'],business.parameters['T0_{}'.format(pl)]['Value']
-			rv_pl = business.rv_model(times,n_planet=pl,n_rv=nn,RM=False)
+			p2, t2 = parameters['P_{}'.format(pl)]['Value'],parameters['T0_{}'.format(pl)]['Value']
+			rv_pl = rv_model(times,n_planet=pl,n_rv=nn,RM=False)
 	
 			rv_m += rv_pl
 		rv_m += v0
@@ -2376,15 +2476,16 @@ def plot_slope(param_fname,data_fname,
 
 		for pl in pls:
 			try:
-				t0n = business.parameters['Spec_{}:T0_{}'.format(nn,pl)]['Value']
-				business.parameters['T0_{}'.format(pl)]['Value'] = t0n				
+				t0n = parameters['Spec_{}:T0_{}'.format(nn,pl)]['Value']
+				parameters['T0_{}'.format(pl)]['Value'] = t0n				
 			except KeyError:
 				pass
 
-			per, T0 = business.parameters['P_{}'.format(pl)]['Value'], business.parameters['T0_{}'.format(pl)]['Value'] 
-			ar, inc = business.parameters['a_Rs_{}'.format(pl)]['Value'], business.parameters['inc_{}'.format(pl)]['Value']*np.pi/180.
-			rp = business.parameters['Rp_Rs_{}'.format(pl)]['Value']
-			ecc, ww = business.parameters['e_{}'.format(pl)]['Value'], business.parameters['w_{}'.format(pl)]['Value']*np.pi/180.
+			per, T0 = parameters['P_{}'.format(pl)]['Value'], parameters['T0_{}'.format(pl)]['Value'] 
+			ar, inc = parameters['a_Rs_{}'.format(pl)]['Value'], parameters['inc_{}'.format(pl)]['Value']*np.pi/180.
+			rp = parameters['Rp_Rs_{}'.format(pl)]['Value']
+			omega = parameters['w_{}'.format(pl)]['Value']
+			ecc, ww = parameters['e_{}'.format(pl)]['Value'], parameters['w_{}'.format(pl)]['Value']*np.pi/180.
 			b = ar*np.cos(inc)*(1 - ecc**2)/(1 + ecc*np.sin(ww))
 
 			t14 = per/np.pi * np.arcsin( np.sqrt( ((1 + rp)**2 - b**2))/(np.sin(inc)*ar)  )*np.sqrt(1 - ecc**2)/(1 + ecc*np.sin(ww))
@@ -2392,90 +2493,131 @@ def plot_slope(param_fname,data_fname,
 			t23 = per/np.pi * np.arcsin( np.sqrt( ((1 - rp)**2 - b**2))/(np.sin(inc)*ar)  )*np.sqrt(1 - ecc**2)/(1 + ecc*np.sin(ww))
 			if np.isnan(t14): continue
 
-			model_slope = business.localRV_model(times,n_planet=pl)
+			model_slope = localRV_model(times,n_planet=pl)
 		
 
 			### HARD-CODED
-			darks = business.lc_model(times,n_planet=pl,n_phot=1)
+			darks = lc_model(times,n_planet=pl,n_phot=1)
 
 
 			idxs = [ii for ii in range(len(times))]
 			if oots is None:
-				oots = business.data['idxs_{}'.format(nn)]
+				oots = data['idxs_{}'.format(nn)]
 
 			print('Using indices {} as out-of-transit spectra'.format(oots))
 
 			its = [ii for ii in idxs if ii not in oots]	
 
-			pp = dynamics.time2phase(times[its],per,T0)*24*per
+			pp = time2phase(times[its],per,T0)*24*per
 
 			nvel = len(slope_data[times[0]]['vel'])
-			vels = np.zeros(shape=(nvel,len(times)))
-			oot_ccfs = np.zeros(shape=(nvel,len(oots)))
-			avg_ccf = np.zeros(nvel)
+			#vels = np.zeros(shape=(nvel,len(times)))
+			#oot_ccfs = np.zeros(shape=(nvel,len(oots)))
+			#avg_ccf = np.zeros(nvel)
+			vel_res = data['Velocity_resolution_{}'.format(nn)]
+			vels = np.array([])
+
+			
+			no_bump = data['No_bump_{}'.format(nn)]
+			# for ii, idx in enumerate(oots):
+			# 	time = times[idx]
+			# 	vel = slope_data[time]['vel'] - rv_m[idx]*1e-3
+			# 	vels[:,idx] = vel
+			# 	no_peak = (vel > no_bump) | (vel < -no_bump)
+				
+
+			# 	ccf = slope_data[time]['ccf']
+			# 	area = np.trapz(ccf,vel)
+			# 	ccf /= area	
+
+			# 	poly_pars = np.polyfit(vel[no_peak],ccf[no_peak],1)
+			# 	ccf -= vel*poly_pars[0] + poly_pars[1]
+
+			# 	oot_ccfs[:,ii] = ccf
+			# 	avg_ccf += ccf
 			for ii, idx in enumerate(oots):
 				time = times[idx]
 				vel = slope_data[time]['vel'] - rv_m[idx]*1e-3
-				vels[:,idx] = vel
+				if not ii:
+					vel_min, vel_max = min(vel), max(vel)
+					span  = (vel_max - vel_min)
+					vels = np.arange(vel_min+span/10,vel_max-span/10,vel_res)
+					avg_ccf = np.zeros(len(vels))
+					oot_ccfs = np.zeros(shape=(len(vels),len(oots)))
+
 				no_peak = (vel > no_bump) | (vel < -no_bump)
 				
-
 				ccf = slope_data[time]['ccf']
-				area = np.trapz(ccf,vel)
-				ccf /= area	
-
 				poly_pars = np.polyfit(vel[no_peak],ccf[no_peak],1)
 				ccf -= vel*poly_pars[0] + poly_pars[1]
 
-				oot_ccfs[:,ii] = ccf
-				avg_ccf += ccf
+				area = np.trapz(ccf,vel)
+				ccf /= area	
+
+				ccf_int = interpolate.interp1d(vel,ccf,kind='cubic',fill_value='extrapolate')
+				nccf = ccf_int(vels)	
+
+				oot_ccfs[:,ii] = nccf
+				avg_ccf += nccf
 
 			avg_ccf /= len(oots)
 			rvs = np.array([])
 			errs = np.array([])
 
-			lam = business.parameters['lam_{}'.format(pl)]['Value']*np.pi/180
-			vsini = business.parameters['vsini']['Value'] 
+			lam = parameters['lam_{}'.format(pl)]['Value']*np.pi/180
+			vsini = parameters['vsini']['Value'] 
 
 
-			fit_params = business.lmfit.Parameters()
+			## With this you supply the mid-transit time 
+			## and then the time of periastron is calculated
+			## from S. R. Kane et al. (2009), PASP, 121, 886. DOI: 10.1086/648564
+			if (ecc > 1e-5) & (omega != 90.):
+				f = np.pi/2 - ww
+				ew = 2*np.arctan(np.tan(f/2)*np.sqrt((1 - ecc)/(1 + ecc)))
+				Tw = T0 - per/(2*np.pi)*(ew - ecc*np.sin(ew))
+			else:
+				Tw = T0
+
+			fit_params = lmfit.Parameters()
 			fnames = []
 			xs = np.array([])
 			ys = np.array([])
 			for ii, idx in enumerate(its):
 				time = times[idx]
 				vel = slope_data[time]['vel'] - rv_m[idx]*1e-3
-				vels[:,idx] = vel
 				no_peak = (vel > no_bump) | (vel < -no_bump)
 
-				cos_f, sin_f = dynamics.true_anomaly(time, T0, ecc, per, ww)
-				xx, yy = dynamics.xy_pos(cos_f,sin_f,ecc,ww,ar,inc,lam)
+				cos_f, sin_f = true_anomaly(time, Tw, ecc, per, ww)
+				xx, yy = xy_pos(cos_f,sin_f,ecc,ww,ar,inc,lam)
+
 				xs = np.append(xs,xx)
 				ys = np.append(ys,yy)
 
 				ccf = slope_data[time]['ccf']
+				poly_pars = np.polyfit(vel[no_peak],ccf[no_peak],1)				
+				ccf -=  vel*poly_pars[0] + poly_pars[1]
+
 				area = np.trapz(ccf,vel)
 				ccf /= area
 				
 				sd = np.std(ccf[no_peak])
 
-				ccf *= darks[idx]#/bright#blc[ii]		
-				shadow = avg_ccf - ccf
-				poly_pars = np.polyfit(vel[no_peak],shadow[no_peak],1)
+				ccf *= darks[idx]#/bright#blc[ii]
 				
-				shadow -=  vel*poly_pars[0] + poly_pars[1]
+				ccf_int = interpolate.interp1d(vel,ccf,kind='cubic',fill_value='extrapolate')
+				nccf = ccf_int(vels)
 
-				peak = np.where((vel > -no_bump) & (vel < no_bump))
-				#print(vel)
-				#peak = np.where((vel > (xx*vsini - vsini/2)) & (vel < (xx*vsini + vsini/2)))
+				shadow = avg_ccf - nccf
+
+				peak = np.where((vels > -no_bump) & (vels < no_bump))
+				#peak = np.where((vels > (xx*vsini - vsini/2)) & (vels < (xx*vsini + vsini/2)))
 				midx = np.argmax(shadow[peak])
-				amp, mu1 = shadow[peak][midx], vel[peak][midx]# get max value of CCF and location
+				amp, mu1 = shadow[peak][midx], vels[peak][midx]# get max value of CCF and location
 
-				gau_par, pcov = curve_fit(Gauss,vel,shadow,p0=[amp,xx*vsini,0.2])
+				gau_par, pcov = curve_fit(Gauss,vels,shadow,p0=[amp,xx*vsini,0.2])
 				perr = np.sqrt(np.diag(pcov))
 				rv = gau_par[1]
 				std = perr[1]
-
 
 
 				rvs = np.append(rvs,rv)
@@ -2485,10 +2627,10 @@ def plot_slope(param_fname,data_fname,
 					movie_fig = plt.figure()
 					movie_ax = movie_fig.add_subplot(111)
 					movie_ax.axhline(0.0,color='C7',linestyle='--')
-					movie_ax.plot(vel,shadow,'k',lw=2.0)
-					movie_ax.plot(vel,shadow,'C0',lw=1.5)
+					movie_ax.plot(vels,shadow,'k',lw=2.0)
+					movie_ax.plot(vels,shadow,'C0',lw=1.5)
 					movie_ax.axvline(xx*vsini,color='C1',linestyle='-')
-					#movie_ax.plot(vel,Gauss(vel,gau_par[0],gau_par[1],gau_par[2]),'k',lw=2.0)
+					#movie_ax.plot(vels,Gauss(vels,gau_par[0],gau_par[1],gau_par[2]),'k',lw=2.0)
 					#movie_ax.plot(vel,Gauss(vel,gau_par[0],gau_par[1],gau_par[2]),'C7',lw=1.5)
 
 					movie_ax.set_xlabel(r'$\rm Velocity \ (kms/s)$',fontsize=font)
@@ -2506,12 +2648,12 @@ def plot_slope(param_fname,data_fname,
 				subprocess.call("ffmpeg -framerate 4 -i ./shadow_no_%3d.png -c:v libx264 -r 30 -pix_fmt yuv420p ./shadow.mp4", shell=True)
 				for fname in fnames: os.remove(fname)
 
-			slope = business.localRV_model(times[its])
+			slope = localRV_model(times[its])
 			#print(xs)
-			vsini = business.parameters['vsini']['Value']
+			vsini = parameters['vsini']['Value']
 			rv_scale = rvs/vsini
 			erv_scale = errs/vsini
-			chi2scale = business.data['Chi2 SL_{}'.format(nn)]
+			chi2scale = data['Chi2 SL_{}'.format(nn)]
 			#chi2scale = 1.0#business.data['Chi2 SL_{}'.format(nn)]
 			#erv_scale *= chi2scale
 			full = (pp > -1*t23*24/2) & (pp < 1*t23*24/2)
@@ -2558,7 +2700,7 @@ def plot_slope(param_fname,data_fname,
 			ax2.axvline(1*t14*24/2,linestyle='-',color=contact_color,lw=2.0)
 			ax2.axvline(-1*t14*24/2,linestyle='-',color=contact_color,lw=2.0)
 
-			slope = business.localRV_model(times[its],n_planet=pl)
+			slope = localRV_model(times[its],n_planet=pl)
 			ax.plot(pp,slope,'-',color='k',lw=2.0)
 			ax.plot(pp,slope,'-',color='C7',lw=1.0)
 			ax.set_ylabel(r'$\mathrm{Local} \ \mathrm{RV} \ (v\sin i)$',fontsize=font)

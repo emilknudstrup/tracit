@@ -1,13 +1,13 @@
-Parameter,Rp_Rs_b,lam_b,LC1_q_sum,LC1_q1,LC1_q2,lnL,chi2
-Label,$(R_\mathrm{p}/R_\star)\rm _b$,$\lambda \rm _b \ (^\circ)$,$q_1 + q_2: \rm LC1$,$q_1: \ \rm LC1$,$q_2: \ \rm LC1$,$\ln \mathcal{L}$,$\chi^2$
-Median,0.06848,-25,0.567,0.265,0.301,7354.2,1.5516
-Lower,0.00018,6,0.021,0.011,0.011,0.7,0.0018
-Upper,0.00021,6,0.017,0.009,0.009,1.2,0.0011
-Best-fit,0.06849,-25,0.569,0.266,0.302,7355.4,1.5496
-Mode,0.06846,-27,0.567,0.265,0.301,7354.8,1.5506
-Prior,uni,uni,tgauss,Derived,Derived,Derived,Derived
-Location,0.04,-90.0,0.542,Derived,Derived,Derived,Derived
-Width,0.05,10.0,0.1,Derived,Derived,Derived,Derived
-Lower,0.0,-180.0,0.0,Derived,Derived,Derived,Derived
-Upper,0.1,180.0,2.0,Derived,Derived,Derived,Derived
-Rhat,1.0102239817951075,1.0085349510995478,1.0079807514730528,Derived,Derived,Derived,Derived
+Parameter,T0_b,Rp_Rs_b,lam_b,Spec_1:T0_b,lnL,chi2
+Label,"$T \rm _{0,b} \ (BJD)$",$(R_\mathrm{p}/R_\star)\rm _b$,$\lambda \rm _b \ (^\circ)$,"$T0\rm _{b}, \ Spec_1$",$\ln \mathcal{L}$,$\chi^2$
+Median,2458729.6813,0.0665,-3,2458729.6946,7298.0,0.5635
+Lower,0.0003,0.0002,8,0.0018,0.8,0.0021
+Upper,0.0003,0.0002,8,0.0023,1.3,0.0012
+Best-fit,2458729.6813,0.0665,-3,2458729.6944,7299.6,0.5611
+Mode,2458729.6813,0.0665,-3,2458729.6943,7298.4,0.5625
+Prior,tgauss,uni,uni,uni,Derived,Derived
+Location,2458729.681,0.069,0,2458729.6819,Derived,Derived
+Width,0.0005,0.001,2,0.05,Derived,Derived
+Lower,2458729.6,0.05,-180,2458729.6,Derived,Derived
+Upper,2458729.8,0.1,180,2458729.8,Derived,Derived
+Rhat,1.0064052140269497,1.0057099365083173,1.0099348330670392,1.0076825502100832,Derived,Derived

@@ -13,6 +13,7 @@ Created on Wed Mar  2 20:30:39 2022
 import string
 import numpy as np
 import h5py
+from .shady import grid, grid_ring
 
 def par_struct(n_phot=1,n_spec=1,n_planets=1,LD_law='quad',
 	fps=[],cons=[],LD_lincombs=[],updated_pars=None):
@@ -34,9 +35,9 @@ def par_struct(n_phot=1,n_spec=1,n_planets=1,LD_law='quad',
 
 	.. note::
 		It is possible to step in :math:`\cos i` and :math:`\sqrt{e}\cos \omega` & :math:`\sqrt{e}\sin \omega`:
-			* Add 'cosi_b' to `parameters['FPs']`, walkers will step in cos(i) for planet 'b'.
-			* Add 'ecosw_b', 'esinw_b', walkers will step in sqrt(e)*cos(w) & sqrt(e)*sin(w) for planet 'b'.
-			* Remember to remove 'i_b', e_b', 'w_b', from `parameters['FPs']` accordingly.
+			- Add 'cosi_b' to ``parameters['FPs']``, walkers will step in :math:`\cos i` for planet 'b'.
+			- Add 'ecosw_b', 'esinw_b', walkers will step in :math:`\sqrt{e}\cos \omega` & :math:`\sqrt{e}\sin \omega` for planet 'b'.
+			- Remember to remove 'i_b', e_b', 'w_b', from ``parameters['FPs']`` accordingly.
 
 
 	'''
@@ -85,7 +86,7 @@ def par_struct(n_phot=1,n_spec=1,n_planets=1,LD_law='quad',
 			'Tw_{}'.format(pl) : 
 			['Time of periastron passage','BJD',r'$T_\omega  \rm _{} \ (BJD)$'.format(pl),2457000.,0.5,2456999.,2457001],
 			'lam_{}'.format(pl) : 
-			['Projected obliquity','deg',r'$\lambda \rm _{} \ (^\circ)$'.format(pl),0.0,10.,0.0,360.],
+			['Projected obliquity','deg',r'$\lambda \rm _{} \ (^\circ)$'.format(pl),0.0,10.,-180.,180.],
 			'cosi_{}'.format(pl) : 
 			['Cosine inclination',' ',r'$\cos i \rm _{}$'.format(pl),0.0,0.1,0.0,1.0],
 			'ecosw_{}'.format(pl) : 
@@ -107,7 +108,8 @@ def par_struct(n_phot=1,n_spec=1,n_planets=1,LD_law='quad',
 				'Prior_vals'   : [pars[par][ii] for ii in range(3,7)],
 				'Prior'        : 'uni',
 				'Distribution' : 'tgauss',
-				'Comment' : 'none',
+				'Fix'          : False,
+				'Comment'      : 'none',
 			}
 
 
@@ -165,7 +167,8 @@ def par_struct(n_phot=1,n_spec=1,n_planets=1,LD_law='quad',
 				'Prior_vals'   : [star[par][ii] for ii in range(3,7)],
 				'Prior'        : 'uni',
 				'Distribution' : 'tgauss',
-				'Comment' : 'none',
+				'Fix'          : False,
+				'Comment'      : 'none',
 			}
 
 	ext = {'rho_s' : 
@@ -252,6 +255,25 @@ def check_fps(parameters):
 		if ldsum not in fps:
 			fps.append(ldsum)
 
+	for fp in fps:
+		if ('Phot' in fp ) or ('Spec' in fp):
+			first_label = fp.split(':')[-1]
+			instrument = fp.split(':')[0]
+			label = '$' + first_label.split('_')[0] + '\\rm _' + '{' + first_label.split('_')[-1] + '}, \ ' + instrument + '$'
+			
+			parameters[fp] = {
+				'Name'         : 'Midtransit, ' + instrument,
+				'Unit'         : 'BJD',
+				'Label'        : label,#ndf[handle][1][:-1] + ' ' + transit + '$',
+				'Value'        : parameters[first_label]['Value'],
+				'Prior_vals'   : [parameters[first_label]['Prior_vals'][ii] for ii in range(4)],
+				'Prior'        : 'uni',
+				'Distribution' : 'tgauss',
+				'Fix'          : False,
+				'Comment'      : 'none',
+			}
+
+
 # def ini_pars(parameters):
 # 	LD_lincombs = parameters['LinCombs']
 
@@ -293,7 +315,7 @@ def update_pars(rdf,parameters,best_fit=True):
 	:param parameters: The parameters.
 	:type parameters: dict
 
-	:param best_fit: Use best-fitting (:math:`max(\log \mathcal{L})`), if `False` median is used.
+	:param best_fit: Use best-fitting (:math:`\max(\log \mathcal{L})`), if ``False`` median is used.
 	:type best_fit: bool
 
 
@@ -348,19 +370,22 @@ def dat_struct(n_phot=1,n_rvs=1,n_ls=0,n_sl=0):
 
 	data['RVs'] = n_rvs
 	for ii in range(1,n_rvs+1):
-		data['RV_label_{}'.format(ii)] = 'Spectrograph {}'.format(ii)
+		data['RV_label_{}'.format(ii)] = 'Spectrograph\ {}'.format(ii)
 		data['Fit RV_{}'.format(ii)] = False#str2bool(df_spec['Fit RV'][ii])
 		data['RM RV_{}'.format(ii)] = False#str2bool(df_spec['Fit RM'][ii])		
 		data['RV filename_{}'.format(ii)] = 'rv.txt'#np.zeros(shape=(10,3))
 
 	data['LSs'] = n_ls
 	for ii in range(1,n_ls+1):
+		data['LS_label_{}'.format(ii)] = 'Spectrograph\ {}'.format(ii)
 		data['Fit LS_{}'.format(ii)] = False
 		data['LS filename_{}'.format(ii)] = 'shadow.hdf5'
 
 		data['Resolution_{}'.format(ii)] = 100 # Disc resolution
 		data['Thickness_{}'.format(ii)] = 20 # Ring thickness
-		data['PSF_{}'.format(ii)] = 1.1 # Ring thickness
+		data['PSF_{}'.format(ii)] = 1.1 # Point spread function of PSF
+		data['Velocity_resolution_{}'.format(ii)] = 0.25 # Resolution of grid in velocity space in km/s
+		data['No_bump_{}'.format(ii)] = 15 # Flat part of CCF (i.e., no bump) in km/s
 		data['Only_OOT_{}'.format(ii)] = False#str2bool(df_spec['Only fit OOT'][ii])
 		data['OOT_{}'.format(ii)] = False#str2bool(df_spec['Fit OOT'][ii])
 		#idxs = df_spec['OOT indices'][ii]
@@ -370,14 +395,38 @@ def dat_struct(n_phot=1,n_rvs=1,n_ls=0,n_sl=0):
 	
 	data['SLs'] = n_sl
 	for ii in range(1,n_sl+1):
+		data['SL_label_{}'.format(ii)] = 'Spectrograph\ {}'.format(ii)
 		data['Fit SL_{}'.format(ii)] = False
 		data['SL filename_{}'.format(ii)] = 'shadow.hdf5'
-		data['SL_{}'.format(ii)] = shadow_data
+		#data['SL_{}'.format(ii)] = shadow_data
 		data['idxs_{}'.format(ii)] = [0,1,2]#[int(ii) for ii in idxs.split(',')]
 		data['Chi2 SL_{}'.format(ii)] = 1.0#float(df_spec['SL chi2 scaling'][ii])		
+		data['Velocity_resolution_{}'.format(ii)] = 0.25 # Resolution of grid in velocity space in km/s
+		data['No_bump_{}'.format(ii)] = 15 # Flat part of CCF (i.e., no bump) in km/s
 
 
 	return data
+
+def ini_grid(rad_disk=100,thickness=20):
+	'''Initialize stellar grid.
+
+	:param rad_disk: Stellar radius in pixels.
+	:type rad_disk: int
+
+	:param thickness: Thickness of the stellar rings in pixels.
+	:type thickness: int
+
+	:return: start grid, rings of same :math:`\mu`, velocity grid, radial :math:`\mu` values, approx :math:`\mu` in each ring
+	:rtype: array, array, array, array, array
+
+	'''
+	## Make initial grid
+	start_grid, vel, mu = grid(rad_disk) #make grid of stellar disk
+	## The grid is made into rings for faster calculation of the macroturbulence (approx. constant in each ring)
+	ring_grid, vel, mu_grid, mu_mean = grid_ring(rad_disk,thickness) 
+	
+	return start_grid, ring_grid, vel, mu, mu_grid, mu_mean
+
 
 def ini_data(data):
 	'''Initialize the data.
@@ -398,15 +447,18 @@ def ini_data(data):
 		fname = data['LC filename_{}'.format(ii)]
 		arr = np.loadtxt(fname)
 		data['LC_{}'.format(ii)] = arr
-		if data['GP LC_{}'.format(ii)]:
-			gp_type = data['GP type LC_{}'.format(ii)]
-			if gp_type == 'Real':
-				kernel = celerite.terms.RealTerm(log_a=0.5, log_c=0.1)
-			else:
-				kernel = celerite.terms.Matern32Term(log_sigma=-0.3, log_rho=-0.7)			
-			gp = celerite.GP(kernel)
-			gp.compute(arr[:,0],arr[:,2]) #probably redundant
-			data['LC_{} GP'.format(ii)] = gp
+		try:
+			if data['GP LC_{}'.format(ii)]:
+				gp_type = data['GP type LC_{}'.format(ii)]
+				if gp_type == 'Real':
+					kernel = celerite.terms.RealTerm(log_a=0.5, log_c=0.1)
+				else:
+					kernel = celerite.terms.Matern32Term(log_sigma=-0.3, log_rho=-0.7)			
+				gp = celerite.GP(kernel)
+				gp.compute(arr[:,0],arr[:,2]) #probably redundant
+				data['LC_{} GP'.format(ii)] = gp
+		except KeyError:
+			pass
 		
 	n_rvs = data['RVs']
 	for ii in range(1,n_rvs+1):
@@ -432,14 +484,7 @@ def ini_data(data):
 					'vel' : raw_vel,
 					'ccf' : arr[:,1]
 					}
-		try:
-			data['Resolution_{}'.format(ii)]
-		except KeyError:
-			data['Resolution_{}'.format(ii)] = 100 # Disc resolution
-		try:
-			data['Thickness_{}'.format(ii)]
-		except KeyError:
-			data['Thickness_{}'.format(ii)] = 20 # Ring thickness
+
 		try:
 			data['PSF_{}'.format(ii)]
 		except KeyError:
@@ -448,8 +493,44 @@ def ini_data(data):
 			data['idxs_{}'.format(ii)] 
 		except KeyError:
 			data['idxs_{}'.format(ii)] = [0,1,2] # OOT indices
+		try:
+			data['Only_OOT_{}'.format(ii)] 
+		except KeyError:
+			data['Only_OOT_{}'.format(ii)] = False
+		try:
+			data['OOT_{}'.format(ii)] 
+		except KeyError:
+			data['OOT_{}'.format(ii)] = False
+
+		try:
+			data['Fit LS_{}'.format(ii)] 
+		except KeyError:
+			data['Fit LS_{}'.format(ii)] = False # Fit shadow?
+		try:
+			data['LS_label_{}'.format(ii)] 
+		except KeyError:
+			data['LS_label_{}'.format(ii)] = 'Spectrograph\ {}'.format(ii)
 
 		data['LS_{}'.format(ii)] = shadow_data	
+
+		try:
+			resol = data['Resolution_{}'.format(ii)]
+		except KeyError:
+			resol = 100 # Disc resolution
+			data['Resolution_{}'.format(ii)] = resol
+		try:
+			thick = data['Thickness_{}'.format(ii)]
+		except KeyError:
+			thick = 20 # Ring thickness
+			data['Thickness_{}'.format(ii)] = thick
+		
+		start_grid, ring_grid, vel_grid, mu, mu_grid, mu_mean = ini_grid(resol,thick)
+		data['Start_grid_{}'.format(ii)] = start_grid
+		data['Ring_grid_{}'.format(ii)] = ring_grid
+		data['Velocity_{}'.format(ii)] = vel_grid
+		data['mu_{}'.format(ii)] = mu
+		data['mu_grid_{}'.format(ii)] = mu_grid
+		data['mu_mean_{}'.format(ii)] = mu_mean
 
 	n_sl = data['SLs']
 	for ii in range(1,n_sl+1):
@@ -472,5 +553,15 @@ def ini_data(data):
 					'vel' : raw_vel,
 					'ccf' : arr[:,1]
 					}
+
+		try:
+			data['Fit SL_{}'.format(ii)] 
+		except KeyError:
+			data['Fit SL_{}'.format(ii)] = False # Fit slope?
+
+		try:
+			data['SL_label_{}'.format(ii)] 
+		except KeyError:
+			data['SL_label_{}'.format(ii)] = 'Spectrograph\ {}'.format(ii)
 
 		data['SL_{}'.format(ii)] = shadow_data

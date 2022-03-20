@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 '''
+
 .. todo::
 	* Make sure data isn't passed around with each evaluation 
 		- global variables? CHECK, seems to work
@@ -31,6 +32,7 @@
 	* Fix hard-code in `no_peak`
 	
 	* Check `poly_pars` CCFs
+
 '''
 # =============================================================================
 # tracit modules
@@ -50,7 +52,8 @@
 # import .stat_tools
 from .dynamics import *
 from .stat_tools import plot_autocorr, create_chains, create_corner, hpd, significantFormat
-from .shady import grid, grid_ring, absline_star, absline
+#from .shady import grid, grid_ring, absline_star, absline
+from .shady import absline_star, absline
 from .priors import tgauss_prior, gauss_prior, flat_prior, tgauss_prior_dis, flat_prior_dis
 #from .structure import ini_data
 
@@ -949,13 +952,13 @@ def rv_model(time,n_planet='b',n_rv=1,RM=False):
 		calcRV = get_RV(time,orbpars)
 	return calcRV
 
-def ini_grid(rad_disk=100,thickness=20):
-	## Make initial grid
-	start_grid, vel, mu = grid(rad_disk) #make grid of stellar disk
-	## The grid is made into rings for faster calculation of the macroturbulence (approx. constant in each ring)
-	ring_grid, vel, mu_grid, mu_mean = grid_ring(rad_disk,thickness) 
+# def ini_grid(rad_disk=100,thickness=20):
+# 	## Make initial grid
+# 	start_grid, vel, mu = grid(rad_disk) #make grid of stellar disk
+# 	## The grid is made into rings for faster calculation of the macroturbulence (approx. constant in each ring)
+# 	ring_grid, vel, mu_grid, mu_mean = grid_ring(rad_disk,thickness) 
 	
-	return start_grid, ring_grid, vel, mu, mu_grid, mu_mean
+# 	return start_grid, ring_grid, vel, mu, mu_grid, mu_mean
 
 
 def ls_model(time,
@@ -999,7 +1002,6 @@ def ls_model(time,
 	label = 'RV{}'.format(n_rv)	
 	
 	LD_law =  parameters[label+'_q1']['Unit']
-	print(label)
 	# fix = parameters[label+'_q1']['Fix']
 	# if fix != False:
 	# 	LDlabel = fix.split('_')[0]
@@ -1093,15 +1095,37 @@ def localRV_model(time,n_planet='b'):
 
 
 def chi2(ycal,yobs,sigy):
+	'''Chi squared.
+
+	.. math:: \chi^2 = \sum_i (O_i - C_i)^2/\sigma_i^2 \, ,
+	where :math:`N` indicates the total number of data points from photometry and RVs. :math:`C_i` represents the model corresponding to the observed data point :math:`O_i`. :math:`\sigma_i` represents the uncertainty for the math:`i` th data point. 
+
+	:return: :math:`\chi^2`
+
+	'''
 	return np.sum((ycal-yobs)**2/sigy**2)
 
 def lnlike(ycal,yobs,sigy):
+	'''Log likelihood.
+	
+	.. math:: \log \mathcal{L} = -0.5 \chi^2 + \log 2 \pi \sigma_i^2 
+
+	where :math:`\chi^2` is from ``chi2``, and :math:`\sigma_i` represents the uncertainty for the math:`i` th data point. 
+	'''
 	nom = chi2(ycal,yobs,sigy)
 	den = np.sum(np.log(2*np.pi*sigy**2))
 	return -0.5*(den + nom)
 
 def lnprob(positions):
+	'''Log probability.
+
+	The log probability is defined as
+
+	.. math:: \log \mathcal{L} + \sum_{j} \log \mathcal{P}_{j}\, ,
+
+	where :math:`\log \mathcal{L}` is the likelihood from ``lnlike``, and :math:`\mathcal{P}_j` is the prior on the :math:`j` th parameter.	
 	
+	'''
 	log_prob = 0.0
 	chisq = 0.0
 
@@ -1223,7 +1247,6 @@ def lnprob(positions):
 		if data['Fit LC_{}'.format(nn)]:
 			arr = data['LC_{}'.format(nn)]
 			time, flux, flux_err = arr[:,0].copy(), arr[:,1].copy(), arr[:,2].copy()
-
 
 
 			ofactor = data['OF LC_{}'.format(nn)]
@@ -1426,7 +1449,7 @@ def lnprob(positions):
 					pass
 				p2, t02 = parameters['P_{}'.format(pl)]['Value'], parameters['T0_{}'.format(pl)]['Value'] 
 				rv_pl = rv_model(times,n_planet=pl,n_rv=nn,RM=False)
-				rv_m[t_idxs] += rv_pl
+				rv_m += rv_pl
 			rv_m += v0
 
 
@@ -1478,61 +1501,58 @@ def lnprob(positions):
 			nvel = len(shadow_data[times[0]]['vel'])
 			vels = np.zeros(shape=(nvel,len(times)))
 			oot_ccfs = np.zeros(shape=(nvel,len(oots)))
-			avg_ccf = np.zeros(nvel)
-			avg_vel = np.zeros(nvel)
+			#avg_ccf = np.zeros(nvel)
+			#avg_vel = np.zeros(nvel)
 
 			## Create average out-of-transit CCF
 			## Used to create shadow for in-transit CCFs
 			## Shift CCFs to star rest frame
 			## and detrend CCFs
+
+			vel_res = data['Velocity_resolution_{}'.format(nn)]
+			vels = np.array([])
+			
+			no_bump = data['No_bump_{}'.format(nn)]
+
 			oot_sd = []
 			# oot_sd_b = []
 			for ii, idx in enumerate(oots):
 				time = times[idx]
 				vel = shadow_data[time]['vel'] - rv_m[idx]*1e-3
-				vels[:,idx] = vel
-				no_peak = (vel > 15) | (vel < -15)
+				if not ii:
+					## Interpolate to grid in stellar restframe
+					vel_min, vel_max = min(vel), max(vel)
+					span  = (vel_max - vel_min)
+					vels = np.arange(vel_min+span/10,vel_max-span/10,vel_res)
+					avg_ccf = np.zeros(len(vels))
+					oot_ccfs = np.zeros(shape=(len(vels),len(oots)))
+
+				#vels[:,idx] = vel
+				no_peak = (vel > no_bump) | (vel < -no_bump)
 				
 
 				ccf = shadow_data[time]['ccf']
 				poly_pars = np.polyfit(vel[no_peak],ccf[no_peak],1)
 				ccf -= vel*poly_pars[0] + poly_pars[1]
 
-				zp_idx = np.argmin(ccf)
-				zp_x = abs(vel[zp_idx])
-				
-				under_curve = (vel < zp_x) & (vel > -zp_x)
-				#area = np.trapz(ccf[under_curve],vel[under_curve])
-
-				ccf_u = ccf[under_curve]
-				vel_u = vel[under_curve]
-				pos = ccf_u > 0.0
-				ccf_p = ccf_u[pos]
-				vel_p = vel_u[pos]
-				area = np.trapz(ccf_p,vel_p)
+				area = np.trapz(ccf,vel)
 
 				ccf /= abs(area)
 				oot_sd.append(np.std(ccf[no_peak]))
-				
-				# area = np.trapz(ccf,vel)
-				# ccf /= area	
 
-				# vv,cc = get_binned(vels[:,idx],ccf)
-				# no_peak_b = (vv > 15) | (vv < -15)
-				# oot_sd_b.append(np.std(cc[no_peak_b]))
-				#cc -= vv*poly_pars[0] + poly_pars[1]
-	
-	
-				oot_ccfs[:,ii] = ccf
-				avg_ccf += ccf
-				avg_vel += vel
+				ccf_int = interpolate.interp1d(vel,ccf,kind='cubic',fill_value='extrapolate')
+				nccf = ccf_int(vels)
+
+				oot_ccfs[:,ii] = nccf
+				avg_ccf += nccf
+
 			avg_ccf /= len(oots)
-			avg_vel /= len(oots)
+			#avg_vel /= len(oots)
 
 			model_int = interpolate.interp1d(vel_model,model_ccf,kind='cubic',fill_value='extrapolate')
-			newline = model_int(avg_vel)
+			newline = model_int(vels)
 			sd = np.mean(oot_sd)
-			unc = np.ones(len(avg_vel))*sd
+			unc = np.ones(len(vels))*sd
 			chi2scale_oot = data['Chi2 OOT_{}'.format(nn)]
 			unc *= chi2scale_oot
 			
@@ -1565,17 +1585,6 @@ def lnprob(positions):
 
 				n_dps += len(vel)
 
-
-			# vv,cc = get_binned(avg_vel,avg_ccf)
-			# vv,ncc = get_binned(avg_vel,newline)
-			
-			# sd = np.mean(oot_sd_b)
-			# unc = np.ones(len(vv))*sd
-
-			# chi2scale_oot = data['Chi2 OOT_{}'.format(nn)]
-			# #chi2scale_oot = 5.245
-			# unc *= chi2scale_oot
-
 			# if fit_oot:
 			# 	chisq += chi2(ncc,cc,unc)
 			# 	log_prob += lnlike(ncc,cc,unc)
@@ -1584,6 +1593,7 @@ def lnprob(positions):
 		
 			if not only_oot:
 				chi2scale_shadow = data['Chi2 LS_{}'.format(nn)]
+				#chi2scale_shadow = 5.0
 
 				## Again shift CCFs to star rest frame
 				## and detrend CCFs
@@ -1593,8 +1603,8 @@ def lnprob(positions):
 					#arr = data[time]
 					time = times[idx]
 					vel = shadow_data[time]['vel'] - rv_m[idx]*1e-3
-					vels[:,idx] = vel
-					no_peak = (vel > 15) | (vel < -15)
+					#vels[:,idx] = vel
+					no_peak = (vel > no_bump) | (vel < -no_bump)
 						
 					ccf = shadow_data[time]['ccf']
 					poly_pars = np.polyfit(vel[no_peak],ccf[no_peak],1)
@@ -1606,11 +1616,15 @@ def lnprob(positions):
 					
 
 					ccf *= darks[idx]/bright#blc[ii]		
-					shadow = avg_ccf - ccf
+
+					ccf_int = interpolate.interp1d(vel,ccf,kind='cubic',fill_value='extrapolate')
+					nccf = ccf_int(vels)
+					
+					shadow = avg_ccf - nccf
 					
 
 					ff = interpolate.interp1d(vel_model,shadow_model[idx],kind='cubic',fill_value='extrapolate')
-					ishadow = ff(vel)
+					ishadow = ff(vels)
 
 
 					# vv,ss = get_binned(vel,shadow)
@@ -1623,13 +1637,17 @@ def lnprob(positions):
 					# unc = np.ones(len(vv))*np.sqrt(sd**2 + jitter**2)
 					
 					
-					unc = np.ones(len(vel))*np.sqrt(sd**2 + jitter**2)
+					unc = np.ones(len(vels))*np.sqrt(sd**2 + jitter**2)
 					unc *= chi2scale_shadow
 
-					chisq += chi2(ccf,ishadow,unc)
-					log_prob += lnlike(ccf,ishadow,unc)
+					chisq += chi2(shadow,ishadow,unc)
+					log_prob += lnlike(shadow,ishadow,unc)
 					
-					n_dps += len(ccf)
+					n_dps += len(shadow)
+					
+					#chisq += chi2(ccf,ishadow,unc)
+					#log_prob += lnlike(ccf,ishadow,unc)
+					#n_dps += len(ccf)
 					
 					# chisq += chi2(ss,nss + vv*poly_pars[0] + poly_pars[1],unc)
 					# log_prob += lnlike(ss,nss + vv*poly_pars[0] + poly_pars[1],unc)
@@ -1664,9 +1682,7 @@ def lnprob(positions):
 			for pl in pls:
 				model_slope = localRV_model(times,n_planet=pl)				
 
-				### HARD-CODED
 				darks = lc_model(times,n_planet=pl,n_phot=1)
-
 
 				idxs = [ii for ii in range(len(times))]
 				oots = data['idxs_{}'.format(nn)]
@@ -1677,26 +1693,64 @@ def lnprob(positions):
 				nvel = len(slope_data[times[0]]['vel'])
 				vels = np.zeros(shape=(nvel,len(times)))
 				oot_ccfs = np.zeros(shape=(nvel,len(oots)))
+				oot_sd = []
 				if not len(avg_ccf):
-					avg_ccf = np.zeros(nvel)
-
+					vel_res = data['Velocity_resolution_{}'.format(nn)]
+					vels = np.array([])
+					
+					no_bump = data['No_bump_{}'.format(nn)]
 					for ii, idx in enumerate(oots):
 						time = times[idx]
 						vel = slope_data[time]['vel'] - rv_m[idx]*1e-3
-						vels[:,idx] = vel
-						no_peak = (vel > 15) | (vel < -15)
+						if not ii:
+							vel_min, vel_max = min(vel), max(vel)
+							span  = (vel_max - vel_min)
+							vels = np.arange(vel_min+span/10,vel_max-span/10,vel_res)
+							avg_ccf = np.zeros(len(vels))
+							oot_ccfs = np.zeros(shape=(len(vels),len(oots)))
+
+						no_peak = (vel > no_bump) | (vel < -no_bump)
 						
 
 						ccf = slope_data[time]['ccf']
 						poly_pars = np.polyfit(vel[no_peak],ccf[no_peak],1)
 						ccf -= vel*poly_pars[0] + poly_pars[1]
+						
 						area = np.trapz(ccf,vel)
-						ccf /= area	
+
+						ccf /= abs(area)
+						oot_sd.append(np.std(ccf[no_peak]))
+
+						ccf_int = interpolate.interp1d(vel,ccf,kind='cubic',fill_value='extrapolate')
+						nccf = ccf_int(vels)
+
+						# vv,cc = get_binned(vels,nccf)
+						# no_peak_b = (vv > no_bump) | (vv < -no_bump)
+						# oot_sd_b.append(np.std(cc[no_peak_b]))
+							
+
+						oot_ccfs[:,ii] = nccf
+						avg_ccf += nccf
+
+					# avg_ccf = np.zeros(nvel)
+
+					# for ii, idx in enumerate(oots):
+					# 	time = times[idx]
+					# 	vel = slope_data[time]['vel'] - rv_m[idx]*1e-3
+					# 	vels[:,idx] = vel
+					# 	no_peak = (vel > 15) | (vel < -15)
+						
+
+					# 	ccf = slope_data[time]['ccf']
+					# 	poly_pars = np.polyfit(vel[no_peak],ccf[no_peak],1)
+					# 	ccf -= vel*poly_pars[0] + poly_pars[1]
+					# 	area = np.trapz(ccf,vel)
+					# 	ccf /= area	
 
 
 
-						oot_ccfs[:,ii] = ccf
-						avg_ccf += ccf
+					# 	oot_ccfs[:,ii] = ccf
+					# 	avg_ccf += ccf
 					avg_ccf /= len(oots)
 
 				try:
@@ -1708,6 +1762,7 @@ def lnprob(positions):
 				T0 = parameters['T0_{}'.format(pl)]['Value']
 				P = parameters['P_{}'.format(pl)]['Value']
 				ecc = parameters['e_{}'.format(pl)]['Value']
+				omega = parameters['w_{}'.format(pl)]['Value']
 				ww = parameters['w_{}'.format(pl)]['Value']*np.pi/180
 				ar = parameters['a_Rs_{}'.format(pl)]['Value']
 				inc = parameters['inc_{}'.format(pl)]['Value']*np.pi/180
@@ -1716,19 +1771,27 @@ def lnprob(positions):
 				#P, T0 = parameters['P_{}'.format(pl)]['Value'], parameters['T0_{}'.format(pl)]['Value'] 
 				#ar, inc = parameters['a_Rs_{}'.format(pl)]['Value'], parameters['inc_{}'.format(pl)]['Value']*np.pi/180.
 				rp = parameters['Rp_Rs_{}'.format(pl)]['Value']
-
+				
+				## With this you supply the mid-transit time 
+				## and then the time of periastron is calculated
+				## from S. R. Kane et al. (2009), PASP, 121, 886. DOI: 10.1086/648564
+				if (ecc > 1e-5) & (omega != 90.):
+					f = np.pi/2 - ww
+					ew = 2*np.arctan(np.tan(f/2)*np.sqrt((1 - ecc)/(1 + ecc)))
+					Tw = T0 - P/(2*np.pi)*(ew - ecc*np.sin(ew))
+				else:
+					Tw = T0
 
 				#fit_params = lmfit.Parameters()
-				cos_f, sin_f = true_anomaly(times[its], T0, ecc, P, ww)
-				#print(cos_f)
+				cos_f, sin_f = true_anomaly(times[its], Tw, ecc, P, ww)
 				xxs, yys = xy_pos(cos_f,sin_f,ecc,ww,ar,inc,lam)
 				rvs = np.array([])
 				errs = np.array([])
 				for ii, idx in enumerate(its):
 					time = times[idx]
 					vel = slope_data[time]['vel'] - rv_m[idx]*1e-3
-					vels[:,idx] = vel
-					no_peak = (vel > 15) | (vel < -15)
+					#vels[:,idx] = vel
+					no_peak = (vel > no_bump) | (vel < -no_bump)
 
 					xx = xxs[idx]
 					#cos_f, sin_f = true_anomaly(time, T0, ecc, P, ww)
@@ -1739,28 +1802,32 @@ def lnprob(positions):
 					#ccf = 1 - shadow_arr/np.median(shadow_arr[no_peak])
 
 					ccf = slope_data[time]['ccf']
-					poly_pars = np.polyfit(vel[no_peak],shadow[no_peak],1)
+					poly_pars = np.polyfit(vel[no_peak],ccf[no_peak],1)
 					
 					ccf -= vel*poly_pars[0] + poly_pars[1]
 					area = np.trapz(ccf,vel)
 					ccf /= area
 					
-					sd = np.std(ccf[no_peak])
 
 					ccf *= darks[idx]#/bright#blc[ii]		
-					shadow = avg_ccf - ccf
+
+					sd = np.std(ccf[no_peak])
+					ccf_int = interpolate.interp1d(vel,ccf,kind='cubic',fill_value='extrapolate')
+					nccf = ccf_int(vels)
+					shadow = avg_ccf - nccf
 
 					#peak = np.where((vel > -15) & (vel < 15))
-					peak = np.where((vel > (xx*vsini - vsini/2)) & (vel < (xx*vsini + vsini/2)))
+					peak = np.where((vels > (xx*vsini - vsini/2)) & (vels < (xx*vsini + vsini/2)))
+					#peak = np.where((vels > -no_bump) & (vels < no_bump))
 					try:
 						midx = np.argmax(shadow[peak])
 					except ValueError:
 						return -np.inf, -np.inf
-					amp, mu1 = shadow[peak][midx], vel[peak][midx]# get max value of CCF and location
+					amp, mu1 = shadow[peak][midx], vels[peak][midx]# get max value of CCF and location
 					shadow = shadow/amp
 
 					try:
-						gau_par, pcov = curve_fit(Gauss,vel,shadow,p0=[1.0,xx*vsini,1.0])
+						gau_par, pcov = curve_fit(Gauss,vels,shadow,p0=[1.0,xx*vsini,1.0])
 						perr = np.sqrt(np.diag(pcov))
 						if any(np.isnan(perr)):
 							return -np.inf, -np.inf
@@ -1801,36 +1868,43 @@ def lnprob(positions):
 		return log_prob, chisq/(n_dps - m_fps)
 
 
-def mcmc(param_fname,data_fname,maxdraws,nwalkers,
+#def mcmc(param_fname,data_fname,maxdraws,nwalkers,
+def mcmc(par,dat,maxdraws,nwalkers,
 		save_results = True, results_filename='results.csv',
 		sample_filename='samples.h5',reset=True,burn=0.5,
 		plot_convergence=True,save_samples=True,
 		corner=True,chains=False,nproc=1,
-		stop_converged=True):
+		stop_converged=True,post_name='posteriors.npy'):
+	'''Markov Chain Monte Carlo.
 
+	Wrapper for `emcee <https://github.com/dfm/emcee>`_.
 
-	run_bus(nproc)
+    .. note::
+        A very poor fit might result in ``ValueError``: math domain error from ``stat_tools``. In that case check the boundaries of the priors.
+
+	'''
+
+	run_bus(par,dat,nproc=nproc)
 	#data = data_structure(data_fname)
 	#parameters = params_structure(param_fname)
-	params_structure(param_fname)
-	data_structure(data_fname)
+	#params_structure(param_fname)
+	#data_structure(data_fname)
 
-	n_phot = data['LCs']
-	n_ls = data['LSs']
-	n_sl = data['SLs']
-	fit_line = False
-	for nn in range(1,n_ls+1):
-		if data['Fit LS_{}'.format(nn)]:
-			resol = data['Resolution_{}'.format(nn)]
-			thick = data['Thickness_{}'.format(nn)]
-			start_grid, ring_grid, vel_grid, mu, mu_grid, mu_mean = ini_grid(resol,thick)
+	# n_phot = data['LCs']
+	# n_ls = data['LSs']
+	# n_sl = data['SLs']
+	# for nn in range(1,n_ls+1):
+	# 	if data['Fit LS_{}'.format(nn)]:
+	# 		resol = data['Resolution_{}'.format(nn)]
+	# 		thick = data['Thickness_{}'.format(nn)]
+	# 		start_grid, ring_grid, vel_grid, mu, mu_grid, mu_mean = ini_grid(resol,thick)
 
-			data['Start_grid_{}'.format(nn)] = start_grid
-			data['Ring_grid_{}'.format(nn)] = ring_grid
-			data['Velocity_{}'.format(nn)] = vel_grid
-			data['mu_{}'.format(nn)] = mu
-			data['mu_grid_{}'.format(nn)] = mu_grid
-			data['mu_mean_{}'.format(nn)] = mu_mean
+	# 		data['Start_grid_{}'.format(nn)] = start_grid
+	# 		data['Ring_grid_{}'.format(nn)] = ring_grid
+	# 		data['Velocity_{}'.format(nn)] = vel_grid
+	# 		data['mu_{}'.format(nn)] = mu
+	# 		data['mu_grid_{}'.format(nn)] = mu_grid
+	# 		data['mu_mean_{}'.format(nn)] = mu_mean
 
 	fit_params = parameters['FPs']
 	ndim = len(fit_params)
@@ -1889,7 +1963,7 @@ def mcmc(param_fname,data_fname,maxdraws,nwalkers,
 			
 			old_tau = tau
 	
-	res_df = check_convergence(sampler=sampler,pars=parameters,
+	res_df = check_convergence(sampler=sampler,pars=parameters,post_name=post_name,
 		plot_corner=corner,plot_chains=chains,dat=data,per_burn=burn,
 		save_df=save_results,results_filename=results_filename)
 
@@ -1914,7 +1988,7 @@ def mcmc(param_fname,data_fname,maxdraws,nwalkers,
 
 def check_convergence(filename='samples.h5', sampler=None, 
 					pars=None,param_fname='parameters.csv',
-					dat=None,data_fname='data.csv',
+					dat=None,data_fname='data.csv',post_name='posteriors.npy',
 					plot_chains=True, plot_corner=True,chain_ival=5,
 					save_df=True,results_filename='results.csv',
 					n_auto=4,per_burn=None,plot_priors=True):
@@ -2192,6 +2266,7 @@ def check_convergence(filename='samples.h5', sampler=None,
 	all_samples = np.concatenate(
 		(flat_samples, log_prob_samples[:, None], chi2_samples[:, None]), axis=1)
 	del flat_samples
+	np.save(post_name,all_samples)
 
 
 	priors = {}
@@ -2218,8 +2293,12 @@ def check_convergence(filename='samples.h5', sampler=None,
 		#print(qs[i][1],qs[i][1]-qs[i][0],qs[i][2]-qs[i][1])
 		val, low, up = significantFormat(qs[i][1],qs[i][1]-qs[i][0],qs[i][2]-qs[i][1])
 		#print(mode,mode-qs[i][0],qs[i][2]-mode)
-		mode, _, _ = significantFormat(mode,mode-qs[i][0],qs[i][2]-mode)
-
+		try:
+			mode, _, _ = significantFormat(mode,mode-qs[i][0],qs[i][2]-mode)
+		except ValueError:
+			print('ERROR:')
+			print('Failed to estimate mode.')
+			print('Probably a poor fit, check boundaries of priors.')
 		label = labels[i][:-1] + '=' + str(val) + '_{-' + str(low) + '}^{+' + str(up) + '}'
 		value_formats.append(label)
 

@@ -1,13 +1,13 @@
-Parameter,P_b,Spec_1:T0_b,T0_b,Rp_Rs_b,a_Rs_b,K_b,lam_b,cosi_b,ecosw_b,esinw_b,vsini,zeta,xi,LCsigma_1,LC_1_GP_log_a,LC_1_GP_log_c,LCsigma_2,LC_2_GP_log_a,LC_2_GP_log_c,LCsigma_3,LC_3_GP_log_a,LC_3_GP_log_c,RVsys_1,RVsys_2,RVsigma_2,RVsys_3,RVsigma_3,RVsys_4,RVsigma_4,LC3_q_sum,RV1_q_sum,e_b,w_b,inc_b,b_b,T41_b,T21_b,RV1_q1,RV1_q2,LC3_q1,LC3_q2,lnL,chi2
-Label,$P \rm _b \  (days)$,"$T \rm _{0,b} \ (BJD) Spec_1$","$T \rm _{0,b} \ (BJD)$",$(R_\mathrm{p}/R_\star)\rm _b$,$(a/R_\star) \rm _b$,$K  \rm _b\ (m/s)$,$\lambda \rm _b \ (^\circ)$,$\cos i \rm _b$,$\sqrt{e} \ \cos \omega_b$,$\sqrt{e} \ \sin \omega_b$,$v \sin i_\star \ \rm (km/s)$,$\zeta \ \rm (km/s)$,$\xi \ \rm (km/s)$,"$\rm \sigma_{LC,1}$","$\rm \log a_{LC,1}$","$\rm \log c_{LC,1}$","$\rm \sigma_{LC,2}$","$\rm \log a_{LC,2}$","$\rm \log c_{LC,2}$","$\rm \sigma_{LC,3}$","$\rm \log a_{LC,3}$","$\rm \log c_{LC,3}$",$\gamma_1 \ \rm (m/s)$,$\gamma_2 \ \rm (m/s)$,"$\rm \sigma_{RV,2} \ (m/s)$",$\gamma_3 \ \rm (m/s)$,"$\rm \sigma_{RV,3} \ (m/s)$",$\gamma_4 \ \rm (m/s)$,"$\rm \sigma_{RV,4} \ (m/s)$",$q_1 + q_2: \rm LC3$,$q_1 + q_2: \rm RV1$,$e \rm _b$,$\omega \rm _b \ (^\circ)$,$i \rm _b \ (^\circ)$,$b \rm _b$,"$T \rm _{41,b} (hours)$","$T \rm _{21,b} (hours)$",$q_1: \ \rm RV1$,$q_2: \ \rm RV1$,$q_1: \ \rm LC3$,$q_2: \ \rm LC3$,$\ln \mathcal{L}$,$\chi^2$
-Median,18.71205,2458729.6940,2458729.6814,0.0689,24.4,17.5,-2,0.0039,0.12,0.08,5.63,4.7,2.71,-7.571,-9.12,-1.0,-7.502,-7.91,-2.68,-8.127,-8.46,-0.23,-23346,1.1,8.7,-1.6,3.4,2,18,0.56,0.78,0.029,39,89.78,0.10,6.139,0.399,0.54,0.23,0.261,0.297,336016,1.000
-Lower,0.00001,0.0020,0.0004,0.0003,0.3,1.1,6,0.0039,0.08,0.07,0.11,0.3,0.19,0.008,0.12,0.3,0.008,0.04,0.11,0.012,0.14,0.16,11,1.1,1.0,1.0,1.1,6,6,0.03,0.08,0.024,39,0.10,0.10,0.016,0.006,0.04,0.04,0.014,0.014,4,0.006
-Upper,0.00001,0.0019,0.0004,0.0003,0.4,1.1,6,0.0018,0.12,0.04,0.11,0.3,0.17,0.008,0.10,0.3,0.008,0.04,0.10,0.012,0.13,0.15,12,1.1,0.8,1.0,0.8,5,4,0.03,0.08,0.014,22,0.22,0.04,0.016,0.005,0.04,0.04,0.014,0.014,4,0.006
-Best-fit,18.712049,2458729.6929,2458729.6814,0.0688,24.5,17.4,-4,0.0044,0.16,0.08,5.69,4.8,2.59,-7.548,-8.99,-0.8,-7.487,-7.92,-2.59,-8.097,-8.54,-0.21,-23322,0.3,10.7,-1.9,3.3,-2,14,0.58,0.76,0.032,26,89.75,0.11,6.131,0.399,0.54,0.22,0.271,0.307,336013,0.975
-Mode,18.71205,2458729.6939,2458729.6814,0.0689,24.4,17.6,-2,0.0011,0.16,0.09,5.64,4.7,2.70,-7.571,-9.13,-1.0,-7.503,-7.91,-2.69,-8.128,-8.48,-0.26,-23346,1.1,8.6,-1.6,3.2,3,17,0.56,0.78,0.023,18,89.94,0.03,6.138,0.396,0.55,0.23,0.261,0.297,336016,1.000
-Prior,uni,uni,uni,uni,uni,uni,uni,uni,uni,uni,uni,tgauss,tgauss,uni,uni,uni,uni,uni,uni,uni,uni,uni,uni,uni,uni,uni,uni,uni,uni,tgauss,tgauss,Derived,Derived,Derived,Derived,Derived,Derived,Derived,Derived,Derived,Derived,Derived,Derived
-Location,18.712062,2458729.681,2458729.681,0.06976,24.21,17.3,1.0,0.01,0.0,0.0,5.4,4.46,2.0,-8.12,-8.5,-0.19,-7.0,-7.81,-0.34,-8.12,-8.5,-0.19,-23396.0634321599,1.3,0.0,-1.9,0.0,1.9,0.0,0.542,0.7114,Derived,Derived,Derived,Derived,Derived,Derived,Derived,Derived,Derived,Derived,Derived,Derived
-Width,0.00023,0.000275,0.000275,0.05,1.0,1.2,10.0,0.01,0.0001,0.0001,1.0,1.0,1.0,1e-06,0.05,0.05,1e-06,0.05,0.05,1e-06,0.05,0.05,1.0,1.0,1.0,1.0,1.0,1.0,1.0,0.1,0.1,Derived,Derived,Derived,Derived,Derived,Derived,Derived,Derived,Derived,Derived,Derived,Derived
-Lower,18.703,2458729.65,2458729.65,0.0,19.0,10.0,-180.0,0.0,-1.0,0.0,0.5,0.5,0.0,-15.0,-15.0,-10.0,-20.0,-15.0,-5.0,-20.0,-15.0,-5.0,-23450.0,-20.0,0.0,-20.0,0.0,-20.0,0.0,0.0,0.0,Derived,Derived,Derived,Derived,Derived,Derived,Derived,Derived,Derived,Derived,Derived,Derived
-Upper,18.72,2458729.73,2458729.73,0.1,28.0,30.0,180.0,1.0,1.0,1.0,20.0,20.0,10.0,1.0,2.0,5.0,1.0,2.0,5.0,1.0,2.0,1.0,-23300.0,20.0,20.0,20.0,20.0,20.0,40.0,2.0,2.0,Derived,Derived,Derived,Derived,Derived,Derived,Derived,Derived,Derived,Derived,Derived,Derived
-Rhat,1.0018384552774404,1.0021443445088065,1.0023506243663036,1.0027292992287002,1.0028892246861467,1.002467096400269,1.0020359492391149,1.0031926063157877,1.0031642026850414,1.0032330663388727,1.0025279746495679,1.0029553763665615,1.0028752403658916,1.0028225551494192,1.0031956674588614,1.0022758432267702,1.0021646814969447,1.002269817855372,1.0027389134195155,1.0025680948231432,1.0027436967696814,1.0029887599128728,1.0027381769746944,1.0019317494891555,1.0020960546174162,1.002382224438953,1.0021881527310565,1.0026312285262609,1.0020347363332325,1.002262723828744,1.002031519144968,Derived,Derived,Derived,Derived,Derived,Derived,Derived,Derived,Derived,Derived,Derived,Derived
+Parameter,lam_b,lnL,chi2
+Label,$\lambda \rm _b \ (^\circ)$,$\ln \mathcal{L}$,$\chi^2$
+Median,5,31603.7,0.02732
+Lower,7,0.3,0.00010
+Upper,8,0.2,0.00012
+Best-fit,5,31604.0,0.02721
+Mode,4,31603.82,0.02727
+Prior,uni,Derived,Derived
+Location,90,Derived,Derived
+Width,2,Derived,Derived
+Lower,-180,Derived,Derived
+Upper,180,Derived,Derived
+Rhat,1.0082491439662848,Derived,Derived
