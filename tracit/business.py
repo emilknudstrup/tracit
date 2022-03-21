@@ -82,7 +82,7 @@ import scipy.signal as scisig
 from statsmodels.nonparametric.kde import KDEUnivariate as KDE
 
 #def run_params(nproc):
-def run_bus(par,dat,nproc=1):
+def run_bus(par,dat,path='./'):
 	'''Set global parameters.
 
 	Initialize the ``structure.par_struct`` and ``structure.dat_struct`` dictionaries as global parameters.
@@ -108,10 +108,11 @@ def run_bus(par,dat,nproc=1):
 	global data
 	data = dat.copy()
 
-	if nproc > 5:
-		mpath = './'
-	else:
-		mpath = '/home/emil/Desktop/PhD/exoplanets'
+	mpath = path
+	# if nproc > 5:
+	# 	mpath = './'
+	# else:
+	# 	mpath = '/home/emil/Desktop/PhD/exoplanets'
 
 def str2bool(arg):
 	if isinstance(arg, bool):
@@ -1874,7 +1875,7 @@ def mcmc(par,dat,maxdraws,nwalkers,
 		save_results = True, results_filename='results.csv',
 		sample_filename='samples.h5',reset=True,burn=0.5,
 		plot_convergence=True,save_samples=True,
-		corner=True,chains=False,nproc=1,
+		corner=True,chains=False,nproc=1,path_to_tracit='./',
 		stop_converged=True,post_name='posteriors.npy'):
 	'''Markov Chain Monte Carlo.
 
@@ -1885,7 +1886,9 @@ def mcmc(par,dat,maxdraws,nwalkers,
 
 	'''
 
-	run_bus(par,dat,nproc=nproc)
+	run_bus(par,dat,path=path_to_tracit+'/tracit/')
+
+	#run_bus(par,dat,path=nproc)
 	#data = data_structure(data_fname)
 	#parameters = params_structure(param_fname)
 	#params_structure(param_fname)
