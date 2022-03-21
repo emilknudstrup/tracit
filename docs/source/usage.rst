@@ -6,9 +6,9 @@ The following is a demonstration on how you might want to use :strike:`tracit`.
 
 Here we will be looking at a system with 2 planets with measurements from 2 photometers and 2 spectrographs.
 
-Creating input (.csv) files
+Creating input structures
 ---------------------------
-First we want to create two .csv files: one for the parameters and one for the data. We do this using the functions :py:func:`tracit.par_struct` and :py:func:`tracit.dat_struct`.
+First we want to create two structures: one for the parameters and one for the data. We do this using the functions :py:func:`tracit.par_struct` and :py:func:`tracit.dat_struct`.
 
 This would be done as in the example below. Here we have a 2-planet system with RVs from 2 different spectrographs, and light curves from 2 different photometers.
 
@@ -22,10 +22,27 @@ This would be done as in the example below. Here we have a 2-planet system with 
 	
 	par = tracit.par_struct(n_planets=n_planets,n_phot=n_phot,n_spec=n_spec)
 	dat = tracit.dat_struct(n_phot=0,n_rvs=n_spec)
-    
-    import pandas as pd
-    rdf = pd.read_csv('results_from_old_fit.csv')
-    tracit.update_pars(rdf,par,best_fit=False)  
+
+Setting the input
+---------------------------
+::
+	dat['RV filename_1'] = 'rv.txt'
+	dat['LC filename_1'] = 'lc.txt'
+	dat['Fit RV_1'] = 1
+	dat['Fit LC_1'] = 1
+
+	saved_results = 1 #If you have saved results from a previous run you can set them like this
+	if saved_resutls:
+	    import pandas as pd
+    	rdf = pd.read_csv('results_from_old_fit.csv')
+    	tracit.update_pars(rdf,par,best_fit=False)  
+   	else: #You will have to set all the values individually
+   		par['P_b']['Value'] = 3 #days
+
+	tracit.ini_data(dat)
+	tracit.run_bus(par,dat,nproc)
+
+
 
 Seeing the initial plots
 ---------------------------
@@ -48,6 +65,7 @@ We can find some good starting values for our parameters before we start doing a
 
 ::
 
+	par['FPs'] = ['P_b']
 	lfit = 1
 	if lfit:
 		fit = tracit.lmfitter(pfile,dfile)
@@ -57,6 +75,8 @@ After that we probably want to verify that our fit has improved things. Therefor
 
 ::
 
+	par['lam_b']['Prior'] = 'uni'
+	par['lam_b']['Prior_vals'] = [0,2,-180,180]
 	post_inspection = 1
 	if post_inspection:
 		tracit.update_pars(rdf,par,best_fit=False)
