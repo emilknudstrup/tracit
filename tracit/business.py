@@ -85,12 +85,12 @@ from statsmodels.nonparametric.kde import KDEUnivariate as KDE
 def run_bus(par,dat,nproc=1):
 	'''Set global parameters.
 
-	Initialize the `structure.par_struct` and `structure.dat_struct` dictionaries as global parameters.
+	Initialize the ``structure.par_struct`` and ``structure.dat_struct`` dictionaries as global parameters.
 	
-	:param par: Name for the parameters dict from `structure.par_struct`.
+	:param par: Name for the parameters dict from ``structure.par_struct``.
 	:type par: dict
 
-	:param dat: Name for the data dict from `structure.dat_struct`.
+	:param dat: Name for the data dict from ``structure.dat_struct``.
 	:type dat: dict
 	
 	:param nproc: Number of CPUs. Default 1.
@@ -98,7 +98,7 @@ def run_bus(par,dat,nproc=1):
 
 	.. note::
 		Using global variable to prevent having to pickle and pass the data to the modules every time the code is called,
-		see `emcee <https://emcee.readthedocs.io/en/stable/tutorials/parallel/#pickling-data-transfer-arguments>`_'s documention.
+		see `emcee: pickling, data transfer and arguments <https://emcee.readthedocs.io/en/stable/tutorials/parallel/#pickling-data-transfer-arguments>`_.
 	'''
 
 	global mpath
@@ -1098,7 +1098,8 @@ def chi2(ycal,yobs,sigy):
 	'''Chi squared.
 
 	.. math:: \chi^2 = \sum_i (O_i - C_i)^2/\sigma_i^2 \, ,
-	where :math:`N` indicates the total number of data points from photometry and RVs. :math:`C_i` represents the model corresponding to the observed data point :math:`O_i`. :math:`\sigma_i` represents the uncertainty for the math:`i` th data point. 
+	
+	where :math:`N` indicates the total number of data points from photometry and RVs. :math:`C_i` represents the model corresponding to the observed data point :math:`O_i`. :math:`\sigma_i` represents the uncertainty for the :math:`i` th data point. 
 
 	:return: :math:`\chi^2`
 
@@ -1108,7 +1109,7 @@ def chi2(ycal,yobs,sigy):
 def lnlike(ycal,yobs,sigy):
 	'''Log likelihood.
 	
-	.. math:: \log \mathcal{L} = -0.5 \chi^2 + \log 2 \pi \sigma_i^2 
+	.. math:: \log \mathcal{L} = - \chi^2/2 + \log 2 \pi \sigma_i^2 
 
 	where :math:`\chi^2` is from ``chi2``, and :math:`\sigma_i` represents the uncertainty for the math:`i` th data point. 
 	'''
