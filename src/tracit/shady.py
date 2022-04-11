@@ -101,7 +101,7 @@ def grid_ring(Rs,thick,xoff=0.,yoff=0.):
 	:param yoff: Potential offset in y-direction. Default 0.
 	:type yoff: float, optional 
 
-	:return: rings of same :math:`\mu`, velocity grid, radial :math:`\mu` values, approx :math:`\mu` in each ring
+	:return: pixels within stellar disk, velocity grid, radial :math:`\mu` values, approx :math:`\mu` in each ring
 	:rtype: (array, array, array, array)
 
 	'''
@@ -121,16 +121,14 @@ def grid_ring(Rs,thick,xoff=0.,yoff=0.):
 		rings_in = np.append(rings_in,rings[-1])
 		rings = np.append(rings,Rs)
 
-	#used for limb darkening and macro. Same as cos(theta)
 	mu_grid = np.asarray([start_grid.copy() for i in range(nr)])
 	ring_grid = mu_grid.copy()#np.asarray([start_grid.copy() for i in range(nr)]) #startgrid for ring
 	for ii in range(len(cidxs)):
 		for jj in range(nr):
 			if rings_in[jj] < rr[ii] <= rings[jj]:
 				ring_grid[jj][cidxs[ii]] = 1
-				#print(np.sqrt(1-(rr[ii]/float(Rs))**2))#used for limb darkening and macro. Same as cos(theta)
-				mu_grid[jj][cidxs[ii]] = np.sqrt(1-(rr[ii]/float(Rs))**2)#used for limb darkening and macro. Same as cos(theta)
-		vel[cidxs[ii]] = coord[ii][0]/float(Rs) #velocity field. [0]-axis (rows) are cst vel, while [1]-axis (columns) are the equator
+				mu_grid[jj][cidxs[ii]] = np.sqrt(1-(rr[ii]/float(Rs))**2) ## Used for limb darkening and macro. Same as cos(theta)
+		vel[cidxs[ii]] = coord[ii][0]/float(Rs) ## Velocity field. [0]-axis (rows) are cst vel, while [1]-axis (columns) are the equator
 	mu_mean = np.zeros(shape=(1,nr))[0]
 
 	## Calculate the approx mu in each ring to be used when calculating the macroturbulence
@@ -139,6 +137,81 @@ def grid_ring(Rs,thick,xoff=0.,yoff=0.):
 
 	return ring_grid, vel, mu_grid, mu_mean
 
+
+# def spot_phase(time,t_ref):
+# 	'''
+# 	'''
+
+# 	rot_phase = 2*np.pi*((time - t_ref)/Prot)
+
+
+
+def spot(time,radius,ring_LD,lum,
+		theta,phi,t_ref,
+		Pspot,Rspot,Tspot,lam=0.0):
+	'''
+
+	'''
+	Teff = 5675
+
+	frac = (Tspot/Teff)**4
+
+	rp = int(round(Rspot*radius))
+	spot_grid, spot_vel, mu = grid(rp)
+
+	rot_phase = 2*np.pi*((time - t_ref)/Pspot)
+	#phi = ((time - t_ref)/Pspot)
+	print(rot_phase)
+	ww = 90
+	inc = 135
+	ww *= np.pi/180
+	inc *= np.pi/180
+	xx = np.cos(theta+rot_phase)*np.sin(phi)#*radius
+	#yy = np.sin(theta+np.zeros(len(time)))*np.sin(phi)#*radius
+	yy = np.sin(theta+rot_phase)*np.sin(phi)#*radius
+	# cos_f = np.cos(rot_phase)#*np.cos(phi)#*radius
+	# sin_f = np.sin(rot_phase)#*np.cos(phi)#*radius
+	# f = np.arctan2(sin_f,cos_f)
+	# xx = -1*np.cos(ww + f)
+	# yy = -1*np.sin(ww + f)*np.cos(inc)
+	# print(xx.shape)
+	zz = np.cos(phi*np.ones(len(time)))
+	#zz = np.sqrt(1 - xx**2 - yy**2)#np.cos(theta-rot_phase)
+	#cos_f, sin_f = true_anomaly(time,t_ref,0.0,Pspot,90)
+	#xx, yy = xy_pos(cos_f,sin_f,0.0,90,1.0,90.,0.0)
+
+	#xx = x_old*np.cos(lam) - y_old*np.sin(lam)
+	#yy = x_old*np.sin(lam) + y_old*np.cos(lam)
+	xnorm, ynorm = xx*radius, yy*radius
+	x_off, y_off = np.rint(xnorm), np.rint(ynorm)
+
+	x_sp, y_sp = abs(x_off)-rp, abs(y_off)-rp
+	
+	rescape_spot = np.reshape(spot_grid,np.size(spot_grid))
+	nn = len(xx)
+	line_conv = np.empty(shape=(nn,lum.shape[0],lum.shape[1]))
+
+	for kk in range(nn):
+		## Only do calculation if spot is "touching" stellar disk
+		it_lum = lum.copy()
+		#if (x_sp[kk] < radius) and (y_sp[kk] < radius):
+		if zz[kk] > 0.:#(x_sp[kk] < radius) and (y_sp[kk] < radius):
+
+		#x_pos = int(x_off + radius)
+		#y_pos = int(y_off + radius)
+			x_pos = int(x_off[kk] + radius)
+			y_pos = int(y_off[kk] + radius)
+
+			spot_coord, spot_coord_arr, spot_coord_idx = grid_coordinates(rp,x_pos,y_pos)
+			spot_zip = [(spot_coord[ii,0],spot_coord[ii,1]) for ii in range(spot_coord.shape[0])]
+			coord_spot = [i for (i,v) in zip(spot_zip,rescape_spot) if v==1. and i[0] >= 0 and i[1] >= 0 and i[0] < ring_LD[0].shape[0] and i[1] < ring_LD[0].shape[0]]
+
+			it_lum[np.asarray(coord_spot)[:,0],np.asarray(coord_spot)[:,1]] = it_lum[np.asarray(coord_spot)[:,0],np.asarray(coord_spot)[:,1]]*frac
+		line_conv[kk,:,:] = it_lum
+
+	return it_lum, line_conv
+
+
 def transit_ring(vel,vel_ext,ring_LD,mu_grid,mu_mean,lum,
 				vsini,xi,zeta,Rp_Rs,radius,
 				time,Tw,ecc,per,w,a_Rs,inc,lam):
@@ -146,6 +219,9 @@ def transit_ring(vel,vel_ext,ring_LD,mu_grid,mu_mean,lum,
 
 	Function that calculates the planet signal in each ring.
 	This includes the effects of limb-darkening, as well as micro- and macroturbulence.
+
+	:param mu_grid: Grid divided into rings of appproximately same :math:`\mu`.
+	:type mu_grid: array
 
 	:param mu_mean: Approximate :math:`\mu` in each ring.
 	:type mu_mean: array
@@ -165,7 +241,7 @@ def transit_ring(vel,vel_ext,ring_LD,mu_grid,mu_mean,lum,
 	:param Rp_Rs: Planet-to-star radius ratio.
 	:type Rp_Rs: float
 
-	:param radius: Number of pixels from center to limb, i.e, 100 yields a :math:`200 \times 200` stellar grid.
+	:param radius: Number of pixels from center to limb, i.e, 100 yields a 200 by 200 stellar grid.
 	:type radius: int
 
 	:param time: Times of observations.
@@ -265,96 +341,116 @@ def transit_ring(vel,vel_ext,ring_LD,mu_grid,mu_mean,lum,
 
 
 # =============================================================================
-# Convolutions
+# Convolution
 # =============================================================================
 
-def macro(vel,mu_mean,zeta):
-	'''Macroturbulence at given distance from center.
+# def macro(vel,mu_mean,zeta):
+# 	'''Macroturbulence at given distance from center.
 
-	Function that calculates the macroturbulence for given :math:`\zeta` and :math:`\mu` using the radial-tangential profile.
+# 	Function that calculates the macroturbulence for given :math:`\zeta` and :math:`\mu` using the radial-tangential profile.
 
+
+# 	:param vel: Velocity grid.
+# 	:type vel: array
+
+# 	:param mu_mean: Approximate :math:`\mu` in each ring.
+# 	:type mu_mean: array
+
+# 	:param zeta: Macro-turbulence in km/s. 
+# 	:type zeta: float
+
+# 	:return: velocity grid as 1D array, macro-turbulence 
+# 	:rtype: (array, array)
+
+# 	'''
+
+# 	A = 0.5 #area of curve covered by radial and tangential
+# 	vel_1d = vel[0]
+
+# 	mac = np.zeros(shape=(len(mu_mean),len(vel_1d)))
+
+
+# 	for ii, mu in enumerate(mu_mean):
+# 		rad = np.exp(-1*np.power(vel_1d/(zeta*mu),2))/mu
+# 		rad[np.isnan(rad)] = 0.
+# 		y = np.sin(np.arccos(mu))
+# 		tan = np.exp(-1*np.power(vel_1d/(zeta*y),2))/y
+# 		tan[np.isnan(tan)] = 0.
+		
+# 		mac[ii] = A*(rad + tan)/(np.sqrt(np.pi)*zeta)
+
+# 	return vel_1d, mac
+
+# def gauss_conv(lum,vel,xi,sigma=3):
+# 	'''Convolve the rotation profile.
+
+# 	Function that convolves the rotation profile with a gaussian to take microturbulence
+# 	and the instrumental profile into account. Following the approaches in [1] and [2].
+
+# 	:param lum: Limb-darkened grid.
+# 	:type lum: array
+
+# 	:param sigma: Number of sigmas we go out on our x-axis to get the borders of the Gaussian.
+# 	:type sigma: float
+
+# 	:return: velocity grid, line profile after convolution
+# 	:rtype: (array, array)
+
+# 	References
+# 	----------
+# 		[1] `Hirano et al. (2011) <https://ui.adsabs.harvard.edu/abs/2011ApJ...742...69H/abstract>`_
+
+# 		[2] `Gray (2005), p. 430. <https://ui.adsabs.harvard.edu/abs/2005oasp.book.....G/abstract>`_
+
+# 	'''
+# 	sep = (vel[-1]-vel[0])/(len(vel)-1) #seperation of velocity vector
+# 	## x-axis for the gaussian. The steps are the same as vel, but the borders go further out.
+# 	x = np.arange(-sigma*xi,sigma*xi+sep,sep)
+
+	
+# 	## Gaussian function for microturbuelence
+# 	## make Gaussian with new velocity vector as x-axis
+# 	gau = np.exp(-1*np.power(x/xi,2))/(xi*np.sqrt(np.pi))#gauss(x,xi) 
+# 	gau /= np.add.reduce(gau)
+
+# 	length = len(lum[0])+len(gau)-1
+# 	gau_arr = np.empty([len(lum),len(gau)])
+# 	gau_arr[:] = gau
+# 	velocity, line_profile = np.empty([len(lum),length]), np.empty([len(lum),length])
+# 	line = np.add.reduce(lum,axis=2)
+# 	velocity[:] = np.linspace(-length*sep/2.,length*sep/2.,num=length,endpoint=False)
+# 	line_profile[:] = ss.fftconvolve(line[:],gau_arr[:],'full',axes=1)
+
+# 	return velocity, line_profile
+
+def convolve(vel,ring_LD,mu_mean,xi,zeta,sigma=3.):
+	'''Convolves rotational profile.
+
+	Function that convolves the rotation profile with a gaussian to take microturbulence for a given :math:`\\xi` into account.
+	This is then convolved with the macroturbulence for a given :math:`\zeta` at a given :math:`\mu` using the radial-tangential profile.
+	Following the approaches in :cite:t:`Hirano2011` and :cite:t:`Gray2005`.
 
 	:param vel: Velocity grid.
 	:type vel: array
 
+	:param ring_LD: Limb-darkened stellar grid in rings.
+	:type array:
+
 	:param mu_mean: Approximate :math:`\mu` in each ring.
 	:type mu_mean: array
+
+	:param xi: Micro-turbulence in km/s. 
+	:type xi: float
 
 	:param zeta: Macro-turbulence in km/s. 
 	:type zeta: float
 
-	:return: velocity grid as 1D array, macro-turbulence 
-	:rtype: (array, array)
+	:param sigma: Number of sigmas we go out on our x-axis to get the borders of the Gaussian. Default 3.
+	:type sigma: float, optional
 
-	'''
+	.. note::
+		:math:`\\xi` here also includes the instrumental broadening, :math:`\sigma_\mathrm{PSF}`. See :py:func:`tracit.business.ls_model`.
 
-	A = 0.5 #area of curve covered by radial and tangential
-	vel_1d = vel[0]
-
-	mac = np.zeros(shape=(len(mu_mean),len(vel_1d)))
-
-
-	for ii, mu in enumerate(mu_mean):
-		rad = np.exp(-1*np.power(vel_1d/(zeta*mu),2))/mu
-		rad[np.isnan(rad)] = 0.
-		y = np.sin(np.arccos(mu))
-		tan = np.exp(-1*np.power(vel_1d/(zeta*y),2))/y
-		tan[np.isnan(tan)] = 0.
-		
-		mac[ii] = A*(rad + tan)/(np.sqrt(np.pi)*zeta)
-
-	return vel_1d, mac
-
-def gauss_conv(lum,vel,xi,sigma=3):
-	'''Convolve the rotation profile.
-
-	Function that convolves the rotation profile with a gaussian to take microturbulence
-	and the instrumental profile into account. Following the approaches in [1] and [2].
-
-	:param lum: Limb-darkened grid.
-	:type lum: array
-
-	:param sigma: Number of sigmas we go out on our x-axis to get the borders of the Gaussian.
-	:type sigma: float
-
-	:return: velocity grid, line profile after convolution
-	:rtype: (array, array)
-
-	References
-	----------
-		[1] `Hirano et al. (2011) <https://ui.adsabs.harvard.edu/abs/2011ApJ...742...69H/abstract>`_
-
-		[2] `Gray (2005), p. 430. <https://ui.adsabs.harvard.edu/abs/2005oasp.book.....G/abstract>`_
-
-	'''
-	sep = (vel[-1]-vel[0])/(len(vel)-1) #seperation of velocity vector
-	## x-axis for the gaussian. The steps are the same as vel, but the borders go further out.
-	x = np.arange(-sigma*xi,sigma*xi+sep,sep)
-
-	
-	## Gaussian function for microturbuelence
-	## make Gaussian with new velocity vector as x-axis
-	gau = np.exp(-1*np.power(x/xi,2))/(xi*np.sqrt(np.pi))#gauss(x,xi) 
-	gau /= np.add.reduce(gau)
-
-	length = len(lum[0])+len(gau)-1
-	gau_arr = np.empty([len(lum),len(gau)])
-	gau_arr[:] = gau
-	velocity, line_profile = np.empty([len(lum),length]), np.empty([len(lum),length])
-	line = np.add.reduce(lum,axis=2)
-	velocity[:] = np.linspace(-length*sep/2.,length*sep/2.,num=length,endpoint=False)
-	line_profile[:] = ss.fftconvolve(line[:],gau_arr[:],'full',axes=1)
-
-	return velocity, line_profile
-
-def convolve(vel,ring_LD,mu_mean,xi,zeta,sigma=3.):
-	'''Convolves limb-darkened rings.
-
-	Function that convolves limb-darkened rings with gaussian to get microturbulence, 
-	and then convolve this with the macroturbulence.
-
-	:param sigma: Number of sigmas we go out on our x-axis to get the borders of the Gaussian.
-	:type sigma: float
 
 	'''
 	n_LD = len(ring_LD)

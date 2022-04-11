@@ -26,6 +26,7 @@ This would be done as in the example below. Here we have a 2-planet system with 
 Setting the input
 ---------------------------
 ::
+
 	dat['RV filename_1'] = 'rv.txt'
 	dat['LC filename_1'] = 'lc.txt'
 	dat['Fit RV_1'] = 1
@@ -40,7 +41,7 @@ Setting the input
    		par['P_b']['Value'] = 3 #days
 
 	tracit.ini_data(dat)
-	tracit.run_bus(par,dat,nproc)
+	tracit.run_bus(par,dat) #Make parameters and data global dicts
 
 
 
@@ -49,9 +50,6 @@ Seeing the initial plots
 Assuming you have set the relevant parameters and included the data files correctly in the .csv files from above, we might want to take a look at how our data compares to the models with our initial values for the parameters.
 
 ::
-
-	n_proc = 1
-	tracit.run_exp(n_proc)#ignore this. it's only to tell the plotting routine whether to use LaTeX formatting or not.
 
 	inspect = 1
 	if inspect:

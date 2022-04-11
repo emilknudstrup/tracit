@@ -25,9 +25,9 @@ def time2phase(time,per,T0):
     :param time: Times to convert.
     :type time: array
     :param per: Period.
-    :param per: float
+    :type per: float
     :param T0: Reference time (mid-transit time).
-    :param T0: float
+    :type T0: float
 
     :rerturn: Phase.
     :rtype: array
@@ -301,9 +301,10 @@ def solve_keplers_eq(mean_anomaly, ecc, tolerance=1.e-5):
 
     Function that solves Kepler's equation:
     .. :math:`M = E - \sin(E)`,
+    
     where :math:`M` is the mean anomaly and :math:`E` the eccentric anomaly.
 
-    This is done following the Newton-Raphson method as described in [1].
+    This is done following the Newton-Raphson method as described in :cite:t:`Murray2010`.
 
     :param mean_anomaly: The mean anomaly.
     :type mean_anomaly: array
@@ -314,10 +315,6 @@ def solve_keplers_eq(mean_anomaly, ecc, tolerance=1.e-5):
 
     :return: The new eccentric anomaly.
     :rtype: array 
-
-    References
-    ----------
-        [1] `Murray & Correia (2010) <https://ui.adsabs.harvard.edu/abs/2010exop.book...15M/abstract>`_
 
 
     '''
@@ -344,7 +341,7 @@ def solve_keplers_eq(mean_anomaly, ecc, tolerance=1.e-5):
 def true_anomaly(time, Tw, ecc, per, ww):#, T0=True):
     '''Function that returns the true anomaly.
 
-    The approach follows [1].
+    The approach follows :cite:t:`Murray2010`.
 	
 
     :param time: Times of observations.
@@ -362,10 +359,6 @@ def true_anomaly(time, Tw, ecc, per, ww):#, T0=True):
     :return: cosine, sine of the true anomaly.
     :rtype: (array, array)
 
-    
-    References
-    ----------
-        [1] `Murray & Correia (2010) <https://ui.adsabs.harvard.edu/abs/2010exop.book...15M/abstract>`_
 
 
     '''
@@ -401,7 +394,7 @@ def proj_dist(cos_f,sin_f,ww,inc,ar,ecc):
     '''The separation of the centers of the two orbiting objects.
     
     Function that returns the separation of the centers of the two orbiting objects.
-    The approach follows [2].
+    The approach follows :cite:t:`Kreidberg2015`.
     
     
     :param cos_f: cosine of the true anomaly
@@ -420,10 +413,6 @@ def proj_dist(cos_f,sin_f,ww,inc,ar,ecc):
     :return: separation of centers.
     :rtype: array
     
-    References
-    ----------
-        [2] `Kreidberg (2015) <https://ui.adsabs.harvard.edu/abs/2015PASP..127.1161K/abstract>`_
-
 
     '''
 
@@ -495,7 +484,7 @@ def get_RM(cos_f,sin_f,ww,ecc,ar,inc,rp,c1,c2,lam,vsini,
 
     Function to calculate the Rossiter-McLaughlin effect for transiting exoplanets.
 
-    The approach follows [3].
+    The approach follows :cite:t:`Hirano2011`.
 
     :param cos_f: cosine of the true anomaly
     :type cos_f: array
@@ -546,11 +535,6 @@ def get_RM(cos_f,sin_f,ww,ecc,ar,inc,rp,c1,c2,lam,vsini,
     :return: The RM signal.
     :rtype: array       
 
-    
-    References
-    ----------
-        [3] `Hirano et al. (2011) <https://ui.adsabs.harvard.edu/abs/2011ApJ...742...69H/abstract>`_
-
     '''
     x, y = xy_pos(cos_f,sin_f,ecc,ww,ar,inc,lam)
     
@@ -584,7 +568,7 @@ def get_RM(cos_f,sin_f,ww,ecc,ar,inc,rp,c1,c2,lam,vsini,
 def get_RV(time, orbpars, RM=False, stelpars=None,mpath='./'):
     '''The radial velocity curve
 
-    Function that returns the radial velocity curve of the orbit following [1].
+    Function that returns the radial velocity curve of the orbit following :cite:t:`Murray2010`.
     If RM is set to True it will include the RM effect as implemented in :py:func:`get_RM`.
 
     :param time: Times of observations.
@@ -599,15 +583,11 @@ def get_RV(time, orbpars, RM=False, stelpars=None,mpath='./'):
     :param stelpars: Stellar parameters from :py:class:`StellarParams`. Defaults to ``None``.
     :type stelpars: object, optional
 
-    :param mpath: Path to the code by [3]. Defaults to './'.
+    :param mpath: Path to the code by :cite:t:`Murray2010`. Defaults to './'.
     :type mpath: str, optional
     
     :return: Radial velocity curve.
     :rtype: array
-    
-    References
-    ----------
-        [1] `Murray & Correia (2010) <https://ui.adsabs.harvard.edu/abs/2010exop.book...15M/abstract>`_
 
     '''
     Tw = orbpars.Tw
@@ -750,7 +730,7 @@ def get_rel_vsini(b, lam):
     '''Relative value of vsini at limbs.
 
     Function that returns the relative value of vsini at first and last contact
-    following [4].
+    following :cite:t:`Albrecht2011`.
     
     :param b: Impact parameter.
     :type b: float
@@ -759,11 +739,6 @@ def get_rel_vsini(b, lam):
 
     :return: relative value of vsini at x1, x2.
     :rtype: (float,float)
-
-    
-    References
-    ----------
-        [4] `Albrecht et al. (2011) <https://ui.adsabs.harvard.edu/abs/2011ApJ...738...50A/abstract>`_
 
 
     '''

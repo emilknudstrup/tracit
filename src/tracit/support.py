@@ -11,20 +11,24 @@ import numpy as np
 import matplotlib.pyplot as plt
 from .priors import tgauss_prior, gauss_prior, flat_prior, tgauss_prior_dis, flat_prior_dis
 
-def hpd(data, level) :
+def hpd(data, lev) :
     """ The Highest Posterior Density.
     
-    The Highest Posterior Density (credible) interval of data at level level.
+    The Highest Posterior Density (credible) interval of data at level lev.
   
-    :param data: sequence of real values
-    :param level: (0 < level < 1)
+    :param data: Sequence of real values.
+    :type data: array
+
+    :param lev: (0 < lev < 1)
+    :type lev: float
+
     """ 
     
     d = list(data)
     d.sort()
   
     nData = len(data)
-    nIn = int(round(level * nData))
+    nIn = int(round(lev * nData))
     if nIn < 2 :
       raise RuntimeError("not enough data")
     
@@ -115,11 +119,7 @@ def plot_autocorr(autocorr,index,kk,savefig=True):
 
     Plot the autocorrelation of the MCMC sampling.
 
-    Following the example in `emcee <https://emcee.readthedocs.io/en/stable/tutorials/monitor/>`_ from [1].
-
-    References
-    ----------
-        [1] `Foreman-Mackey et al. (2013) <https://ui.adsabs.harvard.edu/abs/2013PASP..125..306F/abstract>`_
+    Following the example in `emcee <https://emcee.readthedocs.io/en/stable/tutorials/monitor/>`_ :cite:p:`emcee`.
     
     '''
     figc = plt.figure()
@@ -186,7 +186,7 @@ def create_corner(samples,labels=None,truths=None,savefig=True,fname='corner',
         quantiles=[], diag_titles=None, priors=None):
     '''Corner plot.
 
-    Create corner plot to investigate the covariance between the samples using `corner` [2].
+    Create corner plot to investigate the covariance between the samples using ``corner`` :cite:p:`corner`.
 
     :param samples: The samples from the MCMC.
     :type samples: array
@@ -194,11 +194,6 @@ def create_corner(samples,labels=None,truths=None,savefig=True,fname='corner',
     :param labels: Parameter names for the samples. Default ``None``.
     :type labels: list, optional
     
-    References
-    ----------
-        [2] `Foreman-Mackey (2016) <https://corner.readthedocs.io/en/latest/index.html>`_
-
-
 
     '''
     plt.rc('text',usetex=True)

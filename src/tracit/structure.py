@@ -13,6 +13,7 @@ Created on Wed Mar  2 20:30:39 2022
 import string
 import numpy as np
 import h5py
+import celerite
 from .shady import grid, grid_ring
 
 def par_struct(n_phot=1,n_spec=1,n_planets=1,LD_law='quad',
@@ -132,21 +133,27 @@ def par_struct(n_phot=1,n_spec=1,n_planets=1,LD_law='quad',
 			for ii in range(1,5):
 				LD_pars[label+'_q{}'.format(ii)] = ['LD coeff {}'.format(ii),'nonlinear',r'$q_2 \ \rm {}$'.format(label,ii)]
 
-	add_lc_pars = {}
+	#add_lc_pars = {}
 	for ii in range(1,n_phot+1):
 		star['LCblend_{}'.format(ii)] = ['Dilution (deltaMag=-2.5log(F2/F1)) photometer {}'.format(ii),' ',r'$\rm \delta M{}$'.format('_{LC,'+str(ii)+'}'),0.0,0.5,0.0,7.0]
 		star['LCsigma_{}'.format(ii)] = ['Log jitter photometer {}'.format(ii),' ',r'$\rm \log \sigma{}$'.format('_{LC,'+str(ii)+'}'),-30,0.05,-50,1.0]
 		star['LC_{}_GP_log_a'.format(ii)] = ['GP log amplitude, photometer {}'.format(ii),' ',r'$\rm \log A{}$'.format('_{LC,'+str(ii)+'}'),-7,0.05,-20.0,5.0]
 		star['LC_{}_GP_log_c'.format(ii)] = ['GP log time scale, photometer {}'.format(ii),' ',r'$\rm \log \tau{} \ (days)$'.format('_{LC,'+str(ii)+'}'),-0.7,0.05,-5.0,5.0]
+		star['LC_{}_log_S0'.format(ii)] = ['GP log time scale, photometer {}'.format(ii),' ',r'$\rm \log \tau{} \ (days)$'.format('_{LC,'+str(ii)+'}'),-1.6,0.05,-5.0,5.0]
+		star['LC_{}_log_Q'.format(ii)] = ['GP log time scale, photometer {}'.format(ii),' ',r'$\rm \log \tau{} \ (days)$'.format('_{LC,'+str(ii)+'}'),3.37,0.05,0.0,10.0]
+		star['LC_{}_log_w0'.format(ii)] = ['GP log time scale, photometer {}'.format(ii),' ',r'$\rm \log \tau{} \ (days)$'.format('_{LC,'+str(ii)+'}'),-0.329,0.05,-5.0,5.0]
 		label = 'LC'+str(ii)
 		set_LD(star,LD_law,label)
 
-	add_rv_pars = {}
+	#add_rv_pars = {}
 	for ii in range(1,n_spec+1):
 		star['RVsys_{}'.format(ii)] = ['Systemic velocity instrument {}'.format(ii),'m/s',r'$\gamma_{} \ \rm (m/s)$'.format(ii),0.0,1.,-20.,20.]
 		star['RVsigma_{}'.format(ii)] = ['Jitter RV instrument {}'.format(ii),'m/s',r'$\rm \sigma{} \ (m/s)$'.format('_{RV,'+str(ii)+'}'),0.0,1.0,0.0,100.]
+		star['LSsigma_{}'.format(ii)] = ['Jitter LS instrument {}'.format(ii),' ',r'$\rm \log \sigma{}$'.format('_{LS,'+str(ii)+'}'),-30.0,1.0,-50.0,10]
 		star['RV_{}_GP_log_a'.format(ii)] = ['GP log amplitude, CCF {}'.format(ii),' ',r'$\rm \log a{}$'.format('_{RV,'+str(ii)+'}'),-7,0.05,-20.0,5.0]
 		star['RV_{}_GP_log_c'.format(ii)] = ['GP log exponent, CCF {}'.format(ii),' ',r'$\rm \log c{}$'.format('_{RV,'+str(ii)+'}'),-0.7,0.05,-5.0,5.0]
+		star['LS_{}_GP_log_a'.format(ii)] = ['GP log amplitude, CCF {}'.format(ii),' ',r'$\rm \log a{}$'.format('_{LS,'+str(ii)+'}'),-7,0.05,-20.0,5.0]
+		star['LS_{}_GP_log_c'.format(ii)] = ['GP log exponent, CCF {}'.format(ii),' ',r'$\rm \log c{}$'.format('_{LS,'+str(ii)+'}'),-0.7,0.05,-5.0,5.0]
 		label = 'RV'+str(ii)
 		set_LD(star,LD_law,label)
 
@@ -304,7 +311,42 @@ def check_fps(parameters):
 # 		}
 
 
-def update_pars(rdf,parameters,best_fit=True):
+# def update_pars(rdf,parameters,best_fit=True):
+# 	'''Update parameters.
+
+# 	Updates the parameters dictionary.
+
+# 	:param rdf: Results from fit or MCMC.
+# 	:type rdf: `pandas.DataFrame`
+
+# 	:param parameters: The parameters.
+# 	:type parameters: dict
+
+# 	:param best_fit: Use best-fitting (:math:`\max(\log \mathcal{L})`), if ``False`` median is used.
+# 	:type best_fit: bool
+
+
+# 	'''
+# 	pars = rdf.keys()[1:-2]
+# 	idx = 1
+# 	if (rdf.shape[0] > 3) & best_fit: idx = 4
+# 	for par in pars:
+# 		try:
+# 			parameters[par]['Value'] = float(rdf[par][idx])	
+# 		except KeyError:
+# 			pass
+
+def str2bool(arg):
+	if isinstance(arg, bool):
+		return arg
+	if arg.lower() in ('yes', 'true', 't', 'y', '1'):
+		return True
+	elif arg.lower() in ('no', 'false', 'f', 'n', '0'):
+		return False
+	else:
+		raise TypeError('Boolean value expected.')
+
+def update_pars(rdf,parameters,best_fit=True,mcmc=True):
 	'''Update parameters.
 
 	Updates the parameters dictionary.
@@ -322,12 +364,18 @@ def update_pars(rdf,parameters,best_fit=True):
 	'''
 	pars = rdf.keys()[1:-2]
 	idx = 1
-	if (rdf.shape[0] > 3) & best_fit: idx = 4
-	for par in pars:
-		try:
-			parameters[par]['Value'] = float(rdf[par][idx])	
-		except KeyError:
-			pass
+	if mcmc:
+		if best_fit: idx = 4
+		for par in pars:
+			try:
+				parameters[par]['Value'] = float(rdf[par][idx])	
+			except KeyError:
+				pass
+	else:
+		for par in pars:
+			if str2bool(rdf[par][2]):
+				parameters[par]['Value'] = float(rdf[par][idx])	
+
 
 def dat_struct(n_phot=1,n_rvs=1,n_ls=0,n_sl=0):
 	'''Structure for the data.
@@ -380,11 +428,15 @@ def dat_struct(n_phot=1,n_rvs=1,n_ls=0,n_sl=0):
 		data['LS_label_{}'.format(ii)] = 'Spectrograph\ {}'.format(ii)
 		data['Fit LS_{}'.format(ii)] = False
 		data['LS filename_{}'.format(ii)] = 'shadow.hdf5'
+		
+		data['GP LS_{}'.format(ii)] = False#str2bool(df_phot['Gaussian Process'][ii])
+		data['GP type LS_{}'.format(ii)] = 'Matern32'
 
 		data['Resolution_{}'.format(ii)] = 100 # Disc resolution
 		data['Thickness_{}'.format(ii)] = 20 # Ring thickness
 		data['PSF_{}'.format(ii)] = 1.1 # Point spread function of PSF
 		data['Velocity_resolution_{}'.format(ii)] = 0.25 # Resolution of grid in velocity space in km/s
+		data['Velocity_range_{}'.format(ii)] = 15 # Range of velocity grid in km/s
 		data['No_bump_{}'.format(ii)] = 15 # Flat part of CCF (i.e., no bump) in km/s
 		data['Only_OOT_{}'.format(ii)] = False#str2bool(df_spec['Only fit OOT'][ii])
 		data['OOT_{}'.format(ii)] = False#str2bool(df_spec['Fit OOT'][ii])
@@ -452,10 +504,12 @@ def ini_data(data):
 				gp_type = data['GP type LC_{}'.format(ii)]
 				if gp_type == 'Real':
 					kernel = celerite.terms.RealTerm(log_a=0.5, log_c=0.1)
-				else:
+				elif gp_type == 'Matern32':
 					kernel = celerite.terms.Matern32Term(log_sigma=-0.3, log_rho=-0.7)			
+				elif gp_type == 'SHO':
+					kernel = celerite.terms.SHOTerm(log_S0=-0.3, log_Q=-0.7,log_omega0=-0.139)			
 				gp = celerite.GP(kernel)
-				gp.compute(arr[:,0],arr[:,2]) #probably redundant
+				#gp.compute(arr[:,0],arr[:,2]) #probably redundant
 				data['LC_{} GP'.format(ii)] = gp
 		except KeyError:
 			pass
@@ -479,11 +533,26 @@ def ini_data(data):
 			times = times[ss]					
 			for time in times:
 				arr = ff[str(time)][:]
-				raw_vel = arr[:,0]
+				#raw_vel = arr[:,0]
 				shadow_data[time] = {
-					'vel' : raw_vel,
-					'ccf' : arr[:,1]
+					'vel' : arr[:,0],#raw_vel,
+					'ccf' : arr[:,1],
+					'err' : arr[:,2]
 					}
+		
+		try:
+			if data['GP LS_{}'.format(ii)]:
+				gp_type = data['GP type LS_{}'.format(ii)]
+				if gp_type == 'Real':
+					kernel = celerite.terms.RealTerm(log_a=0.5, log_c=0.1)
+				else:
+					kernel = celerite.terms.Matern32Term(log_sigma=-0.3, log_rho=-0.7)			
+				gp = celerite.GP(kernel)
+				#gp.compute(arr[:,0],arr[:,2]) #probably redundant
+				data['LS_{} GP'.format(ii)] = gp
+				
+		except KeyError:
+			pass
 
 		try:
 			data['PSF_{}'.format(ii)]

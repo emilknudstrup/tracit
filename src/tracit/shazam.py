@@ -2,9 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 
-Created on Sat Feb 22 13:51:57 2020
 
-@author: emil
 """
 
 import os
@@ -14,8 +12,6 @@ import scipy.stats as sct
 from astropy import constants as const
 from astropy.time import Time
 from scipy.signal import fftconvolve
-#from astropy.modeling import models, fitting
-#from scipy import stats#, interpolate
 import lmfit
 
 from scipy.optimize import curve_fit
@@ -51,15 +47,18 @@ def read_phoenix(filename, wl_min=3600,wl_max=8000):
   return wave, flux
 
 def read_kurucz(filename):
-  '''Read Kurucz stellar template.
+  '''Read Kurucz/ATLAS9 stellar template.
 
-  Extract template wavelength and flux.
+  Extract template wavelength and flux from :cite:t:`Castelli2003`.
+  
+  Available `here <http://130.79.128.5/ftp/more/splib120/>`_.
+  
+  :param filename: Path to template.
+  :type filename: str
 
-  :param filename : str, path to template
+  :return: template wavelength, template flux
+  :rtype: array, array
 
-  :return:
-    wave     : array, template wavelength array
-    flux     : array, template flux array
   '''
   temp = pyfits.open(filename)
   th = temp[0].header
@@ -82,17 +81,11 @@ def SONG_request(filename):
 
   Extract data and header from SONG file.
   
-  :params:
-    filename : str, name of .fits file
+  :param filename: Name of .fits file.
+  :type filename: str
   
-  :return:
-    data     : array, observed spectrum 
-    orders   : int, number of orders for spectrum
-    bjd      : float, epoch for spectrum in BJD
-    bvc      : float, barycentric velocity correction for epoch in km/s
-    star     : str, name of star 
-    date     : str, date of observations in UTC
-    exp      : float, exposure time in seconds
+  :return: observed spectrum, number of orders for spectrum, epoch for spectrum in BJD, barycentric velocity correction for epoch in km/s, name of star, date of observations in UTC, exposure time in seconds
+  :rtype: array, int, float, float, str, str, float
   '''
   fits = pyfits.open(filename)
   hdr = fits[0].header
@@ -110,18 +103,17 @@ def SONG_request(filename):
   return data, orders, bjd, bvc, star, date, exp
 
 def SING(data,order=30):
-  '''Extra SONG spectrum.
+  '''Extract SONG spectrum.
 
   Extract spectrum from SONG at given order.
   
-  :params:
-    data : array, observed spectrum
-    order: int, extract spectrum at order, defaults to central order
+  :params data: Observed spectrum.
+  :type data: array
+  :param order: Extract spectrum at order. Default 30.
+  :type order: int, optional
   
-  :return:
-    wl   : array, observed wavelength 
-    fl   : array, observed raw flux
-    bl   : array, blaze function
+  :return: observed wavelength, observed raw flux, blaze function
+  :rtype: array, array, array
   '''
   
   wl, fl = data[3,order,:], data[1,order,:] # wavelength, flux
@@ -142,15 +134,11 @@ def FIES_caliber(filename,return_hdr=False,check_ThAr=True):
   
   Adapted and extended from functions written by R. Cardenes and J. Jessen-Hansen.
   
-  :params:
-    filename : str, name of .fits file
+  :param filename: Name of .fits file.
+  :type filename: str
   
-  :return:
-    data     : array, observed spectrum, wavelength and flux order by order
-    no_orders: int, number of orders for spectrum
-    star     : str, name of object 
-    date     : str, date of observations in UTC
-    exp      : float, exposure time in seconds
+  :return: observed spectrum, wavelength and flux order by order, number of orders for spectrum, name of object, date of observations in UTC, exposure time in seconds
+  :rtype: array, int, str, str, float 
   
   '''
   try:
@@ -209,17 +197,13 @@ def FIES_caliber(filename,return_hdr=False,check_ThAr=True):
 def FIES_gandolfi(filename,return_hdr=False,check_ThAr=True):
   '''Extract FIES data (D. Gandolfi).
 
-  Same functionality as `FIES_caliber`, but for FIES data reduced by D. Gandolfi.
+  Same functionality as :py:func:`FIES_caliber`, but for FIES data reduced by D. Gandolfi.
   
-  :params:
-    filename : str, name of .fits file
+  :param filename: Name of .fits file.
+  :type filename: str
   
-  :return:
-    data     : array, observed spectrum, wavelength and flux order by order
-    no_orders: int, number of orders for spectrum
-    star     : str, name of object 
-    date     : str, date of observations in UTC
-    exp      : float, exposure time in seconds
+  :return: observed spectrum, wavelength and flux order by order, number of orders for spectrum, name of object, date of observations in UTC, exposure time in seconds
+  :rtype: array, int, str, str, float 
   
   '''
   try:
@@ -283,14 +267,15 @@ def getFIES(data,order=40):
   '''Extract FIES spectrum.
 
   Extract calibrated spectrum from FIES at given order.
+    
+  :params data: Observed spectrum.
+  :type data: array
+  :param order: Extract spectrum at order. Default 30.
+  :type order: int, optional
   
-  :params:
-    data : array, observed spectrum
-    order: int, extract spectrum at order, defaults to central order
-  
-  :return:
-    wl   : array, observed wavelength 
-    fl   : array, observed raw flux
+  :return: observed wavelength, observed raw flux
+  :rtype: array, array
+
   '''
   arr = data['order_{:d}'.format(order)]
   wl, fl = arr[:,0], arr[:,1]
@@ -305,18 +290,23 @@ def normalize(wl,fl,bl=np.array([]),poly=1,gauss=True,lower=0.5,upper=1.5):
 
   Nomalization of observed spectrum.
   
-  :params:
-    wl   : array, observed wavelength 
-    fl   : array, observed raw flux
-    bl   : array, blaze function, recommended input
-    poly : int, degree of polynomial fit to normalize, set to None for no polynomial fit
-    gauss: bool, only fit the polynomial to flux within, (mu + upper*sigma) > fl > (mu - lower*sigma)
-    upper: float, upper sigma limit to include in poly fit
-    lower: float, lower sigma limit to include in poly fit
+  :param wl: Observed wavelength 
+  :type wl: array 
+  :param fl: Observed raw flux
+  :type fl: array
+  :param bl: Blaze function. Default ``numpy.array([])``. If empty, no correction for the blaze function.
+  :type bl: array, optional
+  :param poly: Degree of polynomial fit to normalize. Default 1. Set to ``None`` for no polynomial fit.
+  :type poly: int, optional
+  :param gauss: Only fit the polynomial to flux within, (mu + upper*sigma) > fl > (mu - lower*sigma). Default ``True``.
+  :type gauss: bool, optional
+  :param lower: Lower sigma limit to include in poly fit. Default 0.5.
+  :type lower: float, optional
+  :param upper: Upper sigma limit to include in poly fit. Default 1.5.
+  :type upper: float, optional
 
-  :return:
-    wl   : array, observed wavelength 
-    nfl  : array, observed normalized flux
+  :return: observed wavelength, observed normalized flux
+  :rtype: array, array
   '''
 
   if len(bl) > 0:
@@ -344,15 +334,17 @@ def crm(wl,nfl,iters=1,q=[99.0,99.9,99.99]):
   
   Excludes flux over qth percentile.
   
-  :params:
-    wl   : array, observed wavelength 
-    nfl  : array, observed normalized flux
-    iters: int, iterations of removing upper q[iter] percentile
-    q    : list, percentiles
+  :param wl: Observed wavelength.
+  :type wl: array 
+  :param nfl: Observed normalized flux.
+  :type: array 
+  :param iters: Iterations of removing upper q[iter] percentile. Default 1.
+  :type iters: int, optional
+  :param q: Percentiles. Default ``[99.0,99.9,99.99]``.
+  :type q: list, optional
   
-  :return:
-    wl   : array, observed wavelength 
-    nfl  : array, observed normalized flux
+  :return: observed wavelength, observed normalized flux
+  :rtype: array, array
   '''
   assert iters <= len(q), 'Error: More iterations than specified percentiles.'
 
@@ -369,18 +361,21 @@ def resample(wl,nfl,twl,tfl,dv=1.0,edge=0.0):
   Resample wavelength and interpolate flux and template flux.
   Flips flux, i.e., 1-flux.
   
-  :params:
-    wl   : array, observed wavelength 
-    nfl  : array, observed normalized flux
-    twl  : array, template wavelength
-    tfl  : array, template flux
-    dv   : float, RV steps in km/s
-    edge : float, skip edge of detector - low S/N - in Angstrom
+  :param wl: Observed wavelength.
+  :type wl: array
+  :param nfl: Observed normalized flux.
+  :type nfl: array
+  :param twl: Template wavelength.
+  :type twl: array
+  :param tfl: Template flux.
+  :type tfl: array
+  :param dv: RV steps in km/s. Default 1.0.
+  :type dv: float, optional
+  :param edge: Skip edge of detector - low S/N - in Angstrom. Default 0.0.
+  :type edge: float, optional
   
-  :return:
-    lam  : array, resampled wavelength
-    rf_fl: array, resampled and flipped flux
-    rf_tl: array, resampled and flipped template flux
+  :return: resampled wavelength, resampled and flipped flux, resampled and flipped template flux
+  :rtype: array, array, array
   '''
 
   wl1, wl2 = min(wl) + edge, max(wl) - edge
@@ -405,14 +400,15 @@ def getCCF(fl,tfl,rvr=401,ccf_mode='full'):
 
   Perform the cross correlation and trim array to only include points over RV range.
   
-  :params:
-    fl   : array, flipped and resampled flux
-    tfl  : array, flipped and resampled template flux
-    rvr  : integer, range for RVs in km/s
+  :param fl: Flipped and resampled flux.
+  :type  fl: array
+  :param tfl: Flipped and resampled template flux.
+  :type tfl: array
+  :param rvr: Range for velocity grid in km/s. Default 401.
+  :type rvr: int, optional
   
-  :return:
-    rvs  : array, RV points
-    ccf  : array, CCF at RV
+  :return: velocity grid, CCF
+  :rtype: array, array
   '''
   ccf = np.correlate(fl,tfl,mode=ccf_mode)
   ccf = ccf/(np.std(fl) * np.std(tfl) * len(tfl)) # normalize ccf
@@ -432,63 +428,105 @@ def Gauss(x, amp, mu,sig ):
   y = amp*np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
   return y
 
-def getRV(rvs,ccf,print_report=True):
+def getRV(vel,ccf,nbins=0,zucker=True,no_peak=50,poly=True,degree=1):
   '''Extract radial velocities.
   
-  Get radial velocity and projected rotational velocity
-  from CCF by fitting a Gaussian and collecting the location of 
-  the maximum and the width, respectively.
+  Get radial velocity from CCF by fitting a Gaussian and collecting the location, respectively.
+  Error estimation follows that of :cite:t:`Zucker2003`:
   
-  :params:
-    rvs  : array, RV points
-    ccf  : array, CCF at RV
+  .. math:: 
+    \sigma^2 (v) = - \\left [ N  \\frac{C^{\prime \prime}(\hat{s})}{C(\hat{s})} \\frac{C^2(\hat{s})}{1 - C^2(\hat{s})} \\right ]^{-1} \, ,
+
+  where :math:`C(\hat{s})` is the cross-correlation function, and :math:`C^{\prime \prime}(\hat{s})` the second derivative. :math:`N` is the number of bins.
   
-  :return:
-    rv    : float, position of Gaussian, radial velocity in km/s
-    erv   : float, uncertainty of radial velocity in km/s
-    vsini : float, width of Gaussian, projected rotational velocity in km/s
-    esini : float, uncertainty of projected rotational velocity in km/s
-    
+
+  :param vel: Velocity in km/s.
+  :type vel: array
+  :param ccf: CCF.
+  :type ccf: array
+  :param zucker: Error estimation using :cite:t:`Zucker2003`. Default ``True``, else covariance.
+  :type zucker: bool, optional
+  :param ccf: CCF.
+  :type ccf: array
+  :param nbins: Number of bins.
+  :type nbins: int, optional IF zucker=False
+  :param no_peak: Range with no CCF peak, i.e, a range that can constitute a baseline. Default 50.
+  :type no_peak: float, optional
+  :param poly: Do a polynomial fit to set the CCF baseline to zero. Default ``True``.
+  :type poly: bool
+  :param degree: Degree of polynomial fit. Default 1.
+  :type degree: int
+  
+  :returns: position of Gaussian--radial velocity in km/s, uncertainty of radial velocity in km/s
+  :rtype: float, float
+
   '''
-  
+  # 
+
   ## starting guesses
   idx = np.argmax(ccf)
-  amp, mu1 = ccf[idx], rvs[idx]# get max value of CCF and location
+  amp, mu1 = ccf[idx], vel[idx]# get max value of CCF and location
+  
+  ## fit for offset in CCFs
+  if poly:
+    no_peak = (vel - mu1 > no_peak) | (vel - mu1 < -no_peak)
+    pars = np.polyfit(vel[no_peak],ccf[no_peak],degree)
+    for ii, par in enumerate(pars):
+      ccf -= par*vel**(degree-ii)
 
-  gau_par, pcov = curve_fit(Gauss,rvs,ccf,p0=[amp,mu1,1.0])
-  perr = np.sqrt(np.diag(pcov))
+  gau_par, pcov = curve_fit(Gauss,vel,ccf,p0=[amp,mu1,1.0])
   rv = gau_par[1]
-  erv = perr[1]
-  vsini = gau_par[2]
-  esini = perr[2]
+  
+  if zucker:
+    assert nbins > 0, print('To estimate uncertainties from Zucker (2003) the number bins must be provided.')
+    y = ccf
+    dx = np.mean(np.diff(vel))
+    ## derivatives
+    yp = np.gradient(y,dx)
+    ypp = np.gradient(yp,dx)
+    peak = np.argmax(y)
+    y_peak = y[peak]
+    ypp_peak = ypp[peak]
+    
+    sharp = ypp_peak/y_peak
+    
+    snr = np.power(y_peak,2)/(1 - np.power(y_peak,2))
+    
+    erv = np.sqrt(np.abs(1/(nbins*sharp*snr)))
+  else:
+    perr = np.sqrt(np.diag(pcov))
+    erv = perr[1]
+    #vsini = gau_par[2]
+    #esini = perr[2]
 
-  return rv, erv, vsini, esini
+  return rv, erv
+
 
 
 # =============================================================================
 # Broadening function
 # =============================================================================
 
-def getBF(fl,tfl,rvr=401,dv=1.0):
+def getBF(fl,tfl,rvr=401,dv=1):
   '''Broadening function.
 
-  Carry out the SVD of the "design  matrix".
+  Carry out the singular value decomposition (SVD) of the "design  matrix" following the approach in :cite:t:`Rucinski1999`.
 
-    This method creates the "design matrix" by applying
-    a bin-wise shift to the template and uses numpy's
-    `svd` algorithm to carry out the decomposition.
-
-    The design matrix, `des` is written in the form:
-    "`des` = u * w * transpose(v)". The matrices des,
-    w, and u are stored in homonymous attributes.
+  This method creates the "design matrix" by applying a bin-wise shift to the template and uses ``numpy.linalg.svd`` to carry out the decomposition. 
+  The design matrix, :math:`\hat{D}`, is written in the form :math:`\hat{D} = \hat{U} \hat{W} \hat{V}^T`. The matrices :math:`\hat{D}`, :math:`\hat{U}`, and :math:`\hat{W}` are stored in homonymous attributes.
   
-  :params:  
-    fl   : array, flipped and resampled flux
-    tfl  : array, flipped and resampled template flux
-    bn   : int, Width (number of elements) of the broadening function. Needs to be odd.
-  :returns:
-    vel  : array, velocity in km/s
-    bf   : array, the broadening function
+  :param fl: Flipped and resampled flux.
+  :type fl: array
+  :param tfl: Flipped and resampled template flux.
+  :type tfl: array
+  :param rvr: Width (number of elements) of the broadening function. Needs to be odd.
+  :type rvr: int
+  :param dv: Velocity stepsize in km/s.
+  :type dv: int
+ 
+  :returns: velocity in km/s, the broadening function
+  :rtype: array, array 
+
   '''
   bn = rvr/dv
   if bn % 2 != 1: bn += 1
@@ -524,12 +562,15 @@ def smoothBF(vel,bf,sigma=5.0):
 
   Smooth the broadening function with a Gaussian.
 
-  :params:
-    vel   : array, velocity in km/s
-    bf    : array, the broadening function
-    sigma : float, smoothing factor
-  :returns:
-    bfgs  : array, smoothed BF
+  :param vel: Velocity in km/s.
+  :type vel: array
+  :param bf: The broadening function.
+  :type bf: array
+  :param sigma: Smoothing factor. Default 5.0.
+  :type sigma: float, optional
+  
+  :returns: Smoothed BF.
+  :rtype: array
   
   '''
   nn = len(vel)
@@ -548,22 +589,23 @@ def smoothBF(vel,bf,sigma=5.0):
 def rotbf_func(vel,ampl,vrad,vsini,gwidth,const=0.,limbd=0.68):
   '''Rotational profile. 
 
-  The rotational profile obtained by convolving the  from [1].
+  The rotational profile obtained by convolving the broadening function with a Gaussian following :cite:t:`Kaluzny2006`.
 
-  :params:
-    vel    : array, velocity in km/s
-    ampl   : float, amplitude of BF
-    vrad   : float, radial velocity in km/s, i.e., position of BF 
-    vsini  : float, projected rotational velocity in km/s, i.e., width of BF 
-    const  : float, offset for BF, default 0.
-    limbd  : float, value for linear limb-darkening coefficient
+  :param vel: Velocity in km/s.
+  :type vel: array
+  :param ampl: Amplitude of BF.
+  :type ampl: float
+  :param vrad: Radial velocity in km/s, i.e., position of BF.
+  :type vrad: float
+  :param vsini: Projected rotational velocity in km/s, i.e., width of BF.
+  :type vsini: float
+  :param const: Offset for BF. Default 0.
+  :type const: float, optional
+  :param limbd: Value for linear limb-darkening coefficient. Default 0.68.
+  :type limbd: float, optional
 
-  :returns:
-    rotbf  : array, rotational profile
-
-  References
-  ----------
-    [1] `Kaluzny et al. (2006) <https://ui.adsabs.harvard.edu/abs/2006AcA....56..237K/abstract>`_
+  :returns: rotational profile
+  :rtype: array
 
   '''
 
@@ -587,7 +629,19 @@ def rotbf_func(vel,ampl,vrad,vsini,gwidth,const=0.,limbd=0.68):
 def rotbf_res(params,vel,bf,wf):
   '''Residual rotational profile.
   
-  Residual function for `rotbf_fit`.
+  Residual function for :py:func:`rotbf_fit`.
+
+  :param params: Parameters. 
+  :type params: ``lmfit.Parameters()``
+  :param vel: Velocity in km/s.
+  :type vel: array
+  :param bf: Broadening function.
+  :type bf: array
+  :param wf: Weights.
+  :type wf: array
+
+  :returns: residuals
+  :rtype: array
 
   '''
   ampl  = params['ampl1'].value
@@ -600,22 +654,28 @@ def rotbf_res(params,vel,bf,wf):
   res = bf - rotbf_func(vel,ampl,vrad,vsini,gwidth,const,limbd)
   return res*wf
 
-def rotbf_fit(vel,bf,fitsize,res=90000,smooth=5.0,vsini=5.0,print_report=True):
+def rotbf_fit(vel,bf,fitsize,res=67000,smooth=5.0,vsini=5.0,print_report=True):
   '''Fit rotational profile.
 
   :params:
-    vel           : array, velocity in km/s
-    bf            : array, the broadening function
-    fitsize       : int, interval to fit within
-    res           : int, resolution of spectrograph
-    vsini         : float, projected rotational velocity in km/s
-    smooth        : float, smoothing factor
-    print_report  : bool, print the `lmfit` report
+  :param vel: Velocity in km/s.
+  :type vel: array
+  :param bf: Broadening function.
+  :type bf: array
+  :param fitsize: Interval to fit within.
+  :type fitsize: int
+  :param res: Resolution of spectrograph. Default 67000 (FIES).
+  :type res: int, optional
+  :param vsini: Projected rotational velocity in km/s. Default 5.0.
+  :type vsini: float, optional
+  :param smooth: Smoothing factor. Default 5.0.
+  :type smooth: float, optional
+  :param print_report: Print the ``lmfit`` report. Default ``True``
+  :type print_report: bool, optional 
     
-  :returns:
-    fit           : `lmfit` object, result
-    model         : array, the resulting rotational profile
-    bfgs          : array, smoothed BF
+  :returns: result, the resulting rotational profile, smoothed BF
+  :rtype: ``lmfit`` object, array, array
+
   '''
   bfgs = smoothBF(vel,bf,sigma=smooth)
   c = np.float64(299792.458)
@@ -638,7 +698,6 @@ def rotbf_fit(vel,bf,fitsize,res=90000,smooth=5.0,vsini=5.0,print_report=True):
   fit = lmfit.minimize(rotbf_res, params, args=(vel,bfgs,wf),xtol=1.e-8,ftol=1.e-8,max_nfev=500)
   if print_report: print(lmfit.fit_report(fit, show_correl=False))
   
-
   ampl, gwidth = fit.params['ampl1'].value, fit.params['gwidth'].value
   vrad, vsini = fit.params['vrad1'].value, fit.params['vsini1'].value
   limbd, const = fit.params['limbd1'].value, fit.params['const'].value
@@ -650,32 +709,43 @@ def rotbf_fit(vel,bf,fitsize,res=90000,smooth=5.0,vsini=5.0,print_report=True):
 # Collection of calls
 # =============================================================================
 def auto_RVs_BF(wl,fl,bl,twl,tfl,q=[99.99],
-                dv=1.0,edge=0.0,rvr=201,
+                dv=1.0,edge=0.0,rvr=201,vsini=5.0,
                 fitsize=30,res=90000,smooth=5.0,
                 bvc=0.0):
   '''Automatic RVs from BF.
 
-  Collection of function calls to get radial velocity and vsini 
-  from the broadening function following the recipe by J. Jessen-Hansen.
+  Collection of function calls to get radial velocity and vsini from the broadening function following the recipe by J. Jessen-Hansen.
   
-  :params:
-    wl      : array, observed wavelength 
-    nfl     : array, observed normalized flux
-    twl     : array, template wavelength
-    tfl     : array, template flux
-    dv      : float, RV steps in km/s
-    edge    : float, skip edge of detector - low S/N - in Angstrom
-    rvr     : integer, range for RVs in km/s
-    fitsize : float, fitsize in km/s - only fit `fitsize` part of the rotational profile
-    res     : float, resolution of spectrograph - affects width of peak
-    smooth  : float, smoothing factor - sigma in Gaussian smoothing
-    bvc     : float, barycentric velocity correction for epoch in km/s
+  :param wl: Observed wavelength.
+  :type wl: array 
+  :param nfl: Observed normalized flux.
+  :type nfl: array 
+  :param twl: Template wavelength.
+  :type twl: array 
+  :param tfl: Template flux.
+  :type tfl: array 
+  :param q: Percentiles for ``crm``. Default ``[99.99]``.
+  :type q: list, optional
+  :param dv: RV steps in km/s. Default 1.0.
+  :type dv: float, optional
+  :param edge: Skip edge of detector - low S/N - in Angstrom. Default 0.0.
+  :type edge: float, optional 
+  :param rvr: Range for RVs in km/s. Default 201.
+  :type rvr: int, optional
+  :param fitsize: Interval to fit within. Default 30.
+  :type fitsize: int, optional
+  :param res: Resolution of spectrograph. Default 90000 (SONG).
+  :type res: int, optional
+  :param vsini: Projected rotational velocity in km/s. Default 5.0.
+  :type vsini: float, optional
+  :param smooth: Smoothing factor. Default 5.0.
+  :type smooth: float, optional
+  :param bvc: Barycentric velocity correction for epoch in km/s. Default 0.0.
+  :type bvc: float, optional 
     
-  :return:
-    RV      : float, position of Gaussian, radial velocity in km/s
-    eRV     : float, uncertainty of radial velocity in km/s
-    vsini   : float, width of Gaussian, rotational velocity in km/s
-    evsini  : float, uncertainty of rotational velocity in km/s
+  :returns: position of Gaussian, radial velocity in km/s, uncertainty of radial velocity in km/s, width of Gaussian, rotational velocity in km/s, uncertainty of rotational velocity in km/s
+  :rtype: float, float, float, float
+
   '''  
   wl, nfl = normalize(wl,fl,bl=bl)
   wl, nfl = crm(wl,nfl,q=q)
@@ -683,39 +753,50 @@ def auto_RVs_BF(wl,fl,bl,twl,tfl,q=[99.99],
   rvs, bf = getBF(rf_fl,rf_tl,rvr=201)
   rot = smoothBF(rvs,bf,sigma=smooth)
 
-  fit, _, _ = rotbf_fit(rvs,rot,fitsize,res=res,smooth=smooth)
+  fit, _, _ = rotbf_fit(rvs,rot,fitsize,res=res,vsini=vsini,smooth=smooth)
   RV, vsini = fit.params['vrad1'].value, fit.params['vsini1'].value
   eRV, evsini = fit.params['vrad1'].stderr, fit.params['vsini1'].stderr
   return RV, eRV, vsini, evsini
 
-def auto_RVs(wl,fl,bl,twl,tfl,dv=1.0,edge=0.0,rvr=401,bvc=0.0):
+def auto_RVs(wl,fl,bl,twl,tfl,q=[99.99],
+  dv=1.0,edge=0.0,rvr=401,bvc=0.0):
   '''Automatic RVs from CCF.
 
-  Collection of function calls to get radial velocity and vsini
-  from the cross-correlation function.
+  Collection of function calls to get radial velocity from the cross-correlation function.
   
-  :params:
-    wl   : array, observed wavelength 
-    nfl  : array, observed normalized flux
-    twl  : array, template wavelength
-    tfl  : array, template flux
-    dv   : float, RV steps in km/s
-    edge : float, skip edge of detector - low S/N - in Angstrom
-    rvr  : integer, range for RVs in km/s
-    bvc  : float, barycentric velocity correction for epoch in km/s
+  :param wl: Observed wavelength 
+  :type wl: array 
+  :param nfl: Observed normalized flux
+  :type nfl: array 
+  :param twl: Template wavelength.
+  :type twl: array 
+  :param tfl: Template flux.
+  :type tfl: array 
+  :param q: Percentiles for ``crm``. Default ``[99.99]``.
+  :type q: list, optional
+  :param dv: RV steps in km/s. Default 1.0.
+  :type dv: float, optional
+  :param edge: Skip edge of detector - low S/N - in Angstrom. Default 0.0.
+  :type edge: float, optional 
+  :param rvr: Range for RVs in km/s. Default 401.
+  :type rvr: int, optional
+  :param bvc: Barycentric velocity correction for epoch in km/s. Default 0.0.
+  :type bvc: float, optional 
     
-  :return:
-    RV   : float, position of Gaussian, radial velocity in km/s
-    vsini: float, width of Gaussian, rotational velocity in km/s
+  :return: position of Gaussian, radial velocity in km/s
+  :rtype: float, float
+
   '''
   wl, nfl = normalize(wl,fl,bl)
-  wl, nfl = crm(wl,nfl)
+  wl, nfl = crm(wl,nfl,q=q)
   lam, resamp_flip_fl, resamp_flip_tfl = resample(wl,nfl,twl,tfl,dv=dv,edge=edge)
+  nbins = len(lam)
   rvs, ccf = getCCF(resamp_flip_fl,resamp_flip_tfl,rvr=rvr)
   rvs = rvs + bvc
-  RV, _, vsini, _ = getRV(rvs,ccf)
+  rv, erv = getRV(rvs,ccf,nbins=nbins)
   
-  return RV, vsini
+  return rv, erv
+
 
 def get_val_err(vals,out=True,sigma=5):
   '''Outlier rejection.

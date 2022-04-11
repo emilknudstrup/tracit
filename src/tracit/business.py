@@ -5,8 +5,6 @@
 
 .. todo::
 	* Make sure data isn't passed around with each evaluation 
-		- global variables? CHECK, seems to work
-		- data class/object? REDUNDANT
 	
 	* Include fit to binaries - wrap ellc?
 
@@ -18,18 +16,12 @@
 	
 	* Object oriented - just do it
 	
-	* Restructure - move .csv generator and reader to different module
-
 	* Check imported packages, redundancy
-
-	* Make overwrite boolean for ``params_temp`` and ``data_temp``.
 	
 	* Make it possible to look at shadow without giving a file for the RVs ``data_structure``.
 
 	* Instead of looping over the number of spectroscopic systems (n_rv), it would be better to loop over the handles directly (Spec_1).
 	* ^Same goes for the photometry.
-
-	* Fix hard-code in `no_peak`
 	
 	* Check `poly_pars` CCFs
 
@@ -38,24 +30,10 @@
 # tracit modules
 # =============================================================================
 
-# import tracit.dynamics as dynamics
-# import tracit.shady as shady
-# import tracit.expose as expose
-# import tracit.stat_tools as stat_tools
-# import tracit.constants as constants
-#import expose
-# import stat_tools
-# import dynamics
-# import shady
-# from priors import tgauss_prior, gauss_prior, flat_prior, tgauss_prior_dis, flat_prior_dis
-# import .expose
-# import .stat_tools
 from .dynamics import *
-from .stat_tools import plot_autocorr, create_chains, create_corner, hpd, significantFormat
-#from .shady import grid, grid_ring, absline_star, absline
+from .support import plot_autocorr, create_chains, create_corner, hpd, significantFormat
 from .shady import absline_star, absline
 from .priors import tgauss_prior, gauss_prior, flat_prior, tgauss_prior_dis, flat_prior_dis
-#from .structure import ini_data
 
 # =============================================================================
 # external modules
@@ -80,730 +58,39 @@ from scipy import interpolate
 from scipy.optimize import curve_fit
 import scipy.signal as scisig
 from statsmodels.nonparametric.kde import KDEUnivariate as KDE
+import os
 
-#def run_params(nproc):
-def run_bus(par,dat,path='./'):
+
+def run_bus(par,dat):
 	'''Set global parameters.
 
-	Initialize the ``structure.par_struct`` and ``structure.dat_struct`` dictionaries as global parameters.
+	Initialize the :py:func:`structure.par_struct` and :py:func:`structure.dat_struct` dictionaries as global parameters.
 	
-	:param par: Name for the parameters dict from ``structure.par_struct``.
+	:param par: Name for the parameters dict from :py:func:`structure.par_struct`.
 	:type par: dict
 
-	:param dat: Name for the data dict from ``structure.dat_struct``.
+	:param dat: Name for the data dict from :py:func:`structure.dat_struct`.
 	:type dat: dict
-	
-	:param nproc: Number of CPUs. Default 1.
-	:type nproc: int	
 
 	.. note::
 		Using global variable to prevent having to pickle and pass the data to the modules every time the code is called,
 		see `emcee: pickling, data transfer and arguments <https://emcee.readthedocs.io/en/stable/tutorials/parallel/#pickling-data-transfer-arguments>`_.
 	'''
 
-	global mpath
-
 	global parameters
 	parameters = par.copy()
 	global data
 	data = dat.copy()
-
+	global mpath
+	path = os.path.abspath(os.path.dirname(__file__))
 	mpath = path
-	# if nproc > 5:
-	# 	mpath = './'
-	# else:
-	# 	mpath = '/home/emil/Desktop/PhD/exoplanets'
 
-def str2bool(arg):
-	if isinstance(arg, bool):
-		return arg
-	if arg.lower() in ('yes', 'true', 't', 'y', '1'):
-		return True
-	elif arg.lower() in ('no', 'false', 'f', 'n', '0'):
-		return False
-	else:
-		raise TypeError('Boolean value expected.')
 
-def gaussian(pars,y,x):
-	vals = pars.valuesdict()
-	amp = vals['amp']
-	mu = vals['mu']
-	sig = vals['sig']
-
-	return y - amp*np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
 def Gauss(x, amp, mu,sig ):
 	y = amp*np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
 	return y
 
 
-def params_temp(filename='parameter_template.csv',
-				n_phot=1,n_spec=1,n_planets=1,
-				LD_law='quad'):
-	'''Generate a .csv file template for the parameters.
-	
-	Generate a .csv file to put in the parameters for the planet/instrument.
-	
-	:param filename: Name for the parameter .csv file. Default `'parameter_template.csv'`.
-	:type filename: str, optional
-
-	:param n_phot: Number of photometric systems. Default 1.
-	:type n_phot: int
-	
-	:param n_spec: Number of spectroscopic systems. Default 1.
-	:type n_spec: int
-
-	:param n_phot: Number of planets in system. Default 1.
-	:type n_spec: int
-
-	:param LD_law: limb darkening law used. Default `'quad'`. See :py:class:`dynamics.StellarParams`.
-	:type LD_law: str    
-
-	'''
-
-	LD_laws = ['uni','quad','nonlinear']
-	assert LD_law in LD_laws, print('Limb darkening law must be in {}'.format(LD_laws))
-
-	
-	abc = list(string.ascii_lowercase)[1:]
-	ABC = list(string.ascii_uppercase)
-
-	orbpars = ['P','T0','e','w','Rp_Rs','a_Rs','inc','K','Tw','lam','b','ecosw','esinw','T14','T23','T0_a2','T0_a1']
-	stelpars = ['vsini','zeta','xi']
-	rows = {'Handle' : ['Parameter','Unit','Label',
-						'Value','Uncertainty','Lower','Upper',
-						'Prior','Start','Fit parameter','Fix to']}	
-	
-	ncols = 62	
-	cols = ['Planet parameters'] + [ii for ii in range(ncols)]
-	for ii in range(n_planets): cols[ii+1] = abc[ii]
-	n_rows = len(rows['Handle'])+1
-	df = pd.DataFrame(columns=cols)
-	nn = 1
-	dfn = pd.DataFrame(rows)
-	default = ['uni','tgauss','false','none']
-	for ii in range(n_planets):
-		pl = abc[ii]
-		df.loc[nn] = ['Planet {}'.format(pl)] + ['##### PLANET {} #####'.format(pl.lower())]*ncols#len(orbpars)
-		pars = {'P_{}'.format(pl) : 
-			['Period','days',r'$P \rm _{} \  (days)$'.format(pl),9.0,0.5,5.0,20.0],	
-			'T0_{}'.format(pl) : 
-			['Midtransit','BJD',r'$T \rm _{} \ (BJD)$'.format('{0,'+pl+'}'),2457000.,0.5,2456999.,2457001],
-			'e_{}'.format(pl) : 
-			['Eccentricity',' ',r'$e \rm _{}$'.format(pl),0.0,0.1,0.0,1.0],
-			'w_{}'.format(pl) : 
-			['Omega','deg',r'$\omega \rm _{} \ (^\circ)$'.format(pl),90.,10.,0.0,360.],
-			'Rp_Rs_{}'.format(pl) : 
-			['Radius ratio','Rs',r'$(R_{}/R_\star)\rm _{}$'.format('\mathrm{p}',pl),0.1,0.05,0.0,1.0],
-			'a_Rs_{}'.format(pl) : 
-			['Semi-major axis','Rs',r'$(a/R_\star) \rm _{}$'.format(pl),30.,1.0,1.0,50.],
-			'inc_{}'.format(pl) : 
-			['Inclination','deg',r'$i \rm _{} \ (^\circ)$'.format(pl),90.,1.0,0.0,90.],
-			'K_{}'.format(pl) : 
-			['K-amplitude','m/s',r'$K  \rm _{}\ (m/s)$'.format(pl),30.,1.0,5.0,50.],
-			'Tw_{}'.format(pl) : 
-			['Time of periastron passage','BJD',r'$T_\omega  \rm _{} \ (BJD)$'.format(pl),2457000.,0.5,2456999.,2457001],
-			'lam_{}'.format(pl) : 
-			['Projected obliquity','deg',r'$\lambda \rm _{} \ (^\circ)$'.format(pl),0.0,10.,0.0,360.],
-			'cosi_{}'.format(pl) : 
-			['Cosine inclination',' ',r'$\cos i \rm _{}$'.format(pl),0.0,0.1,0.0,1.0],
-			'ecosw_{}'.format(pl) : 
-			['sqrt(e) cos(w)',' ',r'$\sqrt{e} \ \cos \omega_'+pl+'$',0.0,0.1,-1.,1.],
-			'esinw_{}'.format(pl) : 
-			['sqrt(e) sin(w)',' ',r'$\sqrt{e} \ \sin \omega_'+pl+'$',0.0,0.1,-1.,1.],
-			'T41_{}'.format(pl) : 
-			['T_{41}','hours',r'$T \rm _{41,'+pl+'} (hours)$',4.0,0.1,0.,10.],
-			'T21_{}'.format(pl) : 
-			['T_{21}','hours',r'$T \rm _{21,'+pl+'} (hours)$',3.0,0.1,0.,10.],
-			'a2_{}'.format(pl) :
-			['T0 curve',' ',r'$a \rm _{2,'+pl+'}$',0.0,0.01,0.,10.],
-			'a1_{}'.format(pl) :
-			['T0 slope',' ',r'$a \rm _{1,'+pl+'}$',0.0,0.01,0.,10.]
-			}
-
-		for par in pars.keys(): 
-			for de in default:
-				pars[par].append(de)
-
-		for jj in range(len(orbpars),ncols): pars[jj] = [' ']*len(pars['P_{}'.format(pl)])
-
-
-		dfp = pd.DataFrame(pars)
-		nn += n_rows + 1
-		tdf = pd.concat([dfn,dfp],axis=1)
-		hh = tdf.columns
-		tdf.columns = cols
-		tdf.loc[0] = hh
-		df = df.append(tdf)
-
-	star_df = pd.DataFrame([['System parameters'] + ['******** STAR ********']*ncols])
-	star_df.columns = cols
-	df = df.append(star_df)
-
-	star = {'vsini' : 
-			['Projected stellar rotation velocity','km/s',r'$v \sin i_\star \ \rm (km/s)$',2.0,1.0,0.0,10.],
-			'zeta' : 
-			['Macroturbulence','km/s',r'$\zeta \ \rm (km/s)$',1.0,1.0,0.0,10.],
-			'xi' : 
-			['Microturbulence','km/s',r'$\xi \ \rm (km/s)$',1.0,1.0,0.0,10.]}
-
-	def set_LD(LD_pars,LD_law,label):
-		if LD_law == 'quad':
-			LD_pars[label+'_q1'] = ['Linear LD coeff for {}'.format(label),'quadratic',r'$q_1: \ \rm {}$'.format(label),0.4,0.1,0.0,1.0]
-			LD_pars[label+'_q2'] = ['Quadratic LD coeff for {}'.format(label),'quadratic',r'$q_2: \ \rm {}$'.format(label),0.3,0.1,0.0,1.0]
-		elif LD_law == 'uni':
-			LD_pars[label+'_q1'] = ['No coefficients','uniform']
-		elif LD_law == 'nonlinear':
-			for ii in range(1,5):
-				LD_pars[label+'_q{}'.format(ii)] = ['LD coeff {}'.format(ii),'nonlinear',r'$q_2 \ \rm {}$'.format(label,ii)]
-
-	add_lc_pars = {}
-	for ii in range(1,n_phot+1):
-		star['LCblend_{}'.format(ii)] = ['Dilution (deltaMag=-2.5log(F2/F1)) photometer {}'.format(ii),' ',r'$\rm \delta M{}$'.format('_{LC,'+str(ii)+'}'),0.0,0.5,0.0,7.0]
-		star['LCsigma_{}'.format(ii)] = ['Log jitter photometer {}'.format(ii),' ',r'$\rm \log \sigma{}$'.format('_{LC,'+str(ii)+'}'),-30,0.05,-50,1.0]
-		star['LC_{}_GP_log_a'.format(ii)] = ['GP log amplitude, photometer {}'.format(ii),' ',r'$\rm \log A{}$'.format('_{LC,'+str(ii)+'}'),-7,0.05,-20.0,5.0]
-		star['LC_{}_GP_log_c'.format(ii)] = ['GP log time scale, photometer {}'.format(ii),' ',r'$\rm \log \tau{} \ (days)$'.format('_{LC,'+str(ii)+'}'),-0.7,0.05,-5.0,5.0]
-		label = 'LC'+str(ii)
-		set_LD(star,LD_law,label)
-
-	add_rv_pars = {}
-	for ii in range(1,n_spec+1):
-		star['RVsys_{}'.format(ii)] = ['Systemic velocity instrument {}'.format(ii),'m/s',r'$\gamma_{} \ \rm (m/s)$'.format(ii),0.0,1.,-20.,20.]
-		star['RVsigma_{}'.format(ii)] = ['Jitter RV instrument {}'.format(ii),'m/s',r'$\rm \sigma{} \ (m/s)$'.format('_{RV,'+str(ii)+'}'),0.0,1.0,0.0,100.]
-		star['RV_{}_GP_log_a'.format(ii)] = ['GP log amplitude, CCF {}'.format(ii),' ',r'$\rm \log a{}$'.format('_{RV,'+str(ii)+'}'),-7,0.05,-20.0,5.0]
-		star['RV_{}_GP_log_c'.format(ii)] = ['GP log exponent, CCF {}'.format(ii),' ',r'$\rm \log c{}$'.format('_{RV,'+str(ii)+'}'),-0.7,0.05,-5.0,5.0]
-		label = 'RV'+str(ii)
-		set_LD(star,LD_law,label)
-
-	star['a2'] = ['RV curve','m/(s*d^2)',r'$\ddot{\gamma} \ \rm (m \ s^{-1} \ d^{-2})$',0.0,1.0,-10.,10.]
-	star['a1'] = ['RV slope','m/(s*d)',r'$\dot{\gamma} \ \rm (m \ s^{-1} \ d^{-1})$',0.0,1.0,-10.,10.]
-
-
-	for par in star.keys(): 
-		for de in default:
-			star[par].append(de)
-	
-	for ii in range(len(star.keys()),ncols): star[ii] = [' ']*len(star['vsini'])
-
-	sdf = pd.DataFrame(star)
-	sdf = pd.concat([dfn,sdf],axis=1)
-	hh = sdf.columns
-	sdf.columns = cols
-	sdf.loc[0] = hh
-	df = df.append(sdf)
-
-	dfn['Handle'][9] = 'Constrain parameter'
-	xdf = pd.DataFrame([['External constraints'] + ['$$$$$$$$ X $$$$$$$$']*ncols])
-	xdf.columns = cols
-	df = df.append(xdf)
-
-	ext = {'rho_s' : 
-			['Stellar density','g/cm^3',r'$\rho_\star \ \rm (g/cm^{3})$',0.5,0.1,0.0,2.]}
-	for par in ext.keys(): 
-		for de in default:
-			ext[par].append(de)
-	for ii in range(len(ext.keys()),ncols): ext[ii] = [' ']*len(ext['rho_s'])
-	xdf = pd.DataFrame(ext)
-	xdf = pd.concat([dfn,xdf],axis=1)
-	hh = xdf.columns
-	xdf.columns = cols
-	xdf.loc[0] = hh
-	df = df.append(xdf)
-
-	df.to_csv(filename,index=False)
-	print('\n\n')
-	print('Generated template file {} for input/fitting parameters.'.format(filename))
-	print('Insert values in the rows: Value, Error, Upper, and Lower.')
-	print('Insert choices for the type of prior and starting distribtuion in: Prior and Start.')
-	print('Put in in true to fit a given parameter.')
-	print('The label is the one displayed in plots - this can also be altered.')
-	print('It is possible to step in cos(i) and sqrt(e)*cos(w) & sqrt(e)*sin(w), if:')
-	print('\t-fit cos(i) is True, walkers will step in cos(i).')
-	print('\t-fit (ecos(w) & esin(w)) is True, walkers will step in sqrt(e)*cos(w) & sqrt(e)*sin(w).')
-	print('Warning: Do not touch the rows: Handle, Parameter, or Unit.')
-	print('Warning: Make sure to format labels correctly, i.e., $label$.')
-	print('\n\n')
-
-def data_temp(filename='data_template.csv',n_phot=1,n_spec=1):
-	'''Generate a .csv file template for the data.
-	
-	Generate a .csv file to put in the filenames for the data.
-	
-	:param filename: Name for the data .csv file. Default `'data_template.csv'`.
-	:type filename: str, optional
-
-	:param n_phot: Number of photometric systems. Default 1.
-	:type n_phot: int
-	
-	:param n_spec: Number of spectroscopic systems. Default 1.
-	:type n_spec: int
-
-	'''
-	ph = ['Handle','Light curve:','Instrument','LC Filename','Units',
-		'Fit LC','Oversample factor','Exposure time (min.)','Detrend','Poly. deg./filt. w.',
-		'Gaussian Process','GP type',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ']
-	
-	sp = ['Handle','Radial velocities:','Instrument','RV Filename','Units',
-		'Fit RV','Fit RM','Lineshape:','Fit LS','LS Filename',
-		'Units','Disk Resolution','Ring Thickness','LS chi2 scaling','Fit OOT',
-		'Only fit OOT','OOT chi2 scaling','OOT indices','Slope','Fit SL','SL Filename','Units','SL chi2 scaling','Gaussian Process','GP type']
-
-	# print(len(sp))
-	# print(len(ph))
-	df = pd.DataFrame(columns = ['Photometry']+['##--_--_--_--##']*(len(sp)-1))
-	df.loc[0] = ph
-	nn = 1
-	ii = 1
-	# print(len(['Phot_{}'.format(ii),'.txt file',' ','lc*{}.txt'.format(ii),
-	# 				'BJD & Relative brightness','true',1,2,'false',1,'false','Matern32',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ']))
-	for ii in range(1,n_phot+1): 
-		df.loc[nn] = ['Phot_{}'.format(ii),'.txt file',' ','lc*{}.txt'.format(ii),
-					'BJD & Relative brightness','true',1,2,'false',1,'false','Matern32',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ']
-		nn += 1
-	df.loc[nn] = ['Spectroscopy']+['##^vv^^\/^^^v##']*(len(ph)-1)
-	nn += 1
-	df.loc[nn] = sp
-	nn += 1
-	# print(
-	# 	len(['Spec_{}'.format(ii),'.txt file',' ','rv*{}.txt'.format(ii),
-	# 				'BJD & m/s','true','false',1.0,'One .hdf5 file /bjd/[vel,ccf]',
-	# 				'false','*.hdf5','BJD & km/s',100,20,1.0,'false','false',1.0,'0,1,2',
-	# 				'One .hdf5 file /bjd/[vel,ccf]','false','*.hdf5','BJD & km/s',1.0,' '])
-
-	# 	)
-	for ii in range(1,n_spec+1): 
-		df.loc[nn] = ['Spec_{}'.format(ii),'.txt file',' ','rv*{}.txt'.format(ii),
-					'BJD & m/s','true','false','.hdf5 file /bjd/[vel,ccf]',
-					'false','*.hdf5','BJD & km/s',100,20,1.0,'false','false',1.0,'0,1,2',
-					'.hdf5 file /bjd/[vel,ccf]','false','*.hdf5','BJD & km/s',1.0,' ',' ']
-		nn += 1
-
-	df.to_csv(filename,index=False)
-	print('\n\n')
-	print('Generated template file {} to load in data from .txt files.'.format(filename))
-	print('Data should be formatted in a .txt with columns: times flux/RV uncertainty.')
-	print('The subscript number corresponds to the number given for parameters')
-	print('that might differ from instrument to instrument.')
-	print('It is possible not to fit the data in the file by putting in false.')
-	print('It is possible to either detrend the photometric data just around transit and/or')
-	print('account for the Rossiter-McLaughlin effect in the spectroscopic data if relevant.')
-	print('Detrending is done by fitting a polynomial of the specified degree to out-of-transit data.')
-	print('-1 corresponds to no detrending. The RM effect will be accounted for by putting in true.')
-	print('\n\n')
-
-
-def data_structure(file):
-	'''Structure the data for :strike:`tracit`.
-
-	Function that reads in the data .csv file, and structures the content in a dictionary.
-
-	:param filename: Path to the parameter file, e.g., `./dat.csv`.
-	:type filename: str
-
-	.. note::
-		Using global variable to prevent having to pickle and pass the data to the modules every time the code is called,
-		see `emcee <https://emcee.readthedocs.io/en/stable/tutorials/parallel/#pickling-data-transfer-arguments>`_'s documention.
-
-	'''
-	
-	df = pd.read_csv(file,skip_blank_lines=True)
-	split = np.where(df['Photometry'].str.find('Spectroscopy') == 0)[0][0]
-	df_phot_sub, df_spec_sub = df[0:split], df[split+1:]
-	phot_header, spec_header = df_phot_sub.iloc[0], df_spec_sub.iloc[0]
-
-	n_phot = len(df_phot_sub['Photometry']) - 1
-	n_spec = len(df_spec_sub['Photometry']) - 1
-
-	df_phot, df_spec = df_phot_sub[1:n_phot+1], df_spec_sub[1:n_spec+1]
-	spec_header.name = 0
-	df_phot.columns, df_spec.columns = phot_header, spec_header
-
-	df_spec.reset_index(drop=True,inplace=True)
-	df_spec.index += 1
-
-	global data 
-	data = {}
-	data['LCs'] = n_phot
-	for ii in range(1,n_phot+1):
-		data['LC_label_{}'.format(ii)] = df_phot['Instrument'][ii]
-		data['Fit LC_{}'.format(ii)] = str2bool(df_phot['Fit LC'][ii])
-		lfile = df_phot['LC Filename'][ii]
-		if lfile.find('*') != -1: lfile = glob.glob(lfile)[0] 
-		phot_arr = np.loadtxt(lfile)
-		data['LC_{}'.format(ii)] = phot_arr
-		data['OF LC_{}'.format(ii)] = int(df_phot['Oversample factor'][ii])
-		data['Exp. LC_{}'.format(ii)] = float(df_phot['Exposure time (min.)'][ii])/(24*60)
-		#data['Chi2 LC_{}'.format(ii)] = float(df_phot['LC chi2 scaling'][ii])
-		data['GP LC_{}'.format(ii)] = str2bool(df_phot['Gaussian Process'][ii])
-		
-		trend = df_phot['Detrend'][ii]
-		detrends = ['poly','savitsky']
-		try:
-			trend = str2bool(trend)
-		except TypeError:
-			assert trend in detrends, print('Detrending must be {}'.format(detrends))
-		data['Detrend LC_{}'.format(ii)] = trend
-
-		deg_w = int(df_phot['Poly. deg./filt. w.'][ii])
-		if (trend == detrends[0]) or (trend == True):
-			if (deg_w == 1) or (deg_w == 2):
-				data['Poly LC_{}'.format(ii)] = deg_w
-			else:
-				print('Put in 1 or 2 to choose between either')
-				print('1st or 2nd order polynomial for detrending.')
-		elif trend == detrends[1]:
-			if deg_w%2:
-				data['FW LC_{}'.format(ii)] = deg_w
-			else:
-				deg_w += 1
-				print('Filter width for Savitsky-Filter must be odd.')
-				print('Adding 1 to get a width of {} data points.'.format(deg_w))
-				data['FW LC_{}'.format(ii)] = deg_w
-		#else:
-		elif data['GP LC_{}'.format(ii)]:
-			gp_type = df_phot['GP type'][ii]
-			assert gp_type in ['Real','Matern32'], print('Error: GP type needs to be [...,...]')
-			data['GP type LC_{}'.format(ii)] = gp_type
-			gp_bin = float(df_phot['GP bin (hours)'][ii])
-			t_diff = np.median(np.diff(phot_arr[:,0]))
-			data['GP Nbin LC_{}'.format(ii)] = int(gp_bin/(t_diff*24))
-
-			# Set up the GP model
-			try:
-				loga = parameters['LC_{}_GP_log_a'.format(ii)]['Value']
-				logc = parameters['LC_{}_GP_log_c'.format(ii)]['Value']
-				#jitt = parameters['LCsigma_{}'.format(ii)]['Value']
-			except NameError:
-				loga = -0.3
-				logc = -7.3
-				#jitt = -10
-			#log_jitter = celerite.terms.JitterTerm(log_sigma=jitt)
-			if gp_type == 'Real':
-				noise = celerite.terms.RealTerm(log_a=loga, log_c=logc)
-			else:
-				noise = celerite.terms.Matern32Term(log_sigma=loga, log_rho=logc)
-			kernel = noise# + log_jitter
-
-			gp = celerite.GP(kernel)
-
-			gp.compute(phot_arr[:,0],phot_arr[:,2]) #probably redundant
-			data['LC_{} GP'.format(ii)] = gp
-
-		#if trend_poly > 0:
-		#	time = phot_arr[;,0]
-
-  
-	data['RVs'] = n_spec
-	n_ls = 0
-	n_sl = 0
-	for ii in range(1,n_spec+1):
-		data['RV_label_{}'.format(ii)] = df_spec['Instrument'][ii]
-		data['Fit RV_{}'.format(ii)] = str2bool(df_spec['Fit RV'][ii])
-		data['RM RV_{}'.format(ii)] = str2bool(df_spec['Fit RM'][ii])
-		#data['Chi2 RV_{}'.format(ii)] = float(df_spec['RV chi2 scaling'][ii])
-		rfile = df_spec['RV Filename'][ii]
-		if rfile.find('*') != -1: rfile = glob.glob(rfile)
-		else: rfile = [rfile]
-		if len(rfile): 
-			rv_arr = np.loadtxt(rfile[0])
-			data['RV_{}'.format(ii)] = rv_arr
-		else:
-			data['Fit RV_{}'.format(ii)] = False
-			#data['RVs'] = n_spec - 1
-
-		### To-do ###
-		### FIX THE LOOPING PROBLEM ###
-		### IF LS SCREWS UP THE ORDERING, e.g., Fit RV_4  ###
-
-		ls = str2bool(df_spec['Fit LS'][ii])
-		if ls: 
-			data['Fit LS_{}'.format(ii)] = ls
-			
-			sfile = df_spec['LS Filename'][ii]
-			if sfile.find('*.hdf5') != -1: sfile = glob.glob(sfile)
-			else: sfile = [sfile]
-			
-			if len(sfile):
-				with h5py.File(sfile[0],'r') as ff:
-					shadow_data = {}
-					times = []
-					# for key in ff.keys():
-					# 	try:
-					# 		times.append(float(key))
-					# 	except ValueError:
-					# 		shadow_data['oot'] = ff[key][:]
-					for key in ff.keys():
-						times.append(float(key))
-					times = np.asarray(times)
-					ss = np.argsort(times)
-					times = times[ss]					
-					for time in times:
-						arr = ff[str(time)][:]
-						raw_vel = arr[:,0]
-						shadow_data[time] = {
-							'vel' : raw_vel,
-							'ccf' : arr[:,1]
-							}
-
-				data['LS_{}'.format(ii)] = shadow_data
-
-				data['Resolution_{}'.format(ii)] = int(df_spec['Disk Resolution'][ii])
-				data['Thickness_{}'.format(ii)] = int(df_spec['Ring Thickness'][ii])
-				data['Only_OOT_{}'.format(ii)] = str2bool(df_spec['Only fit OOT'][ii])
-				data['OOT_{}'.format(ii)] = str2bool(df_spec['Fit OOT'][ii])
-				idxs = df_spec['OOT indices'][ii]
-				data['idxs_{}'.format(ii)] = [int(ii) for ii in idxs.split(',')]
-				data['Chi2 LS_{}'.format(ii)] = float(df_spec['LS chi2 scaling'][ii])
-				data['Chi2 OOT_{}'.format(ii)] = float(df_spec['OOT chi2 scaling'][ii])
-
-			n_ls += 1	
-
-		sl = str2bool(df_spec['Fit SL'][ii])
-		if sl: 
-			data['Fit SL_{}'.format(ii)] = sl
-			sfile = df_spec['LS Filename'][ii]
-			if sfile.find('*') != -1: sfile = glob.glob(sfile)
-			else: sfile = [sfile]
-			
-			if len(sfile):
-				with h5py.File(sfile[0],'r') as ff:
-					shadow_data = {}
-					times = []
-					for key in ff.keys():
-						try:
-							times.append(float(key))
-						except ValueError:
-							shadow_data['oot'] = ff[key][:]
-					times = np.asarray(times)
-					ss = np.argsort(times)
-					times = times[ss]					
-					for time in times:
-						arr = ff[str(time)][:]
-						raw_vel = arr[:,0]
-						shadow_data[time] = {
-							'vel' : raw_vel,
-							'ccf' : arr[:,1]
-							}
-
-				data['SL_{}'.format(ii)] = shadow_data
-				idxs = df_spec['OOT indices'][ii]
-				data['idxs_{}'.format(ii)] = [int(ii) for ii in idxs.split(',')]
-				data['Chi2 SL_{}'.format(ii)] = float(df_spec['SL chi2 scaling'][ii])
-
-			n_sl += 1	
-
-
-	data['LSs'] = n_ls
-	data['SLs'] = n_sl
-
-
-	return data
-
-
-
-def params_structure(filename,updated_pars=None,best_fit=True):
-	'''Structure the parameters for :strike:`tracit`.
-
-	Function that reads in the parameter .csv file, and structures the content in a dictionary.
-
-	:param filename: Path to the parameter file, e.g., `./par.csv`.
-	:type filename: str
-
-	:param updated_pars: Updated parameters. Default ``None``.
-	:type updated_pars: :py:class:`pandas.DataFrame`, optional
-
-	:param best_fit: Whether to use best-fit as opposed to median from MCMC. Default ``True``.
-	:type best_fit: bool, optional
-	
-	.. note::
-		Using global variable to prevent having to pickle and pass the data to the modules every time the code is called,
-		see `emcee <https://emcee.readthedocs.io/en/stable/tutorials/parallel/#pickling-data-transfer-arguments>`_'s documention.
-
-	'''
-	df = pd.read_csv(filename)
-	def new_df(df,start,end=None):
-		sub_df = df[start:end]
-		header = sub_df.iloc[1]
-		handles = [hh for hh in header if hh.isdigit() == False][1:]
-		ndf = sub_df[2:end]
-		ndf.columns = header
-		ndf = ndf.reset_index(drop=True)
-		return ndf, handles
-
-	abc = list(string.ascii_lowercase)
-
-
-	head = 'Planet parameters'
-	pls = [pl for pl in df.keys()[1:] if pl in abc]
-
-	splits = []
-	for pl in pls:
-		split = np.where(df[head].str.find('Planet {}'.format(pl)) == 0)[0][0]
-		splits.append(split)
-
-	split = np.where(df[head].str.find('System parameters') == 0)[0][0]
-	splits.append(split)
-	split = np.where(df[head].str.find('External constraints') == 0)[0][0]
-	splits.append(split)
-
-	global parameters
-	parameters = {}
-	fps = []
-	cons = [] # constraints, but not fitting parameter
-	for ii, pl in enumerate(pls): 
-		ndf, handles = new_df(df,splits[ii],splits[ii+1])
-		for handle in handles:
-			fix = ndf[handle][9]
-			if fix != 'none':
-				fit = False
-				if 'T0' in handle:
-					#fit = True
-					for transit in fix.split(','):
-						if ('Phot' in transit ) or ('Spec' in transit):
-							new_handle = transit + ':' + handle
-							fps.append(new_handle)
-							parameters[new_handle] = {
-								'Unit'         : ndf[handle][0],
-								'Label'        : ndf[handle][1][:-1] + ' ' + transit + '$',
-								'Value'        : float(ndf[handle][2]),
-								'Prior_vals'   : [float(ndf[handle][ii]) for ii in range(2,6)],
-								'Prior'        : 'uni',#ndf[handle][6],
-								'Distribution' : ndf[handle][7],
-								'Comment' : ndf[handle][9]
-							}						
-						elif 'T0' in transit: fit = True
-			else:
-				fit = str2bool(ndf[handle][8])
-				fix = False
-
-			parameters[handle] = {
-				'Unit'         : ndf[handle][0],
-				'Label'        : ndf[handle][1],
-				'Value'        : float(ndf[handle][2]),
-				'Prior_vals'   : [float(ndf[handle][ii]) for ii in range(2,6)],
-				'Prior'        : ndf[handle][6],
-				'Distribution' : ndf[handle][7],
-				'Comment' : ndf[handle][9]
-			}
-			if fit: fps.append(handle)
-		if ('ecosw_{}'.format(pl) in fps) and ('esinw_{}'.format(pl) in fps):
-			try:
-				fps.remove('e_{}'.format(pl))
-			except ValueError:
-				pass
-			try:
-				fps.remove('w_{}'.format(pl))
-			except ValueError:
-				pass
-		elif ('ecosw_{}'.format(pl) in fps):
-			fps.remove('ecosw_{}'.format(pl))
-		elif ('esinw_{}'.format(pl) in fps):
-			fps.remove('esinw_{}'.format(pl))
-		if ('cosi_{}'.format(pl) in fps):
-			try:
-				fps.remove('inc_{}'.format(pl))
-			except ValueError:
-				pass
-		if ('T41_{}'.format(pl) in fps):
-			fps.remove('T41_{}'.format(pl))
-			cons.append('T41_{}'.format(pl))
-		if ('T21_{}'.format(pl) in fps):
-			fps.remove('T21_{}'.format(pl))
-			cons.append('T21_{}'.format(pl))
-
-
-
-	ndf, handles = new_df(df,splits[ii+1],splits[ii+2])
-	LD_lincombs = []
-	for handle in handles:
-		fix = ndf[handle][9]
-		#if (fix != 'none') & (fix != 'scale'):
-		#if (fix != 'none'):
-		if fix == 'lincom':
-			fit = False
-			if '_q' in handle:
-				fix = False
-				LDhandle = handle[:-1]
-				if LDhandle not in LD_lincombs:
-					LD_lincombs.append(LDhandle)
-		elif fix != 'none':
-			fit = False
-		else:
-			fit = str2bool(ndf[handle][8])
-			fix = False
-  
-		parameters[handle] = {
-			'Unit'         : ndf[handle][0],
-			'Label'        : ndf[handle][1],
-			'Value'        : float(ndf[handle][2]),
-			'Prior_vals'   : [float(ndf[handle][ii]) for ii in range(2,6)],
-			'Prior'        : ndf[handle][6],
-			'Distribution' : ndf[handle][7],
-			'Fix' : fix,
-			'Comment' : ndf[handle][9]
-		}
-		if fit: fps.append(handle)
-
-	for LDhandle in LD_lincombs:
-		LDhandle1 = LDhandle + '1'
-		LDhandle2 = LDhandle + '2'
-		sumhandle = LDhandle + '_sum'
-		fps.append(sumhandle)
-		diffhandle = LDhandle + '_diff'
-		parameters[sumhandle] = {
-			'Unit'         : ndf[LDhandle1][0],
-			'Label'        : r'$q_1 + q_2: \rm {}$'.format(LDhandle1.split('_')[0]),
-			'Value'        : float(ndf[LDhandle1][2]) + float(ndf[LDhandle2][2]),
-			'Prior_vals'   : [float(ndf[LDhandle1][2]) + float(ndf[LDhandle2][2]),0.1,0.0,2.0],
-			'Prior'        : 'tgauss',
-			'Distribution' : 'tgauss',
-			'Fix' : False
-		}			
-		parameters[diffhandle] = {
-			'Unit'         : ndf[LDhandle1][0],
-			'Label'        : r'$q_1 - q_2: \rm {}$'.format(LDhandle1.split('_')[0]),
-			'Value'        : float(ndf[LDhandle1][2]) - float(ndf[LDhandle2][2]),
-			'Prior_vals'   : [float(ndf[LDhandle1][2]) - float(ndf[LDhandle2][2]),0.1,-1.0,1.0],
-			'Prior'        : 'gauss',
-			'Distribution' : ndf[handle][7],
-			'Fix' : False
-		}
-
-
-
-	ndf, handles = new_df(df,splits[ii+2])
-	for handle in handles:
-		con = str2bool(ndf[handle][8])
-		parameters[handle] = {
-			'Unit'         : ndf[handle][0],
-			'Label'        : ndf[handle][1],
-			'Value'        : float(ndf[handle][2]),
-			'Prior_vals'   : [float(ndf[handle][ii]) for ii in range(2,6)],
-			'Prior'        : ndf[handle][6],
-			'Distribution' : ndf[handle][7],
-    	}
-		if con: cons.append(handle)
-
-	## Parameters to fit
-	parameters['FPs'] = fps
-	## External constraints
-	parameters['ECs'] = cons
-	## Linear combinations for stepping in LD coeffs.
-	parameters['LinCombs'] = LD_lincombs
-	## Planets
-	parameters['Planets'] = pls
-
-	if updated_pars is not None:
-		pars = updated_pars.keys()[1:-2]
-		idx = 1
-		if (updated_pars.shape[0] > 3) & best_fit: idx = 4
-		for par in pars:
-			try:
-				parameters[par]['Value'] = float(updated_pars[par][idx])	
-			except KeyError:
-				pass
-
-	return parameters
-	#global parameters
 
 #def start_vals(parameters,nwalkers,ndim):
 def start_vals(nwalkers,ndim):
@@ -960,11 +247,16 @@ def rv_model(time,n_planet='b',n_rv=1,RM=False):
 # 	ring_grid, vel, mu_grid, mu_mean = grid_ring(rad_disk,thickness) 
 	
 # 	return start_grid, ring_grid, vel, mu, mu_grid, mu_mean
-
-
-def ls_model(time,
+def ls_model2(time,
 	start_grid,ring_grid,vel_grid,mu,mu_grid,mu_mean,rad_disk,
 	n_planet='b',n_rv=1,oot=False):
+	'''The line distortion model.
+
+
+	.. note::
+		The instrumental broadening, :math:`\sigma_\mathrm{PSF}`, is added to :math:`\\xi` in quadrature, i.e., :math:`\sqrt{\\xi^2 + \sigma_\mathrm{PSF}^2}`.	
+	'''
+
 	pllabel = '_{}'.format(n_planet)
 	
 	## Planet parameters
@@ -1029,7 +321,7 @@ def ls_model(time,
 
 	conv_par = np.sqrt(xi**2 + psf**2)#parameters['xi']['Value']
 
-
+	## If we are only fitting OOT CCFS
 	if oot:
 		vel_1d, line_conv, lum = absline_star(start_grid,vel_grid,ring_grid,
 			mu,mu_mean,
@@ -1053,8 +345,115 @@ def ls_model(time,
 	
 	line_oot = np.sum(line_conv,axis=0)
 	area = np.trapz(line_oot,vel_1d)
-	line_oot_norm = line_oot/area
 	## Normalize such that out-of-transit lines have heights of unity
+	line_oot_norm = line_oot/area
+	line_transit = line_transit/area#np.max(line_oot)
+	## Shadow
+	#shadow = line_oot_norm - line_transit
+	
+	#return vel_1d, shadow, line_oot_norm, planet_rings, lum, index_error
+	return vel_1d, line_transit, line_oot_norm, planet_rings, lum, index_error
+
+def ls_model(time,
+	start_grid,ring_grid,vel_grid,mu,mu_grid,mu_mean,rad_disk,
+	n_planet='b',n_rv=1,oot=False):
+	'''The line distortion model.
+
+
+	.. note::
+		The instrumental broadening, :math:`\sigma_\mathrm{PSF}`, is added to :math:`\\xi` in quadrature, i.e., :math:`\sqrt{\\xi^2 + \sigma_\mathrm{PSF}^2}`.	
+	'''
+
+	pllabel = '_{}'.format(n_planet)
+	
+	## Planet parameters
+	per = parameters['P'+pllabel]['Value']
+	T0 = parameters['T0'+pllabel]['Value']
+
+	inc = parameters['inc'+pllabel]['Value']*np.pi/180.
+	a_Rs = parameters['a_Rs'+pllabel]['Value']
+	b = a_Rs*np.cos(inc)
+	rp = parameters['Rp_Rs'+pllabel]['Value']
+	ecc = parameters['e'+pllabel]['Value']
+	omega = parameters['w'+pllabel]['Value']
+
+    ## With this you supply the mid-transit time 
+    ## and then the time of periastron is calculated
+    ## from S. R. Kane et al. (2009), PASP, 121, 886. DOI: 10.1086/648564
+	if (ecc > 1e-5) & (omega != 90.):
+		f = np.pi/2 - omega*np.pi/180.
+		ew = 2*np.arctan(np.tan(f/2)*np.sqrt((1 - ecc)/(1 + ecc)))
+		Tw = T0 - per/(2*np.pi)*(ew - ecc*np.sin(ew))
+	else:
+		Tw = T0
+
+	T0 = Tw
+	
+	lam = parameters['lam'+pllabel]['Value']
+
+	omega = omega%360
+	omega *= np.pi/180.
+	retrograde = False
+	if retrograde:
+		lam = lam%360
+	lam *= np.pi/180.
+
+	## Stellar parameters
+	label = 'RV{}'.format(n_rv)	
+	
+	LD_law =  parameters[label+'_q1']['Unit']
+	# fix = parameters[label+'_q1']['Fix']
+	# if fix != False:
+	# 	LDlabel = fix.split('_')[0]
+	# else:
+	# 	LDlabel = label
+	LDlabel = label
+
+
+	if LD_law == 'quadratic':
+		q1, q2 = parameters[LDlabel+'_q1']['Value'], parameters[LDlabel+'_q2']['Value']
+		qs = [q1,q2]
+	elif LD_law == 'nonlinear':
+		q1, q2  = parameters[LDlabel+'_q1']['Value'], parameters[LDlabel+'_q2']['Value']
+		q3, q4  = parameters[LDlabel+'_q3']['Value'], parameters[LDlabel+'_q4']['Value']
+		qs = [q1,q2,q3,q4]
+	elif LD_law == 'uniform':
+		qs = []
+
+
+	vsini = parameters['vsini']['Value']
+	zeta = parameters['zeta']['Value']
+	xi = parameters['xi']['Value']
+	psf = data['PSF_{}'.format(n_rv)]
+
+	conv_par = np.sqrt(xi**2 + psf**2)#parameters['xi']['Value']
+
+	## If we are only fitting OOT CCFS
+	if oot:
+		vel_1d, line_conv, lum = absline_star(start_grid,vel_grid,ring_grid,
+			mu,mu_mean,
+			vsini,conv_par,zeta,cs=qs
+			)
+		line_oot = np.sum(line_conv,axis=0)
+		area = np.trapz(line_oot,vel_1d)
+		line_oot_norm = line_oot/area
+		return vel_1d, line_oot_norm, lum
+
+	## Make shadow                   
+	vel_1d, line_conv, line_transit, planet_rings, lum, index_error = absline(
+																	start_grid,vel_grid,ring_grid,
+																	mu,mu_mean,mu_grid,
+																	vsini,conv_par,zeta,
+																	cs=qs,radius=rad_disk,
+																	times=time,
+																	Tw=T0,per=per,
+																	Rp_Rs=rp,a_Rs=a_Rs,inc=inc,
+																	ecc=ecc,w=omega,lam=lam)
+	
+	line_oot = np.sum(line_conv,axis=0)
+	area = np.trapz(line_oot,vel_1d)
+	## Normalize such that out-of-transit lines have heights of unity
+	line_oot_norm = line_oot/area
 	line_transit = line_transit/area#np.max(line_oot)
 	## Shadow
 	shadow = line_oot_norm - line_transit
@@ -1112,7 +511,7 @@ def lnlike(ycal,yobs,sigy):
 	
 	.. math:: \log \mathcal{L} = - \chi^2/2 + \log 2 \pi \sigma_i^2 
 
-	where :math:`\chi^2` is from ``chi2``, and :math:`\sigma_i` represents the uncertainty for the math:`i` th data point. 
+	where :math:`\chi^2` is from :py:func:`chi2`, and :math:`\sigma_i` represents the uncertainty for the math:`i` th data point. 
 	'''
 	nom = chi2(ycal,yobs,sigy)
 	den = np.sum(np.log(2*np.pi*sigy**2))
@@ -1125,7 +524,7 @@ def lnprob(positions):
 
 	.. math:: \log \mathcal{L} + \sum_{j} \log \mathcal{P}_{j}\, ,
 
-	where :math:`\log \mathcal{L}` is the likelihood from ``lnlike``, and :math:`\mathcal{P}_j` is the prior on the :math:`j` th parameter.	
+	where :math:`\log \mathcal{L}` is the likelihood from :py:func:`lnlike`, and :math:`\mathcal{P}_j` is the prior on the :math:`j` th parameter.	
 	
 	'''
 	log_prob = 0.0
@@ -1362,8 +761,19 @@ def lnprob(positions):
 				gp = data['LC_{} GP'.format(nn)]
 				res_flux = flux - flux_m
 
+				gp_type = data['GP type LC_{}'.format(nn)]
+				if gp_type == 'SHO':
+					log_S0 = parameters['LC_{}_log_S0'.format(nn)]['Value']
+					log_Q = parameters['LC_{}_log_Q'.format(nn)]['Value']
+					log_w0 = parameters['LC_{}_log_w0'.format(nn)]['Value']
+				
+					gp_list = [log_S0,log_Q,log_w0]
+				else:
+					loga = parameters['LC_{}_GP_log_a'.format(nn)]['Value']
+					logc = parameters['LC_{}_GP_log_c'.format(nn)]['Value']
+					gp_list = [loga,logc]
 
-				gp.set_parameter_vector(np.array([loga,logc]))
+				gp.set_parameter_vector(np.array(gp_list))
 				gp.compute(time,sigma)
 				lprob = gp.log_likelihood(res_flux)
 				log_prob += lprob#lnlike(flux_m,flux,sigma)
@@ -1470,7 +880,7 @@ def lnprob(positions):
 			except KeyError:
 				pass
 
-			P, T0 = parameters['P_{}'.format(pl)]['Value'], parameters['T0_{}'.format(pl)]['Value'] 
+			#P, T0 = parameters['P_{}'.format(pl)]['Value'], parameters['T0_{}'.format(pl)]['Value'] 
 
 			resol = data['Resolution_{}'.format(nn)]
 			start_grid = data['Start_grid_{}'.format(nn)]
@@ -1482,15 +892,13 @@ def lnprob(positions):
 			only_oot = data['Only_OOT_{}'.format(nn)]			
 			fit_oot = data['OOT_{}'.format(nn)]			
 			if only_oot:
-				vel_model, model_ccf, _ = ls_model(
-					#parameters,time,start_grid,ring_grid,
+				vel_model, model_ccf, _ = ls_model2(
 					times[oots],start_grid,ring_grid,
 					vel_grid,mu,mu_grid,mu_mean,resol,
 					oot=only_oot,n_rv=nn
 					)
 			else:
-				vel_model, shadow_model, model_ccf, darks, oot_lum, index_error = ls_model(
-					#parameters,time,start_grid,ring_grid,
+				vel_model, model_ccf_transit, model_ccf, darks, oot_lum, index_error = ls_model2(
 					times,start_grid,ring_grid,
 					vel_grid,mu,mu_grid,mu_mean,resol,
 					n_rv=nn,
@@ -1500,101 +908,150 @@ def lnprob(positions):
 				bright = np.sum(oot_lum)
 
 			
-			nvel = len(shadow_data[times[0]]['vel'])
-			vels = np.zeros(shape=(nvel,len(times)))
-			oot_ccfs = np.zeros(shape=(nvel,len(oots)))
-			#avg_ccf = np.zeros(nvel)
-			#avg_vel = np.zeros(nvel)
-
-			## Create average out-of-transit CCF
-			## Used to create shadow for in-transit CCFs
-			## Shift CCFs to star rest frame
-			## and detrend CCFs
-
+			## Resolution of velocity grid
 			vel_res = data['Velocity_resolution_{}'.format(nn)]
-			vels = np.array([])
-			
+			vels = np.array([])			
+			## Range without a bump in the CCFs
 			no_bump = data['No_bump_{}'.format(nn)]
+			span = data['Velocity_range_{}'.format(nn)]
+			assert span > no_bump, print('\n ### \n The range of the velocity grid must be larger than the specified range with no bump in the CCF.\n Range of velocity grid is from +/-{} km/s, and the no bump region isin the interval m +/-{} km/s \n ### \n '.format(span,no_bump))
+			vels = np.arange(-span,span,vel_res)
+			avg_ccf = np.zeros(len(vels))
+			oot_ccfs = np.zeros(shape=(len(vels),len(oots)))
+			## GP or not?
+			use_gp = data['GP LS_{}'.format(nn)]
+			if use_gp:
+				loga = parameters['LS_{}_GP_log_a'.format(nn)]['Value']
+				logc = parameters['LS_{}_GP_log_c'.format(nn)]['Value']
+				gp = data['LS_{} GP'.format(nn)]
+				gp.set_parameter_vector(np.array([loga,logc]))
 
-			oot_sd = []
-			# oot_sd_b = []
-			for ii, idx in enumerate(oots):
-				time = times[idx]
-				vel = shadow_data[time]['vel'] - rv_m[idx]*1e-3
-				if not ii:
-					## Interpolate to grid in stellar restframe
-					vel_min, vel_max = min(vel), max(vel)
-					span  = (vel_max - vel_min)
-					vels = np.arange(vel_min+span/10,vel_max-span/10,vel_res)
-					avg_ccf = np.zeros(len(vels))
-					oot_ccfs = np.zeros(shape=(len(vels),len(oots)))
 
-				#vels[:,idx] = vel
-				no_peak = (vel > no_bump) | (vel < -no_bump)
-				
+				## Create average out-of-transit CCF
+				## Used to create shadow for in-transit CCFs
+				## Shift CCFs to star rest frame
+				## and detrend CCFs
+				oot_sd = []
+				for ii, idx in enumerate(oots):
+					time = times[idx]
+					vel = shadow_data[time]['vel'].copy() - rv_m[idx]*1e-3
+					# if not ii:
+					# 	## Interpolate to grid in stellar restframe
+					# 	# vel_min, vel_max = min(vel), max(vel)
+					# 	# span  = (vel_max - vel_min)
+					# 	# vels = np.arange(vel_min+span/10,vel_max-span/10,vel_res)
+					# 	vels = np.arange(-span,span,vel_res)
+					# 	avg_ccf = np.zeros(len(vels))
+					# 	oot_ccfs = np.zeros(shape=(len(vels),len(oots)))
 
-				ccf = shadow_data[time]['ccf']
-				poly_pars = np.polyfit(vel[no_peak],ccf[no_peak],1)
-				ccf -= vel*poly_pars[0] + poly_pars[1]
+					no_peak = (vel > no_bump) | (vel < -no_bump)
 
-				area = np.trapz(ccf,vel)
+					ccf = shadow_data[time]['ccf'].copy()
+					
+					ccf -= np.median(ccf[no_peak])
 
-				ccf /= abs(area)
-				oot_sd.append(np.std(ccf[no_peak]))
 
-				ccf_int = interpolate.interp1d(vel,ccf,kind='cubic',fill_value='extrapolate')
-				nccf = ccf_int(vels)
+					area = np.trapz(ccf,vel)
+					ccf /= abs(area)
 
-				oot_ccfs[:,ii] = nccf
-				avg_ccf += nccf
+					ccf_int = interpolate.interp1d(vel,ccf,kind='cubic',fill_value='extrapolate')
+					nccf = ccf_int(vels)
+					
+					no_peak = (vels > no_bump) | (vels < -no_bump)
+					oot_sd.append(np.std(nccf[no_peak]))
+						
 
-			avg_ccf /= len(oots)
-			#avg_vel /= len(oots)
+					oot_ccfs[:,ii] = nccf
+					avg_ccf += nccf
 
-			model_int = interpolate.interp1d(vel_model,model_ccf,kind='cubic',fill_value='extrapolate')
-			newline = model_int(vels)
-			sd = np.mean(oot_sd)
-			unc = np.ones(len(vels))*sd
-			chi2scale_oot = data['Chi2 OOT_{}'.format(nn)]
-			unc *= chi2scale_oot
+				avg_ccf /= len(oots)
+				jitter = parameters['LSsigma_{}'.format(nn)]['Value']
+				jitter = np.exp(jitter)
+
+				unc = np.ones(len(vels))*np.sqrt((np.mean(oot_sd)**2 + jitter**2))
+				gp.compute(vels,unc)
+				model_int = interpolate.interp1d(vel_model,model_ccf,kind='cubic',fill_value='extrapolate')
+				newline = model_int(vels)		
+				mean, var = gp.predict(avg_ccf  - newline, vels, return_var=True)
+				avg_ccf -= mean
+
+				if fit_oot:
+						## Here we simply fit our average out-of-transit CCF
+						## to an out-of-transit model CCF
+						## IF we opted to do so
+						res_cff = avg_ccf - newline
+
+						lprob = gp.log_likelihood(res_cff)
+						log_prob += lprob#lnlike(flux_m,flux,sigma)
+
+						chisq += -2*lprob - np.sum(np.log(2*np.pi*unc**2))#chi2(flux_m,flux,sigma)
+
+						#chisq += chi2(newline,avg_ccf,unc)
+						#log_prob += lnlike(newline,avg_ccf,unc)
+
+						n_dps += len(vel)
+
+
+			else:
+				## Create average out-of-transit CCF
+				## Used to create shadow for in-transit CCFs
+				## Shift CCFs to star rest frame
+				## and detrend CCFs
+				oot_sd = []
+				for ii, idx in enumerate(oots):
+					time = times[idx]
+					vel = shadow_data[time]['vel'].copy() - rv_m[idx]*1e-3
+					# if not ii:
+					# 	## Interpolate to grid in stellar restframe
+					# 	# vel_min, vel_max = min(vel), max(vel)
+					# 	# span  = (vel_max - vel_min)
+					# 	# vels = np.arange(vel_min+span/10,vel_max-span/10,vel_res)
+					# 	vels = np.arange(-span,span,vel_res)
+					# 	avg_ccf = np.zeros(len(vels))
+					# 	oot_ccfs = np.zeros(shape=(len(vels),len(oots)))
+
+					#vels[:,idx] = vel
+					no_peak = (vel > no_bump) | (vel < -no_bump)
+					
+
+					ccf = shadow_data[time]['ccf'].copy()
+					poly_pars = np.polyfit(vel[no_peak],ccf[no_peak],1)
+					ccf -= vel*poly_pars[0] + poly_pars[1]
+
+					area = np.trapz(ccf,vel)
+
+					ccf /= abs(area)
+					oot_sd.append(np.std(ccf[no_peak]))
+
+					ccf_int = interpolate.interp1d(vel,ccf,kind='cubic',fill_value='extrapolate')
+					nccf = ccf_int(vels)
+
+					oot_ccfs[:,ii] = nccf
+					avg_ccf += nccf
+
+				avg_ccf /= len(oots)
+				#avg_vel /= len(oots)
+
+				model_int = interpolate.interp1d(vel_model,model_ccf,kind='cubic',fill_value='extrapolate')
+				newline = model_int(vels)
+				sd = np.mean(oot_sd)
+				unc = np.ones(len(vels))*sd
+				chi2scale_shadow = data['Chi2 LS_{}'.format(nn)]
+				#chi2scale_oot = data['Chi2 OOT_{}'.format(nn)]
+				unc *= chi2scale_shadow
 			
-			if fit_oot:
-				# log_jitter = parameters['RVsigma_{}'.format(nn)]['Value']
-				# jitter = np.exp(log_jitter)
-				
-				# model_int = interpolate.interp1d(vel_model,model_ccf,kind='cubic',fill_value='extrapolate')
-				# newline = model_int(avg_vel)
-				
-				# sd = np.mean(oot_sd)
-				
-				# unc = np.ones(len(vel))*np.sqrt((np.mean(oot_sd)**2 + jitter**2))
+				if fit_oot:
+					## Here we simply fit our average out-of-transit CCF
+					## to an out-of-transit model CCF
+					## IF we opted to do so
 
-				# loga = parameters['RV_{}_GP_log_a'.format(nn)]['Value']
-				# logc = parameters['RV_{}_GP_log_c'.format(nn)]['Value']
-				# gp = data['LC_{} GP'.format(nn)]
+					chisq += chi2(newline,avg_ccf,unc)
+					log_prob += lnlike(newline,avg_ccf,unc)
 
-				# residuals = newline
+					n_dps += len(vel)
 
-				# gp.set_parameter_vector(np.array([loga,logc]))
-				# gp.compute(time,sigma)
-				# lprob = gp.log_likelihood(res_flux)
-
-				# log_prob += lprob#lnlike(flux_m,flux,sigma)
-				# chisq += -2*lprob - np.sum(np.log(2*np.pi*unc**2))#chi2(flux_m,flux,sigma)
-				#print(len(vel),len(avg_ccf),len(model_ccf))
-				chisq += chi2(newline,avg_ccf,unc)
-				log_prob += lnlike(newline,avg_ccf,unc)
-
-				n_dps += len(vel)
-
-			# if fit_oot:
-			# 	chisq += chi2(ncc,cc,unc)
-			# 	log_prob += lnlike(ncc,cc,unc)
-
-			# 	n_dps += len(cc)
 		
 			if not only_oot:
-				chi2scale_shadow = data['Chi2 LS_{}'.format(nn)]
 				#chi2scale_shadow = 5.0
 
 				## Again shift CCFs to star rest frame
@@ -1604,13 +1061,16 @@ def lnprob(positions):
 				for ii, idx in enumerate(its):
 					#arr = data[time]
 					time = times[idx]
-					vel = shadow_data[time]['vel'] - rv_m[idx]*1e-3
+					vel = shadow_data[time]['vel'].copy() - rv_m[idx]*1e-3
 					#vels[:,idx] = vel
 					no_peak = (vel > no_bump) | (vel < -no_bump)
 						
-					ccf = shadow_data[time]['ccf']
-					poly_pars = np.polyfit(vel[no_peak],ccf[no_peak],1)
-					ccf -= vel*poly_pars[0] + poly_pars[1]
+					ccf = shadow_data[time]['ccf'].copy()
+					if use_gp:
+						ccf -= np.median(ccf[no_peak])
+					else:
+						poly_pars = np.polyfit(vel[no_peak],ccf[no_peak],1)
+						ccf -= vel*poly_pars[0] + poly_pars[1]
 					
 					area = np.trapz(ccf,vel)
 					ccf /= area
@@ -1622,11 +1082,25 @@ def lnprob(positions):
 					ccf_int = interpolate.interp1d(vel,ccf,kind='cubic',fill_value='extrapolate')
 					nccf = ccf_int(vels)
 					
-					shadow = avg_ccf - nccf
-					
 
-					ff = interpolate.interp1d(vel_model,shadow_model[idx],kind='cubic',fill_value='extrapolate')
-					ishadow = ff(vels)
+					no_peak = (vels > no_bump) | (vels < -no_bump)
+					sd = np.std(nccf[no_peak])
+					if use_gp:			
+						unc = np.ones(len(vels))*np.sqrt(sd**2 + jitter**2)
+						nccf -= mean
+					else:
+						unc = np.ones(len(vels))*sd
+						unc *= chi2scale_shadow
+
+					
+					#shadow = nccf
+					shadow = avg_ccf - nccf
+
+					#ff = interpolate.interp1d(vel_model,shadow_model[idx],kind='cubic',fill_value='extrapolate')
+					#ishadow = ff(vels)
+
+					model_to_obs = interpolate.interp1d(vel_model,model_ccf_transit[idx],kind='cubic',fill_value='extrapolate')
+					ishadow = newline - model_to_obs(vels)
 
 
 					# vv,ss = get_binned(vel,shadow)
@@ -1637,10 +1111,6 @@ def lnprob(positions):
 					# nvv,nss = get_binned(vel,ishadow)
 
 					# unc = np.ones(len(vv))*np.sqrt(sd**2 + jitter**2)
-					
-					
-					unc = np.ones(len(vels))*np.sqrt(sd**2 + jitter**2)
-					unc *= chi2scale_shadow
 
 					chisq += chi2(shadow,ishadow,unc)
 					log_prob += lnlike(shadow,ishadow,unc)
@@ -1875,40 +1345,19 @@ def mcmc(par,dat,maxdraws,nwalkers,
 		save_results = True, results_filename='results.csv',
 		sample_filename='samples.h5',reset=True,burn=0.5,
 		plot_convergence=True,save_samples=True,
-		corner=True,chains=False,nproc=1,path_to_tracit='./',
+		corner=True,chains=False,nproc=1,path_to_tracit='.',
 		stop_converged=True,post_name='posteriors.npy'):
 	'''Markov Chain Monte Carlo.
 
-	Wrapper for `emcee <https://github.com/dfm/emcee>`_.
+	Wrapper for `emcee <https://github.com/dfm/emcee>`_ :cite:p:`emcee`.
 
-    .. note::
-        A very poor fit might result in ``ValueError``: math domain error from ``stat_tools``. In that case check the boundaries of the priors.
+	.. note::
+		A very poor fit might result in ``ValueError``: math domain error from :py:func:`support`. In that case check the boundaries of the priors.
 
 	'''
 
-	run_bus(par,dat,path=path_to_tracit+'/tracit/')
+	run_bus(par,dat)
 
-	#run_bus(par,dat,path=nproc)
-	#data = data_structure(data_fname)
-	#parameters = params_structure(param_fname)
-	#params_structure(param_fname)
-	#data_structure(data_fname)
-
-	# n_phot = data['LCs']
-	# n_ls = data['LSs']
-	# n_sl = data['SLs']
-	# for nn in range(1,n_ls+1):
-	# 	if data['Fit LS_{}'.format(nn)]:
-	# 		resol = data['Resolution_{}'.format(nn)]
-	# 		thick = data['Thickness_{}'.format(nn)]
-	# 		start_grid, ring_grid, vel_grid, mu, mu_grid, mu_mean = ini_grid(resol,thick)
-
-	# 		data['Start_grid_{}'.format(nn)] = start_grid
-	# 		data['Ring_grid_{}'.format(nn)] = ring_grid
-	# 		data['Velocity_{}'.format(nn)] = vel_grid
-	# 		data['mu_{}'.format(nn)] = mu
-	# 		data['mu_grid_{}'.format(nn)] = mu_grid
-	# 		data['mu_mean_{}'.format(nn)] = mu_mean
 
 	fit_params = parameters['FPs']
 	ndim = len(fit_params)
@@ -2458,16 +1907,18 @@ def residuals(params,parameters,data):
 	return res
 
 
-def lmfitter(param_fname,data_fname,method='leastsq',eps=0.01,
-		print_fit=True):
+#def lmfitter(param_fname,data_fname,method='leastsq',eps=0.01,
+def lmfitter(parameters,data,method='leastsq',eps=0.01,
+		print_fit=True):#,path_to_tracit='./'):
 	'''Fit data using lmfit
 
 	'''
 	#data = data_structure(data_fname)
 	#parameters = params_structure(param_fname)
 
-	data_structure(data_fname)
-	params_structure(param_fname)
+	#data_structure(data_fname)
+	#params_structure(param_fname)
+	#run_bus(par,dat,path=path_to_tracit+'/tracit/')
 
 	fit_pars = parameters['FPs']
 	pars = list(parameters.keys())
@@ -2478,15 +1929,18 @@ def lmfitter(param_fname,data_fname,method='leastsq',eps=0.01,
 	pars.remove('LinCombs')
 	params = lmfit.Parameters()
 	for par in pars:
+		val = parameters[par]['Value']
 		pri = parameters[par]['Prior_vals']
+		#print(pri[0])
 		if par in fit_pars:
 			lower, upper = pri[2],pri[3]
 			if np.isnan(lower): lower = -np.inf
 			if np.isnan(upper): upper = np.inf
 			params.add(par,value=pri[0],vary=True,min=lower,max=upper)
 		else:
-			params.add(par,value=pri[0],vary=False)
-
+			params.add(par,value=val,vary=False)
+	#return params
+	#print(params)
 	n_ls = data['LSs']
 	fit_line = False
 	for nn in range(1,n_ls+1):
@@ -2530,3 +1984,4 @@ def fit_to_df(fit):
 
 	df = pd.DataFrame(updated_pars)
 	return df
+

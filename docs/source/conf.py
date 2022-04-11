@@ -26,7 +26,7 @@ copyright = '2022, Emil Knudstrup'
 author = 'Emil Knudstrup'
 
 # The full version, including alpha/beta/rc tags
-release = '0.9.0'
+release = '0.1.0'
 
 
 # -- General configuration ---------------------------------------------------
@@ -39,7 +39,8 @@ extensions = [
 'sphinx.ext.coverage', 
 'sphinx.ext.todo', 
 'sphinx.ext.napoleon',
-'nbsphinx'
+'nbsphinx',
+'sphinxcontrib.bibtex'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -76,8 +77,40 @@ rst_prolog = '''
 '''
 
 # Logo
-html_logo = "rot_star_logo.png"
+html_logo = "figures/rot_star_logo.png"
 html_theme_options = {
     "logo_only": True,
 }
+# Reference figure
+numfig = True
+# Bibliography
+bibtex_bibfiles = ['refs.bib']
+from dataclasses import dataclass, field
+import sphinxcontrib.bibtex.plugin
 
+from sphinxcontrib.bibtex.style.referencing import BracketStyle
+from sphinxcontrib.bibtex.style.referencing.author_year \
+    import AuthorYearReferenceStyle
+
+
+def bracket_style() -> BracketStyle:
+    return BracketStyle(
+        left='(',
+        right=')',
+    )
+
+
+@dataclass
+class MyReferenceStyle(AuthorYearReferenceStyle):
+    bracket_parenthetical: BracketStyle = field(default_factory=bracket_style)
+    bracket_textual: BracketStyle = field(default_factory=bracket_style)
+    bracket_author: BracketStyle = field(default_factory=bracket_style)
+    bracket_label: BracketStyle = field(default_factory=bracket_style)
+    bracket_year: BracketStyle = field(default_factory=bracket_style)
+
+
+sphinxcontrib.bibtex.plugin.register_plugin(
+    'sphinxcontrib.bibtex.style.referencing',
+    'author_year_round', MyReferenceStyle)
+
+bibtex_reference_style = 'author_year_round'

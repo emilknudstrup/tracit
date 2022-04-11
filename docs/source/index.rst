@@ -17,18 +17,18 @@ References and acknowledgements
 -------------------------------
 
 The planetary shadow is modelled following the approaches in:
-   * `Albrecht et al. (2007) <https://ui.adsabs.harvard.edu/abs/2007A%26A...474..565A/abstract>`_
-   * `Albrecht et al. (2013) <https://ui.adsabs.harvard.edu/abs/2013ApJ...771...11A/abstract>`_
+   * :cite:t:`Albrecht2007`
+   * :cite:t:`Albrecht2013`
 
 The subplanetary velocities are modelled following the approach in:
-   * `Albrecht et al. (2011) <https://ui.adsabs.harvard.edu/abs/2011ApJ...738...50A/abstract>`_
+   * :cite:t:`Albrecht2011`
 
 The RM effect as seen in the RVs is modelled using the software presented in:
-   * `Hirano et al. (2011) <https://ui.adsabs.harvard.edu/abs/2011ApJ...742...69H/abstract>`_
+   * :cite:t:`Hirano2011`
 
 :strike:`tracit` has been used in:
-   * `Hjorth et al. (2021) <https://ui.adsabs.harvard.edu/abs/2021PNAS..11820174H/abstract>`_
-   * `Knudstrup & Albrecht (2021) <https://ui.adsabs.harvard.edu/abs/2021arXiv211114968K/abstract>`_
+   * :cite:t:`Hjorth2021`
+   * :cite:t:`Knudstrup2021`
 
 .. toctree::
    :maxdepth: 1
@@ -52,13 +52,21 @@ The RM effect as seen in the RVs is modelled using the software presented in:
    API/shady
    API/business
    API/structure
+   API/support
    API/dynamics
 
 .. toctree::
    :maxdepth: 2
-   :caption: CCF
+   :caption: Data preparation
 
+   data
    CCF/shazam
+
+.. toctree::
+   :maxdepth: 1
+   :caption: References
+
+   references
 
 Indices and tables
 ==================
