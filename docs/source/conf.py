@@ -44,7 +44,7 @@ extensions = [
 autodoc_mock_imports = ['matplotlib','scipy',
                         'emcee','batman','lmfit',
                         'pandas','h5py','arviz',
-                        'statsmodels']
+                        'statsmodels','celerite']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
