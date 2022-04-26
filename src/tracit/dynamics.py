@@ -585,7 +585,7 @@ def get_RV(time, orbpars, RM=False, stelpars=None,mpath='./'):
     :param stelpars: Stellar parameters from :py:class:`StellarParams`. Defaults to ``None``.
     :type stelpars: object, optional
 
-    :param mpath: Path to the code by :cite:t:`Hirano2010`. Defaults to './'.
+    :param mpath: Path to the code by :cite:t:`Hirano2011`. Defaults to './'.
     :type mpath: str, optional
     
     :return: Radial velocity curve.
