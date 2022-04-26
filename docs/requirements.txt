@@ -1,13 +1,4 @@
 numpy
-batman
-celerite
-emcee
-pandas
-h5py
-scipy
-matplotlib
-lmfit
-arviz
-statsmodels
-astropy
+sphinx-rtd-theme
 nbsphinx
+sphinxcontrib-bibtex
