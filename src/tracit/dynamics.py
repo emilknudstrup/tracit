@@ -17,6 +17,7 @@ import itertools
 ## path to this script
 import os
 
+
 def time2phase(time,per,T0):
     '''Convert time to phase.
 
@@ -547,14 +548,15 @@ def get_RM(cos_f,sin_f,ww,ecc,ar,inc,rp,c1,c2,lam,vsini,
         xy = [str(x),str(y)]   
 
     ## Create list of input to subprocess
-    wd = os.getcwd()
-    os.chdir(mpath)
-    run_input = ['./new_analytic7.exe']
+    #wd = os.getcwd()
+    #os.chdir(mpath)
+    #run_input = ['./new_analytic7.exe']
+    run_input = [mpath+'/new_analytic7.exe']
     pars = [c1,c2,vsini,rp,xi,gamma,zeta,alpha,cos_is,nn]
     for par in pars: run_input.append(str(par))    
     
     RM = subprocess.check_output(run_input + xy)
-    os.chdir(wd)
+    #os.chdir(wd)
     
     RM = [float(k)*1000 for k in RM.split()]
     
@@ -583,7 +585,7 @@ def get_RV(time, orbpars, RM=False, stelpars=None,mpath='./'):
     :param stelpars: Stellar parameters from :py:class:`StellarParams`. Defaults to ``None``.
     :type stelpars: object, optional
 
-    :param mpath: Path to the code by :cite:t:`Murray2010`. Defaults to './'.
+    :param mpath: Path to the code by :cite:t:`Hirano2010`. Defaults to './'.
     :type mpath: str, optional
     
     :return: Radial velocity curve.

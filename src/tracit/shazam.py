@@ -149,8 +149,7 @@ def FIES_caliber(filename,return_hdr=False,check_ThAr=True):
 
     date = hdr['DATE-OBS']
     date_mid = hdr['DATE-AVG']
-    #bjd = Time(date_mid, format='isot', scale='utc').jd
-    bjd = Time(date, format='isot', scale='utc').jd
+    bjd = Time(date_mid, format='isot', scale='utc').jd
     exp = hdr['EXPTIME']
     vhelio = hdr['VHELIO']
   except Exception as e:
@@ -214,8 +213,7 @@ def FIES_gandolfi(filename,return_hdr=False,check_ThAr=True):
 
     date = hdr['DATE-OBS']
     date_mid = hdr['DATE-AVG']
-    #bjd = Time(date_mid, format='isot', scale='utc').jd
-    bjd = Time(date, format='isot', scale='utc').jd
+    bjd = Time(date_mid, format='isot', scale='utc').jd
     exp = hdr['EXPTIME']
     #vhelio = hdr['VHELIO']
 

@@ -8,7 +8,7 @@ Here we will be looking at a system with 2 planets with measurements from 2 phot
 
 Creating input structures
 ---------------------------
-First we want to create two structures: one for the parameters and one for the data. We do this using the functions :py:func:`tracit.par_struct` and :py:func:`tracit.dat_struct`.
+First we want to create two structures: one for the parameters and one for the data. We do this using the functions :py:func:`tracit.structure.par_struct` and :py:func:`tracit.structure.dat_struct`.
 
 This would be done as in the example below. Here we have a 2-planet system with RVs from 2 different spectrographs, and light curves from 2 different photometers.
 
@@ -21,24 +21,28 @@ This would be done as in the example below. Here we have a 2-planet system with 
 	n_spec = 2 #number of spectroscopic time series
 	
 	par = tracit.par_struct(n_planets=n_planets,n_phot=n_phot,n_spec=n_spec)
-	dat = tracit.dat_struct(n_phot=0,n_rvs=n_spec)
+	dat = tracit.dat_struct(n_phot=n_phot,n_rvs=n_spec)
 
 Setting the input
 ---------------------------
 ::
 
-	dat['RV filename_1'] = 'rv.txt'
-	dat['LC filename_1'] = 'lc.txt'
+	dat['RV filename_1'] = 'rv1.txt'
+	dat['LC filename_1'] = 'lc1.txt'
 	dat['Fit RV_1'] = 1
 	dat['Fit LC_1'] = 1
+	dat['RV filename_2'] = 'rv2.txt'
+	dat['LC filename_2'] = 'lc2.txt'
+	dat['Fit RV_2'] = 1
+	dat['Fit LC_2'] = 1
 
 	saved_results = 1 #If you have saved results from a previous run you can set them like this
 	if saved_resutls:
-	    import pandas as pd
-    	rdf = pd.read_csv('results_from_old_fit.csv')
-    	tracit.update_pars(rdf,par,best_fit=False)  
-   	else: #You will have to set all the values individually
-   		par['P_b']['Value'] = 3 #days
+		import pandas as pd
+		rdf = pd.read_csv('results_from_old_fit.csv')
+		tracit.update_pars(rdf,par,best_fit=False)  
+	else: #You will have to set all the values individually
+		par['P_b']['Value'] = 3 #days
 
 	tracit.ini_data(dat)
 	tracit.run_bus(par,dat) #Make parameters and data global dicts
@@ -59,7 +63,7 @@ Assuming you have set the relevant parameters and included the data files correc
 
 Fitting the data
 ---------------------------
-We can find some good starting values for our parameters before we start doing an MCMC. This is done using `lmfit <https://lmfit.github.io/lmfit-py/>`_. In :strike:`tracit` this is done calling :py:func:`tracit.lmfitter`, which will return a `fit object`. We will turn into a `pandas.DataFrame <https://pandas.pydata.org/>`_ .
+We can find some good starting values for our parameters before we start doing an MCMC. This is done using `lmfit <https://lmfit.github.io/lmfit-py/>`_. In :strike:`tracit` this is done calling :py:func:`tracit.business.lmfitter`, which will return a `fit object`. We will turn into a `pandas.DataFrame <https://pandas.pydata.org/>`_ .
 
 ::
 
@@ -73,8 +77,7 @@ After that we probably want to verify that our fit has improved things. Therefor
 
 ::
 
-	par['lam_b']['Prior'] = 'uni'
-	par['lam_b']['Prior_vals'] = [0,2,-180,180]
+
 	post_inspection = 1
 	if post_inspection:
 		tracit.update_pars(rdf,par,best_fit=False)
@@ -90,6 +93,10 @@ Finally, we can sample the posterior using `emcee <https://github.com/dfm/emcee>
 
 	mc = 1
 	if mc:
+		## Set priors and prior types
+		par['lam_b']['Prior'] = 'uni'
+		par['lam_b']['Prior_vals'] = [0,2,-180,180]
+		
 		ndraws = 10000
 		nwalkers = 50
 

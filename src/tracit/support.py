@@ -144,7 +144,7 @@ def create_chains(samples,labels=None,savefig=False,fname='chains',ival=5):
     :type labels: list, optional
 
     '''
-    plt.rc('text',usetex=True)
+    plt.rc('text',usetex=False)
     pre = fname.split('.')[0]
     if not fname.lower().endswith(('.png', '.pdf')): ext = '.pdf'
     else: 
@@ -196,7 +196,7 @@ def create_corner(samples,labels=None,truths=None,savefig=True,fname='corner',
     
 
     '''
-    plt.rc('text',usetex=True)
+    plt.rc('text',usetex=False)
     ndim = samples.shape[-1]
     if labels == None: 
         labels = list(map(r'$\theta_{{{0}}}$'.format, range(ndim)))

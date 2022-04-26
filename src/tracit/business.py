@@ -39,23 +39,21 @@ from .priors import tgauss_prior, gauss_prior, flat_prior, tgauss_prior_dis, fla
 # external modules
 # =============================================================================
 
-import lmfit
 import emcee
 import arviz as az
 from multiprocessing import Pool
 import celerite
+import batman
 
 import glob
 import numpy as np
 import pandas as pd
 import h5py
-#import matplotlib.pyplot as plt
 import string
-import batman
 
-from scipy import interpolate
-#from astropy.modeling import models, fitting
 from scipy.optimize import curve_fit
+import lmfit
+from scipy import interpolate
 import scipy.signal as scisig
 from statsmodels.nonparametric.kde import KDEUnivariate as KDE
 import os
@@ -81,16 +79,61 @@ def run_bus(par,dat):
 	parameters = par.copy()
 	global data
 	data = dat.copy()
+
+
+def RM_path(path=None):
+	'''Path to RM code.
+
+	Create path to code by :cite:t:`Hirano2011`.
+
+	:param path: Path. Only set if ``new_analytic7.exe`` has been moved. Default ``None``.
+	:type path: str, optional
+
+	'''	
+	if not path:
+		path = os.path.abspath(os.path.dirname(__file__))
+	
 	global mpath
-	path = os.path.abspath(os.path.dirname(__file__))
 	mpath = path
 
 
-def Gauss(x, amp, mu,sig ):
+def Gauss(x,amp,mu,sig):
+	'''Gaussian.
+
+	:math:`f (x) = A \exp(-(x - \mu)^2/(2 \sigma^2)) \, .`
+	
+	:param x: :math:`x`-coordinates.
+	:type x: array.
+
+	:param amp: :math:`A`: amplitude.
+	:type amp: float
+
+	:param mu: :math:`\mu`: mean/location.
+	:type mu: float
+
+	:param sig: :math:`\sigma`: standard deviation/width.
+	:type sig: float
+
+	:returns: :math:`f (x)`.
+	:rtype: array
+
+	'''
 	y = amp*np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.)))
 	return y
 
+#def inv2Gauss(x,amp1,amp2,mu1,mu2,sig1,sig2):
+def inv2Gauss(x,amp1,amp2,sig1,sig2,mu2):
+	'''Inverted double Gaussian.
 
+	:py:func:`Gauss`.
+
+	'''
+	mu1 = 0.0
+	#mu2 = 0.0
+	g1 = Gauss(x,amp1,mu1,sig1)
+	g2 = -1*Gauss(x,amp2,mu2,sig2)
+
+	return g1+g2
 
 #def start_vals(parameters,nwalkers,ndim):
 def start_vals(nwalkers,ndim):
@@ -240,15 +283,8 @@ def rv_model(time,n_planet='b',n_rv=1,RM=False):
 		calcRV = get_RV(time,orbpars)
 	return calcRV
 
-# def ini_grid(rad_disk=100,thickness=20):
-# 	## Make initial grid
-# 	start_grid, vel, mu = grid(rad_disk) #make grid of stellar disk
-# 	## The grid is made into rings for faster calculation of the macroturbulence (approx. constant in each ring)
-# 	ring_grid, vel, mu_grid, mu_mean = grid_ring(rad_disk,thickness) 
-	
-# 	return start_grid, ring_grid, vel, mu, mu_grid, mu_mean
-def ls_model2(time,
-	start_grid,ring_grid,vel_grid,mu,mu_grid,mu_mean,rad_disk,
+def ls_model2(time,start_grid,ring_grid,vel_grid,
+	mu,mu_grid,mu_mean,rad_disk,vels,
 	n_planet='b',n_rv=1,oot=False):
 	'''The line distortion model.
 
@@ -324,9 +360,9 @@ def ls_model2(time,
 	## If we are only fitting OOT CCFS
 	if oot:
 		vel_1d, line_conv, lum = absline_star(start_grid,vel_grid,ring_grid,
-			mu,mu_mean,
-			vsini,conv_par,zeta,cs=qs
-			)
+								mu,mu_mean,vsini,conv_par,zeta,vels,
+								cs=qs
+								)
 		line_oot = np.sum(line_conv,axis=0)
 		area = np.trapz(line_oot,vel_1d)
 		line_oot_norm = line_oot/area
@@ -336,7 +372,7 @@ def ls_model2(time,
 	vel_1d, line_conv, line_transit, planet_rings, lum, index_error = absline(
 																	start_grid,vel_grid,ring_grid,
 																	mu,mu_mean,mu_grid,
-																	vsini,conv_par,zeta,
+																	vsini,conv_par,zeta,vels,
 																	cs=qs,radius=rad_disk,
 																	times=time,
 																	Tw=T0,per=per,
@@ -351,11 +387,12 @@ def ls_model2(time,
 	## Shadow
 	#shadow = line_oot_norm - line_transit
 	
+
 	#return vel_1d, shadow, line_oot_norm, planet_rings, lum, index_error
 	return vel_1d, line_transit, line_oot_norm, planet_rings, lum, index_error
 
-def ls_model(time,
-	start_grid,ring_grid,vel_grid,mu,mu_grid,mu_mean,rad_disk,
+def ls_model(time,start_grid,ring_grid,vel_grid,
+	mu,mu_grid,mu_mean,rad_disk,vels,
 	n_planet='b',n_rv=1,oot=False):
 	'''The line distortion model.
 
@@ -431,19 +468,25 @@ def ls_model(time,
 	## If we are only fitting OOT CCFS
 	if oot:
 		vel_1d, line_conv, lum = absline_star(start_grid,vel_grid,ring_grid,
-			mu,mu_mean,
-			vsini,conv_par,zeta,cs=qs
+								mu,mu_mean,vsini,conv_par,zeta,vels,
+								cs=qs
 			)
 		line_oot = np.sum(line_conv,axis=0)
 		area = np.trapz(line_oot,vel_1d)
 		line_oot_norm = line_oot/area
+
+		inverted = False
+		if inverted:
+			inv_gauss = Gauss(vel_1d,0.1,0.0,6.0)
+			line_oot_norm -= inv_gauss	
+		#print(inv_gauss,line_oot_norm)
 		return vel_1d, line_oot_norm, lum
 
 	## Make shadow                   
 	vel_1d, line_conv, line_transit, planet_rings, lum, index_error = absline(
 																	start_grid,vel_grid,ring_grid,
 																	mu,mu_mean,mu_grid,
-																	vsini,conv_par,zeta,
+																	vsini,conv_par,zeta,vels,
 																	cs=qs,radius=rad_disk,
 																	times=time,
 																	Tw=T0,per=per,
@@ -545,6 +588,10 @@ def lnprob(positions):
 			prob = gauss_prior(val,pval,sigma)
 		elif ptype == 'tgauss':
 			prob = tgauss_prior(val,pval,sigma,lower,upper)
+		elif ptype == 'jeff':
+			prob = jeff_prior(val,lower,upper)
+		elif ptype == 'beta':
+			prob = beta_prior(val)
 		if prob != 0:
 			log_prob += np.log(prob)
 		else:
@@ -881,6 +928,14 @@ def lnprob(positions):
 				pass
 
 			#P, T0 = parameters['P_{}'.format(pl)]['Value'], parameters['T0_{}'.format(pl)]['Value'] 
+			## Resolution of velocity grid
+			vel_res = data['Velocity_resolution_{}'.format(nn)]
+			vels = np.array([])			
+			## Range without a bump in the CCFs
+			no_bump = data['No_bump_{}'.format(nn)]
+			span = data['Velocity_range_{}'.format(nn)]
+			assert span > no_bump, print('\n ### \n The range of the velocity grid must be larger than the specified range with no bump in the CCF.\n Range of velocity grid is from +/-{} km/s, and the no bump region isin the interval m +/-{} km/s \n ### \n '.format(span,no_bump))
+			vels = np.arange(-span,span,vel_res)
 
 			resol = data['Resolution_{}'.format(nn)]
 			start_grid = data['Start_grid_{}'.format(nn)]
@@ -894,13 +949,13 @@ def lnprob(positions):
 			if only_oot:
 				vel_model, model_ccf, _ = ls_model2(
 					times[oots],start_grid,ring_grid,
-					vel_grid,mu,mu_grid,mu_mean,resol,
+					vel_grid,mu,mu_grid,mu_mean,resol,vels,
 					oot=only_oot,n_rv=nn
 					)
 			else:
 				vel_model, model_ccf_transit, model_ccf, darks, oot_lum, index_error = ls_model2(
 					times,start_grid,ring_grid,
-					vel_grid,mu,mu_grid,mu_mean,resol,
+					vel_grid,mu,mu_grid,mu_mean,resol,vels,
 					n_rv=nn,
 					)
 				if index_error:
@@ -908,14 +963,6 @@ def lnprob(positions):
 				bright = np.sum(oot_lum)
 
 			
-			## Resolution of velocity grid
-			vel_res = data['Velocity_resolution_{}'.format(nn)]
-			vels = np.array([])			
-			## Range without a bump in the CCFs
-			no_bump = data['No_bump_{}'.format(nn)]
-			span = data['Velocity_range_{}'.format(nn)]
-			assert span > no_bump, print('\n ### \n The range of the velocity grid must be larger than the specified range with no bump in the CCF.\n Range of velocity grid is from +/-{} km/s, and the no bump region isin the interval m +/-{} km/s \n ### \n '.format(span,no_bump))
-			vels = np.arange(-span,span,vel_res)
 			avg_ccf = np.zeros(len(vels))
 			oot_ccfs = np.zeros(shape=(len(vels),len(oots)))
 			## GP or not?
@@ -1357,7 +1404,7 @@ def mcmc(par,dat,maxdraws,nwalkers,
 	'''
 
 	run_bus(par,dat)
-
+	RM_path()
 
 	fit_params = parameters['FPs']
 	ndim = len(fit_params)
@@ -1426,15 +1473,6 @@ def mcmc(par,dat,maxdraws,nwalkers,
 	## - & this estimate changed by less than 1%.
 	if plot_convergence:
 		plot_autocorr(autocorr,index,kk)
-		# figc = plt.figure()
-		# axc = figc.add_subplot(111)
-		# nn, yy = 1000*np.arange(1,index+1), autocorr[:index]
-		# axc.plot(nn,nn/100.,'k--')#,color='C7')
-		# axc.plot(nn,yy,'k-',lw=3.0)
-		# axc.plot(nn,yy,'-',color=colors[0],lw=2.0)
-		# axc.set_xlabel(r'$\rm Step \ number$')
-		# axc.set_ylabel(r'$\rm \mu(\hat{\tau})$')
-		# plt.savefig('autocorr.pdf')
 	
 	return res_df
 
@@ -1910,15 +1948,12 @@ def residuals(params,parameters,data):
 #def lmfitter(param_fname,data_fname,method='leastsq',eps=0.01,
 def lmfitter(parameters,data,method='leastsq',eps=0.01,
 		print_fit=True):#,path_to_tracit='./'):
-	'''Fit data using lmfit
+	'''Fit data using ``lmfit``.
 
 	'''
-	#data = data_structure(data_fname)
-	#parameters = params_structure(param_fname)
 
-	#data_structure(data_fname)
-	#params_structure(param_fname)
-	#run_bus(par,dat,path=path_to_tracit+'/tracit/')
+
+	RM_path()
 
 	fit_pars = parameters['FPs']
 	pars = list(parameters.keys())

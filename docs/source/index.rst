@@ -54,6 +54,7 @@ The RM effect as seen in the RVs is modelled using the software presented in:
    API/structure
    API/support
    API/dynamics
+   API/priors
 
 .. toctree::
    :maxdepth: 2

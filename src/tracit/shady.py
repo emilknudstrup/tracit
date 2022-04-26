@@ -7,10 +7,9 @@ Created on Wed Apr 15 13:27:04 2020
 
 .. todo::
 	* Finish documentation
+	* In convolve, look at resolution
 	* Make it faster? numba?
-		-Look at resolution
 	* Some arrays seem to be passed on and created multiple times -- redundant?
-	* We do create our light curve... use that?
 """
 
 import numpy as np
@@ -213,9 +212,9 @@ def spot(time,radius,ring_LD,lum,
 
 
 def transit_ring(vel,vel_ext,ring_LD,mu_grid,mu_mean,lum,
-				vsini,xi,zeta,Rp_Rs,radius,
+				vsini,xi,zeta,Rp_Rs,radius,vels,
 				time,Tw,ecc,per,w,a_Rs,inc,lam):
-	'''Planet position in each ring.
+	'''Planet signal.
 
 	Function that calculates the planet signal in each ring.
 	This includes the effects of limb-darkening, as well as micro- and macroturbulence.
@@ -307,36 +306,33 @@ def transit_ring(vel,vel_ext,ring_LD,mu_grid,mu_mean,lum,
 			pl_coord, pl_coord_arr, pl_coord_idx = grid_coordinates(rp,x_pos,y_pos)
 			
 			pl_zip = [(pl_coord[ii,0],pl_coord[ii,1]) for ii in range(pl_coord.shape[0])]
-			## Makes sure that when a planet is about to disappear 
-			## it does not appear on the other side.
 			coord_pl = [i for (i,v) in zip(pl_zip,rescape_pl) if v==1. and i[0] >= 0 and i[1] >= 0 and i[0] < ring_LD[0].shape[0] and i[1] < ring_LD[0].shape[0]]
-
 
 			try:
 				ring_planet[:,np.asarray(coord_pl)[:,0],np.asarray(coord_pl)[:,1]] = ring_LD[:,np.asarray(coord_pl)[:,0],np.asarray(coord_pl)[:,1]]
 				it_lum[np.asarray(coord_pl)[:,0],np.asarray(coord_pl)[:,1]] = 0
+			## Makes sure that when a planet is about to disappear 
+			## it does not appear on the other side.
 			except IndexError:
 				## mu values at planet position in mu_grid
 				mu_pl = np.asarray([sum_mu_grid[i] for (i,v) in zip(pl_zip,rescape_pl) if v==1. and i[0]<mu_size and i[1]<mu_size]) 
 				for ii in range(len(ring_LD)):
 					for jj in range(len(mu_pl)):
 						try:
-							## Makes sure that when a planet is about to disappear 
-							## it does not appear on the other side.
 							ring_planet[ii][coord_pl[jj]] = ring_LD[ii][coord_pl[jj]]
 						except IndexError:
 							index_error = True
 					it_lum[ring_planet[ii].astype(bool)] = 0
 
-			xn[kk,:], line_conv[kk,:,:] = convolve(rot_profile,ring_planet,mu_mean,xi,zeta)
+			xn[kk,:], line_conv[kk,:,:] = convolve(rot_profile,ring_planet,mu_mean,xi,zeta,vels)
 			ring_planet[:,:,:] = 0
+
 
 		else:
 			xn[kk,:] = vel_ext
 			line_conv[kk,:,:] = np.zeros(shape=(len(ring_LD),len(vel_ext)))
 		
 		dark[kk] = np.sum(it_lum)
-
 	return xn, line_conv, dark, index_error#planet_rings
 
 
@@ -423,7 +419,7 @@ def transit_ring(vel,vel_ext,ring_LD,mu_grid,mu_mean,lum,
 
 # 	return velocity, line_profile
 
-def convolve(vel,ring_LD,mu_mean,xi,zeta,sigma=3.):
+def convolve(vel,ring_LD,mu_mean,xi,zeta,vels,sigma=3.):
 	'''Convolves rotational profile.
 
 	Function that convolves the rotation profile with a gaussian to take microturbulence for a given :math:`\\xi` into account.
@@ -448,6 +444,9 @@ def convolve(vel,ring_LD,mu_mean,xi,zeta,sigma=3.):
 	:param sigma: Number of sigmas we go out on our x-axis to get the borders of the Gaussian. Default 3.
 	:type sigma: float, optional
 
+	:param vels: :math:`x`-axis for the Gaussian. Set by the 'Velocity_range' and 'Velocity_resoluation' in :py:func:`tracit.structure.dat_struct`.
+	:type vels: array
+
 	.. note::
 		:math:`\\xi` here also includes the instrumental broadening, :math:`\sigma_\mathrm{PSF}`. See :py:func:`tracit.business.ls_model`.
 
@@ -458,12 +457,12 @@ def convolve(vel,ring_LD,mu_mean,xi,zeta,sigma=3.):
 	vel_1d = vel[:,0]
 	sep = (vel_1d[-1]-vel_1d[0])/(len(vel_1d)-1)
 		
-	## x-axis for the gaussian. The steps are the same as vel, but the borders go further out.
-	x = np.arange(-sigma*xi,sigma*xi+sep,sep)
+	# ## x-axis for the gaussian. The steps are the same as vel, but the borders go further out.
+	# x = np.arange(-sigma*xi,sigma*xi+sep,sep)
 	
 	## Gaussian function for microturbuelence
 	## make Gaussian with new velocity vector as x-axis
-	gau = np.exp(-1*np.power(x/xi,2))/(xi*np.sqrt(np.pi))#gauss(x,xi) 
+	gau = np.exp(-1*np.power(vels/xi,2))/(xi*np.sqrt(np.pi))#gauss(x,xi) 
 	gau /= np.add.reduce(gau)
 
 	length = len(ring_LD[0])+len(gau)-1
@@ -485,6 +484,7 @@ def convolve(vel,ring_LD,mu_mean,xi,zeta,sigma=3.):
 		tan = np.exp(-1*np.power(vel_1d/(zeta*y),2))/y
 		tan[np.isnan(tan)] = 0.
 		mac[ii] = A*(rad + tan)/(np.sqrt(np.pi)*zeta)
+
 
 	
 	## Convolve each ring of LD+microturbulence and macroturbulence
@@ -534,7 +534,7 @@ def limb_darkening(gridini,mu,cs=[],LD_law='quad'):
 	return lum 
 
 def absline_star(gridini,vel,ring_grid,
-	mu,mu_mean,vsini,xi,zeta,
+	mu,mu_mean,vsini,xi,zeta,vels,
 	cs=[0.3,0.2],LD_law='quad'):
 	'''The shape of the absorption line.
 	
@@ -574,14 +574,14 @@ def absline_star(gridini,vel,ring_grid,
 	ring_LD = np.zeros(len(ring_grid))
 	ring_LD = ring_grid*lum
 
-	vel_1d_ext, line_conv = convolve(rot_profile,ring_LD,mu_mean,xi,zeta)
+	vel_1d_ext, line_conv = convolve(rot_profile,ring_LD,mu_mean,xi,zeta,vels)
 
 	return vel_1d_ext, line_conv, ring_LD
 
 
 def absline(gridini,vel,ring_grid,
 			mu,mu_mean,mu_grid,
-			vsini,xi,zeta,
+			vsini,xi,zeta,vels,
 			cs=[0.3,0.2],LD_law='quad',
 			times=np.array([]),
 			radius=100,
@@ -618,12 +618,12 @@ def absline(gridini,vel,ring_grid,
 	#Makes the limb-darkened (LD) stellar grid into rings
 	ring_LD = np.zeros(len(ring_grid))
 	ring_LD = ring_grid*lum
-	vel_1d_ext, line_conv = convolve(rot_profile,ring_LD,mu_mean,xi,zeta)
+	vel_1d_ext, line_conv = convolve(rot_profile,ring_LD,mu_mean,xi,zeta,vels)
 	
 	nn = len(times)
 
 	vel_1d_ext_pl, line_conv_pl, planet_rings, index_error = transit_ring(vel,vel_1d_ext,ring_LD,mu_grid,mu_mean,lum,
-											vsini,xi,zeta,Rp_Rs,radius,
+											vsini,xi,zeta,Rp_Rs,radius,vels,
 											times,Tw,ecc,per,w,a_Rs,inc,lam)
 
 

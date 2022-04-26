@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Thu Jan  9 15:37:23 2020
 
-@author: emil
+
 """
 # =============================================================================
 # Packages
@@ -14,7 +13,7 @@ import scipy.stats as ss
 import numpy as np
 
 # =============================================================================
-# Starting distribution
+# Starting distributions
 # =============================================================================
 
 def flat_prior_dis(r,x1,x2):
@@ -27,7 +26,7 @@ def tgauss_prior_dis(mu,sigma,xmin,xmax):
 
 def jeff_prior_dis(r,xmin,xmax):
 	if r <= 0.0:
-		return 0.0#-1.0e-32
+		return 0.0
 	else:
 		if xmin == 0:
 			xmin == 1e-10
@@ -44,6 +43,24 @@ def beta_prior_dis():
 # =============================================================================
   
 def flat_prior(val,xmin,xmax):
+	'''Uniform prior.
+
+	.. math:: 
+		f(x) = \\frac{1}{b-a}, \, \ \mathrm{for} \ a \leq x \leq b,\ \mathrm{else} \, f(x) = 0 \, .
+	
+	:param val: :math:`x`.
+	:type val: float
+	
+	:param xmin: :math:`a`.
+	:type xmin: float
+
+	:param xmax: :math:`b`.
+	:type xmax: float
+
+	:returns: :math:`f(x)`
+	:rtype: float
+
+	'''
 	if val < xmin or val > xmax:
 		ret = 0.0
 	else:
@@ -51,11 +68,55 @@ def flat_prior(val,xmin,xmax):
 	return ret
 
 def gauss_prior(val,xmid,xwid):
+	'''Gaussian prior.
+	
+	.. math:: 
+		f (x) = \\frac{1}{\sqrt{2 \pi}\sigma} \exp(-(x - \mu)^2/(2 \sigma^2)) \, .
+
+	:param val: :math:`x`.
+	:type val: float
+	
+	:param xmid: :math:`\mu`.
+	:type xmid: float
+
+	:param xwid: :math:`\sigma`.
+	:type xwid: float
+
+	:returns: :math:`f(x)`
+	:rtype: float
+
+	'''
 	nom = np.exp(-1.0*np.power(val - xmid,2)/(2*np.power(xwid,2)))
 	den = np.sqrt(2*np.pi)*xwid
 	return nom/den
 
 def tgauss_prior(val,xmid,xwid,xmin,xmax):
+	'''Truncated Gaussian prior.
+	
+	.. math:: 
+		f (x; \mu, \sigma, a, b) = \\frac{1}{\sigma} \\frac{g(x)}{\Phi((b-\mu)/\sigma) - \Phi((a-\mu)/\sigma)} \, ,
+
+	where :math:`g(x)` is the Gaussian from :py:func:`gauss_prior` and :math:`\Phi` is the (Gauss) error function (``scipy.special.erf``).
+
+	:param val: :math:`x`.
+	:type val: float
+
+	:param xmid: :math:`\mu`.
+	:type xmid: float
+
+	:param xwid: :math:`\sigma`.
+	:type xwid: float
+	
+	:param xmin: :math:`a`.
+	:type xmin: float
+
+	:param xmax: :math:`b`.
+	:type xmax: float	
+
+	:returns: :math:`f(x)`
+	:rtype: float
+
+	'''
 	if val < xmin or val > xmax:
 		ret = 0.0
 	else:
@@ -66,6 +127,9 @@ def tgauss_prior(val,xmid,xwid,xmin,xmax):
 	return ret
 
 def jeff_prior(val, xmin, xmax):
+	'''Jeffrey's prior.
+	
+	'''
 	if val < xmin or val > xmax:
 		return 0.0
 	else:
