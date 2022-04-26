@@ -41,6 +41,9 @@ extensions = [
 'sphinxcontrib.bibtex'
 ]
 
+# mock imports (alternatively add packages to docs/requirements.txt)
+autodoc_mock_imports = ['matplotlib','scipy']
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
