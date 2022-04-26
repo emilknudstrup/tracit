@@ -45,7 +45,7 @@ The RM effect as seen in the RVs is modelled using the software presented in:
    rm
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: API
    
    API/expose
