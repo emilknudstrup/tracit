@@ -2,3 +2,4 @@ numpy
 sphinx-rtd-theme
 nbsphinx
 sphinxcontrib-bibtex
+matplotlib
