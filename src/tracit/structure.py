@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Wed Mar  2 20:30:39 2022
-
-@author: emil
 
 .. todo::
 	* parameters, data only need to be made global within `business.mcmc/lmfitter` and `expose`, maybe set that in run_sys/run_bus.
