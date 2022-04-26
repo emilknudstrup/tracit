@@ -37,8 +37,7 @@ extensions = [
 'sphinx.ext.todo', 
 'sphinx.ext.napoleon',
 'nbsphinx',
-'sphinxcontrib.bibtex',
-'IPython.sphinxext.ipython_console_highlighting'
+'sphinxcontrib.bibtex'
 ]
 
 # mock imports (alternatively add packages to docs/requirements.txt)
