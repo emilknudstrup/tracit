@@ -61,7 +61,7 @@ The RM effect as seen in the RVs is modelled using the software presented in:
    :caption: Data preparation
 
    data
-   ..CCF/shazam
+   CCF/shazam
 
 .. toctree::
    :maxdepth: 1
