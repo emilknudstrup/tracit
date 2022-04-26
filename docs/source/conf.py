@@ -13,8 +13,7 @@
 import os
 import sys
 sys.path.insert(0, os.path.abspath('../..'))
-#sys.path.insert(0, os.path.abspath('../../tracit/tracit'))
-sys.path.insert(0, os.path.abspath('../../src/'))
+#sys.path.insert(0, os.path.abspath('../../src/'))
 
 
 # -- Project information -----------------------------------------------------
@@ -42,7 +41,10 @@ extensions = [
 ]
 
 # mock imports (alternatively add packages to docs/requirements.txt)
-autodoc_mock_imports = ['matplotlib','scipy']
+autodoc_mock_imports = ['matplotlib','scipy',
+                        'emcee','batman','lmfit',
+                        'pandas','h5py','arviz',
+                        'statsmodels']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
