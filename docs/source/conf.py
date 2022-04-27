@@ -37,6 +37,8 @@ extensions = [
 'sphinx.ext.coverage', 
 'sphinx.ext.todo', 
 'sphinx.ext.napoleon',
+'sphinx.ext.mathjax',
+'sphinx.ext.viewcode',
 'nbsphinx',
 'sphinxcontrib.bibtex'
 ]
