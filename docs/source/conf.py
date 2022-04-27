@@ -12,9 +12,7 @@
 #
 import os
 import sys
-#sys.path.insert(0, os.path.abspath('./../..'))
 sys.path.insert(0, os.path.abspath('./../../src'))
-#sys.path.insert(0, os.path.abspath('./../../src/tracit'))
 
 
 # -- Project information -----------------------------------------------------
@@ -37,8 +35,6 @@ extensions = [
 'sphinx.ext.coverage', 
 'sphinx.ext.todo', 
 'sphinx.ext.napoleon',
-'sphinx.ext.mathjax',
-'sphinx.ext.viewcode',
 'nbsphinx',
 'sphinxcontrib.bibtex'
 ]
