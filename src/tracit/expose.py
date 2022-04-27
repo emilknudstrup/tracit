@@ -1186,7 +1186,7 @@ def plot_shadow(parameters,data,oots=None,n_pars=0,
 				if xlim:
 					x1, x2 = -xlim, xlim
 				else: 
-					x1, x2 = min(vel_model), max(vel_model)
+					x1, x2 = min(vels), max(vels)
 
 
 				for ax in axes:

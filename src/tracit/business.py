@@ -1391,11 +1391,48 @@ def mcmc(par,dat,maxdraws,nwalkers,
 		save_results = True, results_filename='results.csv',
 		sample_filename='samples.h5',reset=True,burn=0.5,
 		plot_convergence=True,save_samples=True,
-		corner=True,chains=False,nproc=1,path_to_tracit='.',
-		stop_converged=True,post_name='posteriors.npy'):
+		corner=True,chains=False,nproc=1,
+		stop_converged=True,post_name='posteriors.npy',
+		triangles=[]):
 	'''Markov Chain Monte Carlo.
 
 	Wrapper for `emcee <https://github.com/dfm/emcee>`_ :cite:p:`emcee`.
+
+	:param par: Parameters.
+	:type par: :py:class:`tracit.structure.par_struct`
+
+	:param dat: Data.
+	:type dat: :py:class:`tracit.structure.dat_struct`
+
+	:param save_results: Whether to save the results in a .csv file. Default ``True``.
+	:type save_results: bool
+
+	:param results_filename: Name of the .csv file of the results. Default `results.csv`.
+	:type results_filename: str
+
+	:param sample_filename: Name of the .hdf5 file for the samples. Default `samples.h5`.
+	:type sample_filename: str
+
+	:param save_samples: Whether to save the samples. Default ``True``.
+	:type save_samples: bool
+
+	:param corner: Whether to create a `corner <https://github.com/dfm/corner.py>`_ plot :cite:p:`corner`. Default ``True``.
+	:type corner: bool
+
+	:param chains: Whether to plot the chains/samples. Default ``False``.
+	:type chains: bool
+
+	:param nproc: Number of processors for multiprocessing. Default 1.
+	:type nproc: int
+
+	:param stop_converged: Whether to stop when the MCMC has converged following `emcee/Saving & monitoring progress <https://emcee.readthedocs.io/en/stable/tutorials/monitor/>`_. Default ``True``.
+	:type stop_converged: bool
+
+	:param post_name: Name of the "flat" samples, which is a ``numpy.recarray``. Default `posteriors.npy`.
+	:type post_name: str
+
+	:param triangles: List of tuples containing parameters for which to create correlation plots for. For example, ``[('vsini','lam_b'),('inc_b','a_Rs_b')]`` will create two corner plots. Default ``[]``.
+	:type triangles: list
 
 	.. note::
 		A very poor fit might result in ``ValueError``: math domain error from :py:func:`support`. In that case check the boundaries of the priors.
@@ -1462,9 +1499,11 @@ def mcmc(par,dat,maxdraws,nwalkers,
 			
 			old_tau = tau
 	
-	res_df = check_convergence(sampler=sampler,pars=parameters,post_name=post_name,
-		plot_corner=corner,plot_chains=chains,dat=data,per_burn=burn,
-		save_df=save_results,results_filename=results_filename)
+	res_df = check_convergence(parameters,data,
+		sampler=sampler,post_name=post_name,
+		plot_corner=corner,plot_chains=chains,per_burn=burn,
+		save_df=save_results,results_filename=results_filename,
+		triangles=triangles)
 
 	## Plot autocorrelation time
 	## Converged if: 
@@ -1476,12 +1515,12 @@ def mcmc(par,dat,maxdraws,nwalkers,
 	return res_df
 
 
-def check_convergence(filename='samples.h5', sampler=None, 
-					pars=None,param_fname='parameters.csv',
-					dat=None,data_fname='data.csv',post_name='posteriors.npy',
+def check_convergence(parameters_local,data_local,filename='samples.h5', sampler=None, 
+					post_name='posteriors.npy',
 					plot_chains=True, plot_corner=True,chain_ival=5,
 					save_df=True,results_filename='results.csv',
-					n_auto=4,per_burn=None,plot_priors=True):
+					n_auto=4,per_burn=None,plot_priors=True,
+					triangles=[]):
 	'''Check convergence and diagnostics.
 
 	'''
@@ -1494,23 +1533,23 @@ def check_convergence(filename='samples.h5', sampler=None,
 		raise FileNotFoundError('You need to either provide a filename for the stored sampler \
 			or the sampler directly.')
 
-	if pars == None:
-		try:
-			params_structure(param_fname)
-		except FileNotFoundError as err:
-			print(err.args)
-			print('Either provide the name of the .csv-file with the fitting parameters \
-				or give the parameter structure directly.')
+	# if pars == None:
+	# 	try:
+	# 		params_structure(param_fname)
+	# 	except FileNotFoundError as err:
+	# 		print(err.args)
+	# 		print('Either provide the name of the .csv-file with the fitting parameters_local \
+	# 			or give the parameter structure directly.')
 
-	if dat == None:
-		try:
-			data_structure(data_fname)
-		except FileNotFoundError as err:
-			print(err.args)
-			print('Either provide the name of the .csv-file for the data \
-				or give the data structure directly.')
+	# if dat == None:
+	# 	try:
+	# 		data_structure(data_fname)
+	# 	except FileNotFoundError as err:
+	# 		print(err.args)
+	# 		print('Either provide the name of the .csv-file for the data \
+	# 			or give the data structure directly.')
 
-	fit_params = parameters['FPs']
+	fit_params = parameters_local['FPs']
 
 
 	steps, nwalkers, ndim = reader.get_chain().shape
@@ -1538,7 +1577,7 @@ def check_convergence(filename='samples.h5', sampler=None,
 				val, sigma = comp[fp][0], comp[fp][1]
 				first_vals = ini_flat[:,ii]
 				dist = abs(first_vals-val)/sigma
-				lab = parameters[fp]['Label']
+				lab = parameters_local[fp]['Label']
 				if any(dist > 10):
 					outpars.append(True)
 				else:
@@ -1559,7 +1598,7 @@ def check_convergence(filename='samples.h5', sampler=None,
 	labels = []
 	hands = []
 	for ii, fp in enumerate(fit_params):
-		lab = parameters[fp]['Label']
+		lab = parameters_local[fp]['Label']
 		labels.append(lab)	
 		hands.append(fp)	
 
@@ -1577,13 +1616,12 @@ def check_convergence(filename='samples.h5', sampler=None,
 	del reshaped_samples
 	rhats = az.rhat(conv_samples).x.values
 	del conv_samples
-	#print(rhats)
 	flat_samples = reader.get_chain(discard=burnin, flat=True, thin=thin)	
 	log_prob_samples = reader.get_log_prob(discard=burnin, flat=True, thin=thin)
 	chi2_samples = reader.get_blobs(discard=burnin, flat=True, thin=thin)
 	del reader
 
-	pls = parameters['Planets']
+	pls = parameters_local['Planets']
 	for pl in pls:
 		if ('ecosw_{}'.format(pl) in fit_params) and ('esinw_{}'.format(pl) in fit_params):
 			idx_ecosw = fit_params.index('ecosw_{}'.format(pl))
@@ -1617,8 +1655,8 @@ def check_convergence(filename='samples.h5', sampler=None,
 			idx_ww = fit_params.index('w_{}'.format(pl))
 			omega = flat_samples[:,idx_ww]
 		else:
-			ecc = parameters['e_'+pl]['Value']
-			omega = parameters['w_'+pl]['Value']
+			ecc = parameters_local['e_'+pl]['Value']
+			omega = parameters_local['w_'+pl]['Value']
 
 		if ('cosi_{}'.format(pl) in fit_params):
 			ecc_fac = (1 - ecc**2)/(1 + ecc*np.sin(omega))
@@ -1636,7 +1674,7 @@ def check_convergence(filename='samples.h5', sampler=None,
 				flat_samples = np.concatenate(
 					(flat_samples, cosi[:, None]*aR[:,None]), axis=1)
 			else:
-				aR = parameters['a_Rs_'+pl]['Value']
+				aR = parameters_local['a_Rs_'+pl]['Value']
 				flat_samples = np.concatenate(
 					(flat_samples, cosi[:, None]*aR), axis=1)
 
@@ -1656,12 +1694,12 @@ def check_convergence(filename='samples.h5', sampler=None,
 
 			#for pl in pls:
 			pars_pl = {
-				'P_{}'.format(pl) : parameters['P_{}'.format(pl)]['Value'],
-				'Rp_Rs_{}'.format(pl) : parameters['Rp_Rs_{}'.format(pl)]['Value'],
-				'a_Rs_{}'.format(pl) : parameters['a_Rs_{}'.format(pl)]['Value'],
-				'inc_{}'.format(pl) : parameters['inc_{}'.format(pl)]['Value'],
-				'e_{}'.format(pl) : parameters['e_{}'.format(pl)]['Value'],
-				'w_{}'.format(pl) : parameters['w_{}'.format(pl)]['Value']
+				'P_{}'.format(pl) : parameters_local['P_{}'.format(pl)]['Value'],
+				'Rp_Rs_{}'.format(pl) : parameters_local['Rp_Rs_{}'.format(pl)]['Value'],
+				'a_Rs_{}'.format(pl) : parameters_local['a_Rs_{}'.format(pl)]['Value'],
+				'inc_{}'.format(pl) : parameters_local['inc_{}'.format(pl)]['Value'],
+				'e_{}'.format(pl) : parameters_local['e_{}'.format(pl)]['Value'],
+				'w_{}'.format(pl) : parameters_local['w_{}'.format(pl)]['Value']
 			}
 
 			create_samples = False
@@ -1708,13 +1746,13 @@ def check_convergence(filename='samples.h5', sampler=None,
 
 	
 	#n_phot, n_rv, n_ls, n_sl = data['LCs'], data['RVs'], data['LSs'], data['SLs']
-	n_phot, n_rv = data['LCs'], data['RVs']
+	n_phot, n_rv = data_local['LCs'], data_local['RVs']
 	
 	for nn in range(1,n_rv+1):
 		if ('RV{}_q_sum'.format(nn) in fit_params):
 			idx_qs = fit_params.index('RV{}_q_sum'.format(nn))
 			qs = flat_samples[:,idx_qs]
-			qd = parameters['RV{}_q1'.format(nn)]['Prior_vals'][0] - parameters['RV{}_q2'.format(nn)]['Prior_vals'][0]
+			qd = parameters_local['RV{}_q1'.format(nn)]['Prior_vals'][0] - parameters_local['RV{}_q2'.format(nn)]['Prior_vals'][0]
 			q1 = 0.5*(qs + qd)
 			q2 = 0.5*(qs - qd)
 			flat_samples = np.concatenate(
@@ -1730,8 +1768,8 @@ def check_convergence(filename='samples.h5', sampler=None,
 		if ('LC{}_q_sum'.format(nn) in fit_params):
 			idx_qs = fit_params.index('LC{}_q_sum'.format(nn))
 			qs = flat_samples[:,idx_qs]
-			#qd = parameters['LC{}_q1'.format(nn)]['Value'] - parameters['LC{}_q2'.format(nn)]['Value']
-			qd = parameters['LC{}_q1'.format(nn)]['Prior_vals'][0] - parameters['LC{}_q2'.format(nn)]['Prior_vals'][0]
+			#qd = parameters_local['LC{}_q1'.format(nn)]['Value'] - parameters_local['LC{}_q2'.format(nn)]['Value']
+			qd = parameters_local['LC{}_q1'.format(nn)]['Prior_vals'][0] - parameters_local['LC{}_q2'.format(nn)]['Prior_vals'][0]
 			q1 = 0.5*(qs + qd)
 			q2 = 0.5*(qs - qd)
 			flat_samples = np.concatenate(
@@ -1756,13 +1794,18 @@ def check_convergence(filename='samples.h5', sampler=None,
 	all_samples = np.concatenate(
 		(flat_samples, log_prob_samples[:, None], chi2_samples[:, None]), axis=1)
 	del flat_samples
-	np.save(post_name,all_samples)
+	dtypes = [(hand,float) for hand in hands]
+	recarr = np.recarray((all_samples.shape[0],),dtype=dtypes)
+	for ii, hand in enumerate(hands):
+		recarr[hand] = all_samples[:,ii]
+
+	np.save(post_name,recarr)
 
 
 	priors = {}
-	fps = parameters['FPs']
+	fps = parameters_local['FPs']
 	for i in range(ndim): priors[i] = ['none',0.0,0.0,0.0,0.0]
-	for i, fp in enumerate(fps): priors[i] = [parameters[fp]['Prior'],parameters[fp]['Prior_vals'][0],parameters[fp]['Prior_vals'][1],parameters[fp]['Prior_vals'][2],parameters[fp]['Prior_vals'][3]]
+	for i, fp in enumerate(fps): priors[i] = [parameters_local[fp]['Prior'],parameters_local[fp]['Prior_vals'][0],parameters_local[fp]['Prior_vals'][1],parameters_local[fp]['Prior_vals'][2],parameters_local[fp]['Prior_vals'][3]]
 	results = {}
 	results ['Parameter'] = ['Label','Median','Lower','Upper','Best-fit','Mode','Prior','Location','Width','Lower','Upper','Rhat']
 	qs = []
@@ -1821,12 +1864,34 @@ def check_convergence(filename='samples.h5', sampler=None,
 			#pass
 			priors = {}
 			ndim = all_samples.shape[1]
-			fps = parameters['FPs']
+			fps = parameters_local['FPs']
 			for i in range(ndim): priors[i] = ['none',0.0,0.0,0.0,0.0]
-			for i, fp in enumerate(fps): priors[i] = [parameters[fp]['Prior'],parameters[fp]['Prior_vals'][0],parameters[fp]['Prior_vals'][1],parameters[fp]['Prior_vals'][2],parameters[fp]['Prior_vals'][3]]
+			for i, fp in enumerate(fps): priors[i] = [parameters_local[fp]['Prior'],parameters_local[fp]['Prior_vals'][0],parameters_local[fp]['Prior_vals'][1],parameters_local[fp]['Prior_vals'][2],parameters[fp]['Prior_vals'][3]]
 		else:
 			priors = None
 		create_corner(all_samples,labels=labels,truths=None,savefig=True,priors=priors,quantiles=qs,diag_titles=value_formats)
+
+		del all_samples
+		for triangle in triangles:	
+			if priors: 
+				subpriors = {}
+			else:
+				subpriors = None
+			sublabels = []
+			subvalue_formats = []
+			subarr = np.zeros(shape=(recarr.shape[0],len(triangle)))
+			for i, hand in enumerate(hands):
+				for j, tri in enumerate(triangle):
+					if tri == hand:
+						sublabels.append(labels[i])
+						subarr[:,j] = recarr[tri]
+						subvalue_formats.append(value_formats[i])
+						if priors: subpriors[j] = priors[i]
+			fname = 'corner'
+			for tri in triangle: fname += '_' + tri
+			fname += '.pdf'
+			create_corner(subarr,labels=sublabels,fname=fname,truths=None,savefig=True,priors=subpriors,quantiles=qs,diag_titles=subvalue_formats)
+
 
 	return res_df
 
