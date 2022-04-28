@@ -1393,7 +1393,7 @@ def mcmc(par,dat,maxdraws,nwalkers,
 		plot_convergence=True,save_samples=True,
 		corner=True,chains=False,nproc=1,
 		stop_converged=True,post_name='posteriors.npy',
-		triangles=[]):
+		triangles=[],moves=None):
 	'''Markov Chain Monte Carlo.
 
 	Wrapper for `emcee <https://github.com/dfm/emcee>`_ :cite:p:`emcee`.
@@ -1434,6 +1434,9 @@ def mcmc(par,dat,maxdraws,nwalkers,
 	:param triangles: List of tuples containing parameters for which to create correlation plots for. For example, ``[('vsini','lam_b'),('inc_b','a_Rs_b')]`` will create two corner plots. Default ``[]``.
 	:type triangles: list
 
+	:param moves: Algorithm for updating the coordinates of the walkers. See `emcee/Moves <https://emcee.readthedocs.io/en/stable/user/moves/#moves-user>`_ and `emcee/The Ensemble Sampler <https://emcee.readthedocs.io/en/stable/user/sampler/>`_. Default ``None``, equivalent to :py:class:`emcee.moves.StretchMove`.
+	:type moves: list
+
 	.. note::
 		A very poor fit might result in ``ValueError``: math domain error from :py:func:`support`. In that case check the boundaries of the priors.
 
@@ -1461,8 +1464,7 @@ def mcmc(par,dat,maxdraws,nwalkers,
 	with Pool(nproc) as pool:
 		sampler = emcee.EnsembleSampler(nwalkers,ndim,lnprob,
 				pool=pool,backend=backend,
-				#kwargs=master_dict,pool=pool,backend=backend)#,
-				moves=[(emcee.moves.DEMove(), 0.8), (emcee.moves.DESnookerMove(), 0.2),])  
+				moves=moves)  
 
 		cdraw = sampler.iteration # current draw
 		ndraws = maxdraws - cdraw
@@ -1515,13 +1517,59 @@ def mcmc(par,dat,maxdraws,nwalkers,
 	return res_df
 
 
-def check_convergence(parameters_local,data_local,filename='samples.h5', sampler=None, 
-					post_name='posteriors.npy',
+def check_convergence(parameters_local,data_local,filename='samples.h5', 
+					sampler=None, post_name='posteriors.npy',
 					plot_chains=True, plot_corner=True,chain_ival=5,
 					save_df=True,results_filename='results.csv',
 					n_auto=4,per_burn=None,plot_priors=True,
 					triangles=[]):
 	'''Check convergence and diagnostics.
+
+	Function that checks the convergence of the MCMC and provides some diagnostics. 
+	It also outputs a .csv file with the results from the MCMC, and can call plotting routines to generate corner and chain plots.
+
+	:param parameters_local,: Parameters, but only parsed locally.
+	:type parameters_local,: :py:class:`tracit.structure.par_struct`
+
+	:param data_local: Data, but only parsed locally.
+	:type data_local: :py:class:`tracit.structure.dat_struct`
+
+	:param filename: Name of the .hdf5 file for the samples. Default `samples.h5`.
+	:type filename: str
+
+	:param sampler: The `emcee <https://github.com/dfm/emcee>`_ sampler.
+	:type sampler: :py:class:`emcee.EnsembleSampler`
+
+	:param post_name: Name of the "flat" samples, which is a ``numpy.recarray``. Default `posteriors.npy`.
+	:type post_name: str
+
+	:param save_df: Whether to save the .csv file for the results. Default ``True``.
+	:type save_df: bool
+
+	:param results_filename: Name of the .csv file for the results. Default `results.csv`.
+	:type results_filename: str
+
+	:param plot_chains: Whether toplot the chains. Default ``True``.
+	:type plot_chains: bool
+
+	:param plot_corner: Whether to create a `corner <https://github.com/dfm/corner.py>`_ plot :cite:p:`corner`. Default ``True``.
+	:type plot_corner: bool
+
+	:param chain_ival: Number of chains to put in same plot.
+	:type chain_ival: int
+
+	:param n_auto: Number of autocorrelation times used to estimate burn-in. See `emcee/Autocorrelation analysis & convergence <https://emcee.readthedocs.io/en/stable/tutorials/autocorr/>`_. Default 4.
+	:type n_auto: int
+
+	:param per_burn: Percentage of burn-in, 0.5 means half the samples are tossed. Default ``None``.
+	:type per_burn: float
+
+	:param plot_priors: Whether to plot the priors in the corner plot. Default ``True``.
+	:type plot_priors: bool
+
+	:param triangles: List of tuples containing parameters for which to create correlation plots for. For example, ``[('vsini','lam_b'),('inc_b','a_Rs_b')]`` will create two corner plots. Default ``[]``.
+	:type triangles: list
+
 
 	'''
 	if filename:
@@ -1823,9 +1871,7 @@ def check_convergence(parameters_local,data_local,filename='samples.h5', sampler
 		bounds = hpd(all_samples[:,i], 0.68)
 
 		qs.append([bounds[0],val,bounds[1]])
-		#print(qs[i][1],qs[i][1]-qs[i][0],qs[i][2]-qs[i][1])
 		val, low, up = significantFormat(qs[i][1],qs[i][1]-qs[i][0],qs[i][2]-qs[i][1])
-		#print(mode,mode-qs[i][0],qs[i][2]-mode)
 		try:
 			mode, _, _ = significantFormat(mode,mode-qs[i][0],qs[i][2]-mode)
 		except ValueError:
@@ -1836,10 +1882,8 @@ def check_convergence(parameters_local,data_local,filename='samples.h5', sampler
 		value_formats.append(label)
 
 		best_idx = np.argmax(log_prob_samples)
-		#best_idx = np.argmin(chi2_samples)
 		best_fit = all_samples[best_idx,i]
 		best_val, _, _ = significantFormat(best_fit,float(low),float(up))
-		#best_val, _, _ = significantFormat(best_fit,best_fit-qs[i][0],qs[i][2]-best_fit)
 
 		hand = hands[i]
 		try:
@@ -1861,12 +1905,12 @@ def check_convergence(parameters_local,data_local,filename='samples.h5', sampler
 	## corner plot of samples
 	if plot_corner:
 		if plot_priors:
-			#pass
-			priors = {}
-			ndim = all_samples.shape[1]
-			fps = parameters_local['FPs']
-			for i in range(ndim): priors[i] = ['none',0.0,0.0,0.0,0.0]
-			for i, fp in enumerate(fps): priors[i] = [parameters_local[fp]['Prior'],parameters_local[fp]['Prior_vals'][0],parameters_local[fp]['Prior_vals'][1],parameters_local[fp]['Prior_vals'][2],parameters[fp]['Prior_vals'][3]]
+			pass
+			#priors = {}
+			#ndim = all_samples.shape[1]
+			#fps = parameters_local['FPs']
+			#for i in range(ndim): priors[i] = ['none',0.0,0.0,0.0,0.0]
+			#for i, fp in enumerate(fps): priors[i] = [parameters_local[fp]['Prior'],parameters_local[fp]['Prior_vals'][0],parameters_local[fp]['Prior_vals'][1],parameters_local[fp]['Prior_vals'][2],parameters[fp]['Prior_vals'][3]]
 		else:
 			priors = None
 		create_corner(all_samples,labels=labels,truths=None,savefig=True,priors=priors,quantiles=qs,diag_titles=value_formats)

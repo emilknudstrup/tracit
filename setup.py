@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="tracit",
-    version='0.1.3',
+    version='0.1.4',
     description='tracing exoplanets',
     url='https://github.com/emilknudstrup/tracit',
     author='Emil Knudstrup',

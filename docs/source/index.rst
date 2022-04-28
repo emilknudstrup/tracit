@@ -28,7 +28,7 @@ The RM effect as seen in the RVs is modelled using the software presented in:
 
 :strike:`tracit` has been used in:
    * :cite:t:`Hjorth2021`
-   * :cite:t:`Knudstrup2021`
+   * :cite:t:`Knudstrup2022`
 
 .. toctree::
    :maxdepth: 1

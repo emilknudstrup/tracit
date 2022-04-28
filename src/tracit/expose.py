@@ -265,23 +265,23 @@ def plot_orbit(parameters,data,updated_pars=None,
 
 				if calc_RM and np.isfinite(dur):
 					plot = (pp*per*24 > x1) & (pp*per*24 < x2)
-
 					try:
 						rv_o = rv_model(time[plot],n_planet=pl,n_rv=nn,RM=False)
-						rv_out = rv_model(time[~plot],n_planet=pl,n_rv=nn,RM=False)
-						axrm.errorbar(pp[~plot]*per*24,rv[~plot]-v0-drift[~plot]-rv_out,yerr=jitter_err[~plot],marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
 						axrm.errorbar(pp[plot]*per*24,rv[plot]-v0-drift[plot]-rv_o,yerr=jitter_err[plot],marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
 						axrm.errorbar(pp[plot]*per*24,rv[plot]-v0-drift[plot]-rv_o,yerr=rv_err[plot],marker='o',markersize=fms,color='C{}'.format(nn-1),linestyle='none',zorder=5)
-						axrm_oc.errorbar(pp[~plot]*per*24,rv[~plot]-v0-drift[~plot]-plo[~plot],yerr=jitter_err[~plot],marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
 						axrm_oc.errorbar(pp[plot]*per*24,rv[plot]-v0-drift[plot]-plo[plot],yerr=jitter_err[plot],marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
 						axrm_oc.errorbar(pp[plot]*per*24,rv[plot]-v0-drift[plot]-plo[plot],yerr=rv_err[plot],marker='o',markersize=fms,color='C{}'.format(nn-1),linestyle='none',zorder=5)
-
 						rm_maxy = max(rv[plot]-v0-drift[plot]-rv_o) + max(jitter_err[plot])
 						rm_miny = min(rv[plot]-v0-drift[plot]-rv_o) - max(jitter_err[plot])
 
 
 						rmoc_maxy = max(rv[plot]-v0-drift[plot]-plo[plot]) + max(jitter_err[plot])
 						rmoc_miny = min(rv[plot]-v0-drift[plot]-plo[plot]) - max(jitter_err[plot])
+						if any(~plot):
+							rv_out = rv_model(time[~plot],n_planet=pl,n_rv=nn,RM=False)
+							axrm.errorbar(pp[~plot]*per*24,rv[~plot]-v0-drift[~plot]-rv_out,yerr=jitter_err[~plot],marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
+							axrm_oc.errorbar(pp[~plot]*per*24,rv[~plot]-v0-drift[~plot]-plo[~plot],yerr=jitter_err[~plot],marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
+
 					except ValueError:
 						#figrm.close()
 						calc_RM = False
