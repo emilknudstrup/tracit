@@ -189,6 +189,7 @@ def plot_orbit(parameters,data,updated_pars=None,
 		if savefig: fig.savefig(path+'rv_unphased.pdf')
 
 
+
 		for pl in pls:
 			per = parameters['P_{}'.format(pl)]['Value']
 			t0 = parameters['T0_{}'.format(pl)]['Value']
@@ -262,6 +263,7 @@ def plot_orbit(parameters,data,updated_pars=None,
 				axpl_oc.errorbar(pp,rv-v0-drift-plo,yerr=jitter_err,marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
 				#axpl_oc.errorbar(pp,rv-v0-drift-plo,yerr=rv_err,marker='o',markersize=6.0,color='k',linestyle='none',zorder=4)
 				axpl_oc.errorbar(pp,rv-v0-drift-plo,yerr=rv_err,marker='o',markersize=fms,color='C{}'.format(nn-1),linestyle='none',zorder=5)
+
 
 				if calc_RM and np.isfinite(dur):
 					plot = (pp*per*24 > x1) & (pp*per*24 < x2)
@@ -1049,6 +1051,7 @@ def plot_shadow(parameters,data,oots=None,n_pars=0,
 					ccf = shadow_data[time]['ccf'].copy()
 
 					no_peak = (vel > no_bump) | (vel < -no_bump)
+					
 					poly_pars = np.polyfit(vel[no_peak],ccf[no_peak],1)
 					ccf -= (poly_pars[0]*vel + poly_pars[1])
 

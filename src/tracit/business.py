@@ -175,6 +175,21 @@ def get_binned(x,y,binfactor=4,yerr=np.array([])):
 
 def lc_model(time,n_planet='b',n_phot=1,
 	supersample_factor=30,exp_time=0.0208):
+	'''Light curve model.
+
+
+	Wrapper for batman \cite:p:`Kreidberg2015`.
+
+	:pararm time: Timestamps.
+	:type time: array
+
+	:param n_planet: The planet for which to calculate the light curve. Default 'b'.
+	:type planet: str, optional
+
+	:param n_phot: The photometric system for which to calculate the light curve. Default 1.
+	:type n_phot: int, optional	
+
+	'''
 	lclabel = 'LC{}'.format(n_phot)
 	pllabel = '_{}'.format(n_planet)
 
@@ -215,6 +230,21 @@ def lc_model(time,n_planet='b',n_phot=1,
 	return model_flux
 
 def rv_model(time,n_planet='b',n_rv=1,RM=False):
+	'''Radial velocity model.
+
+	:pararm time: Timestamps.
+	:type time: array
+
+	:param n_planet: The planet for which to calculate the light curve. Default 'b'.
+	:type planet: str, optional	
+
+	:param n_rv: The spectroscopic system for which to calculate the radial velocity curve. Default 1.
+	:type n_rv: int, optional	
+
+	:param RM: Whether to calculate the RM effect using the approach in :cite:t:`Hirano2011`. Default ``False``.
+	:type RM: bool
+
+	'''
 	pllabel = '_{}'.format(n_planet)
 	
 	orbpars = OrbitalParams()
@@ -503,6 +533,19 @@ def ls_model(time,start_grid,ring_grid,vel_grid,
 	return vel_1d, shadow, line_oot_norm, planet_rings, lum, index_error
 
 def localRV_model(time,n_planet='b'):
+	'''Subplanetary velocities.
+
+	Model for the slope of the velocities covered by the transiting planet across the stellar disk.
+
+	Using :py:func:`tracit.dynamics.get_rel_vsini`. 
+
+	:pararm time: Timestamps.
+	:type time: array
+
+	:param n_planet: The planet for which to calculate the slope. Default 'b'.
+	:type n_planet: str, optional
+
+	'''
 	pllabel = '_{}'.format(n_planet)
 	 
 	## Planet parameters
@@ -511,7 +554,6 @@ def localRV_model(time,n_planet='b'):
 	
 	inc = parameters['inc'+pllabel]['Value']*np.pi/180.
 	a_Rs = parameters['a_Rs'+pllabel]['Value']
-	#b = a_Rs*np.cos(inc)
 	rp = parameters['Rp_Rs'+pllabel]['Value']
 	ecc = parameters['e'+pllabel]['Value']
 	omega = parameters['w'+pllabel]['Value']

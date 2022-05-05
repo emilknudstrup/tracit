@@ -732,7 +732,13 @@ def get_rel_vsini(b, lam):
     '''Relative value of vsini at limbs.
 
     Function that returns the relative value of vsini at first and last contact
-    following :cite:t:`Albrecht2011`.
+    following :cite:t:`Albrecht2011`:
+
+    .. math::
+        x_1 = \sqrt{1-b^2} \cos \lambda - b \sin \lambda \, , \ \mathrm{and}
+        x_2 = \sqrt{1-b^2} \cos \lambda + b \sin \lambda \, ,
+    where :math:`b` is the impact parameter and :math:`\lambda` is the projected obliquity.
+
     
     :param b: Impact parameter.
     :type b: float
