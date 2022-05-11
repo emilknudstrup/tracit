@@ -844,8 +844,6 @@ def lnprob(positions):
 				chisq += chi2(flux_m,flux,sigma)
 
 			elif data['GP LC_{}'.format(nn)]:
-				loga = parameters['LC_{}_GP_log_a'.format(nn)]['Value']
-				logc = parameters['LC_{}_GP_log_c'.format(nn)]['Value']
 				gp = data['LC_{} GP'.format(nn)]
 				res_flux = flux - flux_m
 
@@ -874,7 +872,8 @@ def lnprob(positions):
 	rv_times, rvs, ervs = np.array([]), np.array([]), np.array([])  
 	model_rvs = np.array([])
 	add_drift = False
-
+	rv_gps = []
+	rv_idxs = np.array([])
 	for nn in range(1,n_rv+1):
 		if data['Fit RV_{}'.format(nn)]:
 			add_drift = True
@@ -893,8 +892,7 @@ def lnprob(positions):
 			sigma = np.sqrt(rv_err**2 + jitter**2)
 			#chi2scale = data['Chi2 RV_{}'.format(nn)]
 
-			if add_drift: 
-				rv_times, rvs, ervs = np.append(rv_times,time), np.append(rvs,rv), np.append(ervs,sigma)  
+			rv_times, rvs, ervs = np.append(rv_times,time), np.append(rvs,rv), np.append(ervs,sigma)  
 			
 			calc_RM = data['RM RV_{}'.format(nn)]
 			
@@ -911,6 +909,9 @@ def lnprob(positions):
 			model_rvs = np.append(model_rvs,rv_m)
 			n_dps += len(rvs)
 
+			rv_gps.append(data['GP RV_{}'.format(nn)])
+			rv_idxs = np.append(rv_idxs,np.ones(len(time))*nn)
+
 	if add_drift:# n_rv > 0:
 		aa = np.array([parameters['a{}'.format(ii)]['Value'] for ii in range(1,3)])
 		idx = np.argmin(rv_times)
@@ -919,8 +920,40 @@ def lnprob(positions):
 		drift = aa[1]*(rv_times-zp)**2 + aa[0]*(rv_times-zp)# + off
 		
 		model_rvs += drift
-		log_prob += lnlike(model_rvs,rvs,ervs)
-		chisq += chi2(model_rvs,rvs,ervs)
+
+		if any(rv_gps):
+			for nn in range(1,n_rv+1): 
+				idxs = rv_idxs == nn
+				if data['GP RV_{}'.format(nn)]:
+
+					gp = data['RV_{} GP'.format(nn)]
+
+					res_rv = rvs[idxs] - model_rvs[idxs]
+
+					gp_type = data['GP type RV_{}'.format(nn)]
+					if gp_type == 'SHO':
+						log_S0 = parameters['RV_{}_log_S0'.format(nn)]['Value']
+						log_Q = parameters['RV_{}_log_Q'.format(nn)]['Value']
+						log_w0 = parameters['RV_{}_log_w0'.format(nn)]['Value']
+					
+						gp_list = [log_S0,log_Q,log_w0]
+					else:
+						loga = parameters['RV_{}_GP_log_a'.format(nn)]['Value']
+						logc = parameters['RV_{}_GP_log_c'.format(nn)]['Value']
+						gp_list = [loga,logc]
+
+					gp.set_parameter_vector(np.array(gp_list))
+					gp.compute(rv_times[idxs],ervs[idxs])
+					lprob = gp.log_likelihood(res_rv)
+					log_prob += lprob#lnlike(flux_m,flux,sigma)
+
+					chisq += -2*lprob - np.sum(np.log(2*np.pi*ervs[idxs]**2))#chi2(flux_m,flux,sigma)
+				else:
+					log_prob += lnlike(model_rvs[idxs],rvs[idxs],ervs[idxs])
+					chisq += chi2(model_rvs[idxs],rvs[idxs],ervs[idxs])
+		else:
+			log_prob += lnlike(model_rvs,rvs,ervs)
+			chisq += chi2(model_rvs,rvs,ervs)
 
 	avg_ccf = np.array([])
 	for nn in range(1,n_ls+1):
@@ -1559,7 +1592,7 @@ def mcmc(par,dat,maxdraws,nwalkers,
 	return res_df
 
 
-def check_convergence(parameters_local,data_local,filename='samples.h5', 
+def check_convergence(parameters_local,data_local,filename=None, 
 					sampler=None, post_name='posteriors.npy',
 					plot_chains=True, plot_corner=True,chain_ival=5,
 					save_df=True,results_filename='results.csv',
@@ -1576,7 +1609,7 @@ def check_convergence(parameters_local,data_local,filename='samples.h5',
 	:param data_local: Data, but only parsed locally.
 	:type data_local: :py:class:`tracit.structure.dat_struct`
 
-	:param filename: Name of the .hdf5 file for the samples. Default `samples.h5`.
+	:param filename: Name of the .hdf5 file for the samples. 
 	:type filename: str
 
 	:param sampler: The `emcee <https://github.com/dfm/emcee>`_ sampler.
@@ -1947,12 +1980,12 @@ def check_convergence(parameters_local,data_local,filename='samples.h5',
 	## corner plot of samples
 	if plot_corner:
 		if plot_priors:
-			pass
-			#priors = {}
-			#ndim = all_samples.shape[1]
-			#fps = parameters_local['FPs']
-			#for i in range(ndim): priors[i] = ['none',0.0,0.0,0.0,0.0]
-			#for i, fp in enumerate(fps): priors[i] = [parameters_local[fp]['Prior'],parameters_local[fp]['Prior_vals'][0],parameters_local[fp]['Prior_vals'][1],parameters_local[fp]['Prior_vals'][2],parameters[fp]['Prior_vals'][3]]
+			#pass
+			priors = {}
+			ndim = all_samples.shape[1]
+			fps = parameters_local['FPs']
+			for i in range(ndim): priors[i] = ['none',0.0,0.0,0.0,0.0]
+			for i, fp in enumerate(fps): priors[i] = [parameters_local[fp]['Prior'],parameters_local[fp]['Prior_vals'][0],parameters_local[fp]['Prior_vals'][1],parameters_local[fp]['Prior_vals'][2],parameters[fp]['Prior_vals'][3]]
 		else:
 			priors = None
 		create_corner(all_samples,labels=labels,truths=None,savefig=True,priors=priors,quantiles=qs,diag_titles=value_formats)

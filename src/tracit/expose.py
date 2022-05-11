@@ -131,10 +131,13 @@ def plot_orbit(parameters,data,updated_pars=None,
 		RMs = []
 		m_rvs = np.array([])
 		for nn in range(1,n_rv+1):
+			plot_gp = data['GP RV_{}'.format(nn)]
+			if plot_gp: ntimes = np.linspace(min(time),max(time),500)
 			label = data['RV_label_{}'.format(nn)]
 			arr = data['RV_{}'.format(nn)]
 			time, rv, rv_err = arr[:,0].copy(), arr[:,1].copy(), arr[:,2].copy()
 			v0 = parameters['RVsys_{}'.format(nn)]['Value']
+			rv -= v0
 			jitter = parameters['RVsigma_{}'.format(nn)]['Value']
 			jitter_err = np.sqrt(rv_err**2 + jitter**2)
 			
@@ -142,20 +145,64 @@ def plot_orbit(parameters,data,updated_pars=None,
 			#jitter_err *= chi2scale
 
 			drift = aa[1]*(time-zp)**2 + aa[0]*(time-zp)
+			if plot_gp: gp_drift = aa[1]*(ntimes-zp)**2 + aa[0]*(ntimes-zp)
 			RM = data['RM RV_{}'.format(nn)]
 			RMs.append(RM)
-
-			ax.errorbar(time,rv-v0,yerr=jitter_err,marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
-			ax.errorbar(time,rv-v0,yerr=rv_err,marker='o',markersize=fms,color='C{}'.format(nn-1),linestyle='none',zorder=5,label=r'$\rm {}$'.format(label))
 			mnrv = np.zeros(len(time))
+			if plot_gp: gp_mnrv = np.zeros(len(ntimes))
 			for pl in pls: 
 				mnrv += rv_model(time,n_planet=pl,n_rv=nn,RM=RM)
-			axoc.errorbar(time,rv-v0-drift-mnrv,yerr=jitter_err,marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
-			axoc.errorbar(time,rv-v0-drift-mnrv,yerr=rv_err,marker='o',markersize=fms,color='C{}'.format(nn-1),linestyle='none',zorder=5)
+				if plot_gp: 
+					gp_mnrv += rv_model(ntimes,n_planet=pl,n_rv=nn,RM=RM)
 
+
+
+
+			ax.errorbar(time,rv,yerr=jitter_err,marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
+			ax.errorbar(time,rv,yerr=rv_err,marker='o',markersize=fms,color='C{}'.format(nn-1),linestyle='none',zorder=5,label=r'$\rm {}$'.format(label))
+			axoc.errorbar(time,rv-drift-mnrv,yerr=jitter_err,marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
+			axoc.errorbar(time,rv-drift-mnrv,yerr=rv_err,marker='o',markersize=fms,color='C{}'.format(nn-1),linestyle='none',zorder=5)
+			if plot_gp:
+				gp_fig = plt.figure(figsize=(12,6))
+				ax_gp = gp_fig.add_subplot(111)
+				#ax_gp2 = gp_fig.add_subplot(212)
+				gp = data['RV_{} GP'.format(nn)]
+				gp_type = data['GP type RV_{}'.format(nn)]
+				if gp_type == 'SHO':
+					log_S0 = parameters['RV_{}_log_S0'.format(nn)]['Value']
+					log_Q = parameters['RV_{}_log_Q'.format(nn)]['Value']
+					log_w0 = parameters['RV_{}_log_w0'.format(nn)]['Value']
+				
+					gp_list = [log_S0,log_Q,log_w0]
+				else:
+					loga = parameters['RV_{}_GP_log_a'.format(nn)]['Value']
+					logc = parameters['RV_{}_GP_log_c'.format(nn)]['Value']
+					gp_list = [loga,logc]
+				gp.set_parameter_vector(np.array(gp_list))
+				gp.compute(time,jitter_err)
+
+				res_rv = rv-drift-mnrv
+
+				off = gp_drift+gp_mnrv
+				ntimes = np.linspace(min(time),max(time),500)
+				mu, var = gp.predict(res_rv, ntimes, return_var=True)
+				std = np.sqrt(var)
+				ax_gp.errorbar(time,rv,yerr=jitter_err,marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
+				ax_gp.errorbar(time,rv,yerr=rv_err,marker='o',markersize=fms,color='C{}'.format(nn-1),linestyle='none',zorder=5,label=r'$\rm {}$'.format(label))
+				
+				ax_gp.plot(ntimes,off,color='k',linestyle='--')
+				ax_gp.plot(ntimes,mu,color='k',linestyle='--')
+				
+				ax_gp.fill_between(ntimes, mu+std+off, mu-std+off, color='C7', alpha=0.9, edgecolor="none",zorder=6)
+				ax_gp.plot(ntimes,mu+off,color='k',lw=2.0,zorder=7)
+				ax_gp.plot(ntimes,mu+off,color='w',lw=1.0,zorder=7)
+				ax_gp.set_ylabel(r'$\rm RV \ (m/s)$',fontsize=font)
+				ax_gp.set_xlabel(r'$\rm Time \ (BJD)$',fontsize=font)
+
+				if savefig: gp_fig.savefig(path+'rv_{}_GP.pdf'.format(nn))
 
 			print('## Spectroscopic system {}/{} ##:'.format(nn,label))
-			red_chi2 = np.sum((rv-v0-drift-mnrv)**2/jitter_err**2)/(len(rv)-n_pars)
+			red_chi2 = np.sum((rv-drift-mnrv)**2/jitter_err**2)/(len(rv)-n_pars)
 			print('\nReduced chi-squared for the radial velocity curve is:\n\t {:.03f}'.format(red_chi2))
 			#print('Factor to apply to get a reduced chi-squared around 1.0 is:\n\t {:.03f}\n'.format(np.sqrt(red_chi2)))
 			print('Number of data points: {}'.format(len(rv)))
@@ -232,6 +279,7 @@ def plot_orbit(parameters,data,updated_pars=None,
 				arr = data['RV_{}'.format(nn)]
 				time, rv, rv_err = arr[:,0].copy(), arr[:,1].copy(), arr[:,2].copy()
 				v0 = parameters['RVsys_{}'.format(nn)]['Value']
+				rv -= v0
 				log_jitter = parameters['RVsigma_{}'.format(nn)]['Value']
 				#jitter = np.exp(log_jitter)
 				jitter = log_jitter
@@ -251,38 +299,69 @@ def plot_orbit(parameters,data,updated_pars=None,
 						rv -= rv_model(time,n_planet=pl2,n_rv=nn,RM=RM)
 				
 
-
+				rv -= drift
 				pp = time2phase(time,per,t0)
 				plo = rv_model(time,n_planet=pl,n_rv=nn,RM=RM)
 				#plo = rv_model(time,n_planet=pl,n_rv=nn,RM=RM)
+				plot_gp = data['GP RV_{}'.format(nn)]
+				if plot_gp:
+					#gp_fig = plt.figure(figsize=(12,6))
+					#ax_gp = gp_fig.add_subplot(111)
+					gp = data['RV_{} GP'.format(nn)]
+					gp_type = data['GP type RV_{}'.format(nn)]
+					if gp_type == 'SHO':
+						log_S0 = parameters['RV_{}_log_S0'.format(nn)]['Value']
+						log_Q = parameters['RV_{}_log_Q'.format(nn)]['Value']
+						log_w0 = parameters['RV_{}_log_w0'.format(nn)]['Value']
+					
+						gp_list = [log_S0,log_Q,log_w0]
+					else:
+						loga = parameters['RV_{}_GP_log_a'.format(nn)]['Value']
+						logc = parameters['RV_{}_GP_log_c'.format(nn)]['Value']
+						gp_list = [loga,logc]
+					gp.set_parameter_vector(np.array(gp_list))
+					gp.compute(time,jitter_err)
 
-				axpl.errorbar(pp,rv-v0-drift,yerr=jitter_err,marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
-				#axpl.errorbar(pp,rv-v0-drift,yerr=rv_err,marker='o',markersize=6.0,color='k',linestyle='none',zorder=4)
-				axpl.errorbar(pp,rv-v0-drift,yerr=rv_err,marker='o',markersize=fms,color='C{}'.format(nn-1),linestyle='none',zorder=5,label=r'$\rm {}$'.format(label))
+
+					res_rv = rv-plo
+
+					mu, var = gp.predict(res_rv, time, return_var=True)
+					#std = np.sqrt(var)
+					#print(mu)
+					rv -= mu
+					#rv += plo
+
+
+				axpl.errorbar(pp,rv,yerr=jitter_err,marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
+				#axpl.errorbar(pp,rv,yerr=rv_err,marker='o',markersize=6.0,color='k',linestyle='none',zorder=4)
+				axpl.errorbar(pp,rv,yerr=rv_err,marker='o',markersize=fms,color='C{}'.format(nn-1),linestyle='none',zorder=5,label=r'$\rm {}$'.format(label))
 				
-				axpl_oc.errorbar(pp,rv-v0-drift-plo,yerr=jitter_err,marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
-				#axpl_oc.errorbar(pp,rv-v0-drift-plo,yerr=rv_err,marker='o',markersize=6.0,color='k',linestyle='none',zorder=4)
-				axpl_oc.errorbar(pp,rv-v0-drift-plo,yerr=rv_err,marker='o',markersize=fms,color='C{}'.format(nn-1),linestyle='none',zorder=5)
+				axpl_oc.errorbar(pp,rv-plo,yerr=jitter_err,marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
+				#axpl_oc.errorbar(pp,rv-plo,yerr=rv_err,marker='o',markersize=6.0,color='k',linestyle='none',zorder=4)
+				axpl_oc.errorbar(pp,rv-plo,yerr=rv_err,marker='o',markersize=fms,color='C{}'.format(nn-1),linestyle='none',zorder=5)
+				
+
 
 
 				if calc_RM and np.isfinite(dur):
 					plot = (pp*per*24 > x1) & (pp*per*24 < x2)
 					try:
+
 						rv_o = rv_model(time[plot],n_planet=pl,n_rv=nn,RM=False)
-						axrm.errorbar(pp[plot]*per*24,rv[plot]-v0-drift[plot]-rv_o,yerr=jitter_err[plot],marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
-						axrm.errorbar(pp[plot]*per*24,rv[plot]-v0-drift[plot]-rv_o,yerr=rv_err[plot],marker='o',markersize=fms,color='C{}'.format(nn-1),linestyle='none',zorder=5)
-						axrm_oc.errorbar(pp[plot]*per*24,rv[plot]-v0-drift[plot]-plo[plot],yerr=jitter_err[plot],marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
-						axrm_oc.errorbar(pp[plot]*per*24,rv[plot]-v0-drift[plot]-plo[plot],yerr=rv_err[plot],marker='o',markersize=fms,color='C{}'.format(nn-1),linestyle='none',zorder=5)
-						rm_maxy = max(rv[plot]-v0-drift[plot]-rv_o) + max(jitter_err[plot])
-						rm_miny = min(rv[plot]-v0-drift[plot]-rv_o) - max(jitter_err[plot])
+						axrm.errorbar(pp[plot]*per*24,rv[plot]-rv_o,yerr=jitter_err[plot],marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
+						axrm.errorbar(pp[plot]*per*24,rv[plot]-rv_o,yerr=rv_err[plot],marker='o',markersize=fms,color='C{}'.format(nn-1),linestyle='none',zorder=5)
+						axrm_oc.errorbar(pp[plot]*per*24,rv[plot]-plo[plot],yerr=jitter_err[plot],marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
+						axrm_oc.errorbar(pp[plot]*per*24,rv[plot]-plo[plot],yerr=rv_err[plot],marker='o',markersize=fms,color='C{}'.format(nn-1),linestyle='none',zorder=5)
+						rm_maxy = max(rv[plot]-rv_o) + max(jitter_err[plot])
+						rm_miny = min(rv[plot]-rv_o) - max(jitter_err[plot])
 
 
-						rmoc_maxy = max(rv[plot]-v0-drift[plot]-plo[plot]) + max(jitter_err[plot])
-						rmoc_miny = min(rv[plot]-v0-drift[plot]-plo[plot]) - max(jitter_err[plot])
+						rmoc_maxy = max(rv[plot]-plo[plot]) + max(jitter_err[plot])
+						rmoc_miny = min(rv[plot]-plo[plot]) - max(jitter_err[plot])
 						if any(~plot):
 							rv_out = rv_model(time[~plot],n_planet=pl,n_rv=nn,RM=False)
-							axrm.errorbar(pp[~plot]*per*24,rv[~plot]-v0-drift[~plot]-rv_out,yerr=jitter_err[~plot],marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
-							axrm_oc.errorbar(pp[~plot]*per*24,rv[~plot]-v0-drift[~plot]-plo[~plot],yerr=jitter_err[~plot],marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
+							axrm.errorbar(pp[~plot]*per*24,rv[~plot]-drift[~plot]-rv_out,yerr=jitter_err[~plot],marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
+							axrm_oc.errorbar(pp[~plot]*per*24,rv[~plot]-drift[~plot]-plo[~plot],yerr=jitter_err[~plot],marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
 
 					except ValueError:
 						#figrm.close()
@@ -1141,7 +1220,7 @@ def plot_shadow(parameters,data,oots=None,n_pars=0,
 			phase = time2phase(times,P,T0) #phase of observing times
 			exptime = np.mean(np.diff(times))*np.ones(len(times))*24.*3600.
 			exptime_phase = exptime/(P*24.*3600.) #exptimes converted to phase-units for making shadow figure
-
+			vel_m_arr = np.asarray([vels]*len(times))
 
 			if not only_obs:
 				if scale2model:
@@ -1170,7 +1249,6 @@ def plot_shadow(parameters,data,oots=None,n_pars=0,
 
 
 				#vel_m_arr = np.asarray([vel_model]*len(times))
-				vel_m_arr = np.asarray([vels]*len(times))
 
 				#create_shadow(phase, vel_m_arr, -1*int_shadows, exptime_phase,P,cmap=cmap,
 				create_shadow(phase, vel_m_arr, -1*obs_shadows, exptime_phase,P,cmap=cmap,
@@ -1264,16 +1342,16 @@ def plot_shadow(parameters,data,oots=None,n_pars=0,
 				fig = plt.figure()
 				ax = fig.add_subplot(111)
 
-				zmin = np.min(-1*int_shadows)
+				zmin = np.min(-1*obs_shadows)
 				zmax = abs(zmin)
 				if diff_cmap:
 					ncmap = plt.get_cmap('Spectral',len(phase))
-					create_shadow(phase, vel_m_arr, -1*int_shadows, exptime_phase,P,cmap=cmap,
+					create_shadow(phase, vel_m_arr, -1*obs_shadows, exptime_phase,P,cmap=cmap,
 											vsini=vsini,zmin=zmin,zmax=zmax,contour=False,ax=ax,
 											colorbar=False,latex=plot_tex,font=font,
 											diff_cmap=ncmap,its=its)
 				else:
-					create_shadow(phase, vel_m_arr, -1*int_shadows, exptime_phase,P,cmap=cmap,
+					create_shadow(phase, vel_m_arr, -1*obs_shadows, exptime_phase,P,cmap=cmap,
 											vsini=False,zmin=zmin,zmax=zmax,contour=False,ax=ax,
 											colorbar=True,latex=plot_tex,font=font)
 				ax.axhline(-1*t23*24/2,linestyle='--',color=contact_color,lw=2.0)

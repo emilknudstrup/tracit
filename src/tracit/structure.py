@@ -419,6 +419,8 @@ def dat_struct(n_phot=1,n_rvs=1,n_ls=0,n_sl=0):
 		data['Fit RV_{}'.format(ii)] = False#str2bool(df_spec['Fit RV'][ii])
 		data['RM RV_{}'.format(ii)] = False#str2bool(df_spec['Fit RM'][ii])		
 		data['RV filename_{}'.format(ii)] = 'rv.txt'#np.zeros(shape=(10,3))
+		data['GP RV_{}'.format(ii)] = False#str2bool(df_phot['Gaussian Process'][ii])
+		data['GP type RV_{}'.format(ii)] = 'Matern32'
 
 	data['LSs'] = n_ls
 	for ii in range(1,n_ls+1):
@@ -495,10 +497,11 @@ def ini_data(data):
 	for ii in range(1,n_phot+1):
 		fname = data['LC filename_{}'.format(ii)]
 		arr = np.loadtxt(fname)
-		data['LC_{}'.format(ii)] = arr
+		data['RV_{}'.format(ii)] = arr
 		try:
-			if data['GP LC_{}'.format(ii)]:
-				gp_type = data['GP type LC_{}'.format(ii)]
+			if data['GP RV_{}'.format(ii)]:
+				print('ảsd')
+				gp_type = data['GP type RV_{}'.format(ii)]
 				if gp_type == 'Real':
 					kernel = celerite.terms.RealTerm(log_a=0.5, log_c=0.1)
 				elif gp_type == 'Matern32':
@@ -507,7 +510,7 @@ def ini_data(data):
 					kernel = celerite.terms.SHOTerm(log_S0=-0.3, log_Q=-0.7,log_omega0=-0.139)			
 				gp = celerite.GP(kernel)
 				#gp.compute(arr[:,0],arr[:,2]) #probably redundant
-				data['LC_{} GP'.format(ii)] = gp
+				data['RV_{} GP'.format(ii)] = gp
 		except KeyError:
 			pass
 		
@@ -516,6 +519,20 @@ def ini_data(data):
 		fname = data['RV filename_{}'.format(ii)]
 		arr = np.loadtxt(fname)
 		data['RV_{}'.format(ii)] = arr		
+		try:
+			if data['GP RV_{}'.format(ii)]:
+				gp_type = data['GP type RV_{}'.format(ii)]
+				if gp_type == 'Real':
+					kernel = celerite.terms.RealTerm(log_a=0.5, log_c=0.1)
+				elif gp_type == 'Matern32':
+					kernel = celerite.terms.Matern32Term(log_sigma=-0.3, log_rho=-0.7)			
+				elif gp_type == 'SHO':
+					kernel = celerite.terms.SHOTerm(log_S0=-0.3, log_Q=-0.7,log_omega0=-0.139)			
+				gp = celerite.GP(kernel)
+				#gp.compute(arr[:,0],arr[:,2]) #probably redundant
+				data['RV_{} GP'.format(ii)] = gp
+		except KeyError:
+			pass
 
 	n_ls = data['LSs']
 	for ii in range(1,n_ls+1):
