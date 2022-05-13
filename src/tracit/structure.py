@@ -497,11 +497,10 @@ def ini_data(data):
 	for ii in range(1,n_phot+1):
 		fname = data['LC filename_{}'.format(ii)]
 		arr = np.loadtxt(fname)
-		data['RV_{}'.format(ii)] = arr
+		data['LC_{}'.format(ii)] = arr
 		try:
-			if data['GP RV_{}'.format(ii)]:
-				print('ảsd')
-				gp_type = data['GP type RV_{}'.format(ii)]
+			if data['GP LC_{}'.format(ii)]:
+				gp_type = data['GP type LC_{}'.format(ii)]
 				if gp_type == 'Real':
 					kernel = celerite.terms.RealTerm(log_a=0.5, log_c=0.1)
 				elif gp_type == 'Matern32':
@@ -510,7 +509,7 @@ def ini_data(data):
 					kernel = celerite.terms.SHOTerm(log_S0=-0.3, log_Q=-0.7,log_omega0=-0.139)			
 				gp = celerite.GP(kernel)
 				#gp.compute(arr[:,0],arr[:,2]) #probably redundant
-				data['RV_{} GP'.format(ii)] = gp
+				data['LC_{} GP'.format(ii)] = gp
 		except KeyError:
 			pass
 		
