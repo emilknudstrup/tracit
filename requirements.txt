@@ -1,5 +1,5 @@
 numpy
-batman
+batman-package
 celerite
 emcee
 pandas
@@ -10,5 +10,4 @@ lmfit
 arviz
 statsmodels
 astropy
-scipy
-pickle
+tqdm
