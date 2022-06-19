@@ -11,6 +11,7 @@ import string
 import numpy as np
 import h5py
 import celerite
+import pickle
 from .shady import grid, grid_ring
 
 def par_struct(n_phot=1,n_spec=1,n_planets=1,LD_law='quad',
@@ -374,6 +375,18 @@ def update_pars(rdf,parameters,best_fit=True,mcmc=True):
 				parameters[par]['Value'] = float(rdf[par][idx])	
 
 
+def writeInput(parameters={},data={},filename='./input.pkl'):
+
+	w = {'Parameters' : parameters, 'Data' : data}
+	with open(filename,'wb') as file:
+			pickle.dump(w,file)
+
+
+def readInput(filename='./input.pkl'):
+	with open(filename,'rb') as file:
+		w = pickle.load(file)
+	return w['Parameters'], w['Data']
+
 def dat_struct(n_phot=1,n_rvs=1,n_ls=0,n_sl=0):
 	'''Structure for the data.
 	
@@ -647,3 +660,30 @@ def ini_data(data):
 			data['SL_label_{}'.format(ii)] = 'Spectrograph\ {}'.format(ii)
 
 		data['SL_{}'.format(ii)] = shadow_data
+
+
+def get_expTime(data,setexp=False):
+	'''Estimate exposure times.
+
+	Exposure time estimated as the mean of the difference between timestamps in the time series (in minutes).
+	
+	:param data: The data.
+	:type data: dict
+
+	:param setexp: Whether to set data['Exp. LC_i'] to the estimated time.
+	:type setexp: bool 
+	
+	'''
+
+	n_phot = data['LCs']
+	for ii in range(1,n_phot+1):
+		arr = data['LC_{}'.format(ii)]
+		exp = np.mean(np.diff(arr[:,0]))*24*60
+		print('Exsposure time for LC_{} is {:0.3f} min.'.format(ii,exp))
+		if setexp: data['Exp. LC_{}'.format(ii)] = exp
+	
+	# n_rvs = data['RVs']
+	# for ii in range(1,n_rvs+1):
+	# 	arr = data['RV_{}'.format(ii)]
+	# 	exp = np.mean(np.diff(arr[:,0]))*24*60
+	# 	print('Exsposure time for RV_{} is {:0.3f} min.'.format(ii,exp))

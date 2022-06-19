@@ -480,7 +480,7 @@ def xy_pos(cos_f,sin_f,ecc,ww,ar,inc,lam):
 # =============================================================================
 def get_RM(cos_f,sin_f,ww,ecc,ar,inc,rp,c1,c2,lam,vsini,
     xi=3.,gamma=1.,zeta=1.0,alpha=0.,cos_is=0.0,
-    mpath='./'):
+    mpath='.'):
     '''The Rossiter-McLaughlin effect
 
     Function to calculate the Rossiter-McLaughlin effect for transiting exoplanets.
@@ -567,7 +567,7 @@ def get_RM(cos_f,sin_f,ww,ecc,ar,inc,rp,c1,c2,lam,vsini,
 # Radial velocity curve 
 # =============================================================================
 
-def get_RV(time, orbpars, RM=False, stelpars=None,mpath='./'):
+def get_RV(time, orbpars, RM=False, stelpars=None,mpath=None):
     '''The radial velocity curve
 
     Function that returns the radial velocity curve of the orbit following :cite:t:`Murray2010`.
@@ -585,7 +585,7 @@ def get_RV(time, orbpars, RM=False, stelpars=None,mpath='./'):
     :param stelpars: Stellar parameters from :py:class:`StellarParams`. Defaults to ``None``.
     :type stelpars: object, optional
 
-    :param mpath: Path to the code by :cite:t:`Hirano2011`. Defaults to './'.
+    :param mpath: Path to the code by :cite:t:`Hirano2011`. Defaults to ``None`` in which case ``os.path.dirname(__file__)``.
     :type mpath: str, optional
     
     :return: Radial velocity curve.
@@ -639,6 +639,9 @@ def get_RV(time, orbpars, RM=False, stelpars=None,mpath='./'):
             else: 
                 idxs.append(idx)
         
+        if not mpath:
+            mpath = os.path.abspath(os.path.dirname(__file__))
+
         if len(idxs) == 0:
             pass 
         elif len(idxs) == 1:

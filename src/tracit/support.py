@@ -132,7 +132,7 @@ def plot_autocorr(autocorr,index,kk,savefig=True):
     axc.set_ylabel(r'$\rm \mu(\hat{\tau})$')
     if savefig: figc.savefig('autocorr.pdf')
 
-def create_chains(samples,labels=None,savefig=False,fname='chains',ival=5):
+def create_chains(samples,labels=None,savefig=False,fname='chains',ival=5,plot_tex=False):
     '''Chains from the sampling.
 
     Plot the chains from the sampling to monitor the behaviour of the walkers during the run.
@@ -144,9 +144,9 @@ def create_chains(samples,labels=None,savefig=False,fname='chains',ival=5):
     :type labels: list, optional
 
     '''
-    plt.rc('text',usetex=False)
+    plt.rc('text',usetex=plot_tex)
     pre = fname.split('.')[0]
-    if not fname.lower().endswith(('.png', '.pdf')): ext = '.pdf'
+    if not fname.lower().endswith(('.png', '.pdf')): ext = '.png'
     else: 
         ext = '.' + fname.split('.')[-1]
 
@@ -178,12 +178,12 @@ def create_chains(samples,labels=None,savefig=False,fname='chains',ival=5):
 
         if savefig:
             cname = pre + '_{}'.format(ii) + ext
-            plt.savefig(cname)
+            plt.savefig(cname,dpi=1000)
             plt.close()
 
 def create_corner(samples,labels=None,truths=None,savefig=True,fname='corner',
         #quantiles=[16,50,84], show_titles=True, priors=None):
-        quantiles=[], diag_titles=None, priors=None):
+        quantiles=[], diag_titles=None, priors=None,plot_tex=False):
     '''Corner plot.
 
     Create corner plot to investigate the covariance between the samples using ``corner`` :cite:p:`corner`.
@@ -196,7 +196,7 @@ def create_corner(samples,labels=None,truths=None,savefig=True,fname='corner',
     
 
     '''
-    plt.rc('text',usetex=False)
+    plt.rc('text',usetex=plot_tex)
     ndim = samples.shape[-1]
     if labels == None: 
         labels = list(map(r'$\theta_{{{0}}}$'.format, range(ndim)))

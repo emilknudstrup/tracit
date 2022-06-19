@@ -1520,7 +1520,7 @@ def mcmc(par,dat,maxdraws,nwalkers,
 	run_bus(par,dat)
 	RM_path()
 
-	fit_params = parameters['FPs']
+	fit_params = list(set(parameters['FPs']))
 	ndim = len(fit_params)
 	assert ndim > 0, print('Error: No parameters to fit...')
 	for fp in fit_params:

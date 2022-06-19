@@ -36,10 +36,11 @@ from scipy.signal import savgol_filter
 from astropy.timeseries import LombScargle
 
 
-def run_exp(tex=True):
-	global plot_tex
+def run_exp():
+#def run_exp(tex=True):
+	#global plot_tex
 
-	plot_tex = tex
+	#plot_tex = tex
 
 	global colors
 	colors = {
@@ -61,7 +62,7 @@ def run_exp(tex=True):
 
 #def plot_orbit(param_fname,data_fname,updated_pars=None,
 def plot_orbit(parameters,data,updated_pars=None,
-	savefig=False,path='',OC_rv=True,n_pars=0):
+	savefig=False,path='',OC_rv=True,n_pars=0,plot_tex=False):
 	'''Plot the radial velocity curve.
 
 	:param parameters: The parameters. See :py:class:`tracit.structure.par_struct`.
@@ -420,7 +421,7 @@ def plot_orbit(parameters,data,updated_pars=None,
 
 #def plot_lightcurve(param_fname,data_fname,updated_pars=None,savefig=False,
 def plot_lightcurve(parameters,data,savefig=False,
-	path='',n_pars=0,errorbar=True,best_fit=True):
+	path='',n_pars=0,errorbar=True,best_fit=True,plot_tex=False):
 	'''Plot the light curve.
 
 	Function to plot a light curve
@@ -810,7 +811,7 @@ def plot_lightcurve(parameters,data,savefig=False,
 def create_shadow(phase,vel,shadow,exp_phase,per,
 	savefig=False,fname='shadow',zmin=None,zmax=None,
 	xlims=[],contour=False,vsini=None,cmap='bone_r',
-	ax=None,colorbar=True,cbar_pos='right',latex=True,
+	ax=None,colorbar=True,cbar_pos='right',plot_tex=False,
 	font = 12,tickfontsize=10,diff_cmap=None,its=[]):
 	'''Shadow plot.
 
@@ -898,7 +899,7 @@ def create_shadow(phase,vel,shadow,exp_phase,per,
 def plot_shadow(parameters,data,oots=None,n_pars=0,
 	cmap='gray',contact_color='C3',font = 12,savefig=True,path='',
 	tickfontsize=10,scale2model=True,xlim=None,xticks=[],yticks=[],
-	only_obs=False,diff_cmap=False):
+	only_obs=False,diff_cmap=False,plot_tex=False):
 	'''Shadow plot wrapper.
 
 
@@ -1252,16 +1253,16 @@ def plot_shadow(parameters,data,oots=None,n_pars=0,
 
 				#create_shadow(phase, vel_m_arr, -1*int_shadows, exptime_phase,P,cmap=cmap,
 				create_shadow(phase, vel_m_arr, -1*obs_shadows, exptime_phase,P,cmap=cmap,
-										vsini=vsini,zmin=zmin,zmax=zmax,contour=False,ax=ax1,colorbar=False,latex=plot_tex,font=font)
+										vsini=vsini,zmin=zmin,zmax=zmax,contour=False,ax=ax1,colorbar=False,plot_tex=plot_tex,font=font)
 
 				#create_shadow(phase, vel_m_arr, -1*shadow_model, exptime_phase,P, vsini=vsini,cmap=cmap,font=font,
 				create_shadow(phase, vel_m_arr, -1*shadow2obs, exptime_phase,P, vsini=vsini,cmap=cmap,font=font,
-										zmin=zmin,zmax=zmax,contour=False,ax=ax2,cbar_pos='top',latex=plot_tex,tickfontsize=tickfontsize)
+										zmin=zmin,zmax=zmax,contour=False,ax=ax2,cbar_pos='top',plot_tex=plot_tex,tickfontsize=tickfontsize)
 
 				#diff = -1*(int_shadows - shadow_model)
 				diff = -1*(obs_shadows - shadow2obs)
 				create_shadow(phase, vel_m_arr, diff, exptime_phase,P, cmap=cmap,font=font,
-										vsini=vsini,zmin=zmin,zmax=zmax,contour=False,ax=ax3,colorbar=False,latex=plot_tex);# plt.show()
+										vsini=vsini,zmin=zmin,zmax=zmax,contour=False,ax=ax3,colorbar=False,plot_tex=plot_tex);# plt.show()
 
 				
 				if xlim:
@@ -1348,12 +1349,12 @@ def plot_shadow(parameters,data,oots=None,n_pars=0,
 					ncmap = plt.get_cmap('Spectral',len(phase))
 					create_shadow(phase, vel_m_arr, -1*obs_shadows, exptime_phase,P,cmap=cmap,
 											vsini=vsini,zmin=zmin,zmax=zmax,contour=False,ax=ax,
-											colorbar=False,latex=plot_tex,font=font,
+											colorbar=False,plot_tex=plot_tex,font=font,
 											diff_cmap=ncmap,its=its)
 				else:
 					create_shadow(phase, vel_m_arr, -1*obs_shadows, exptime_phase,P,cmap=cmap,
 											vsini=False,zmin=zmin,zmax=zmax,contour=False,ax=ax,
-											colorbar=True,latex=plot_tex,font=font)
+											colorbar=True,plot_tex=plot_tex,font=font)
 				ax.axhline(-1*t23*24/2,linestyle='--',color=contact_color,lw=2.0)
 				ax.axhline(1*t23*24/2,linestyle='--',color=contact_color,lw=2.0)
 
@@ -1378,7 +1379,8 @@ def plot_shadow(parameters,data,oots=None,n_pars=0,
 
 def plot_oot_ccf_gp(parameters,data,updated_pars=None,oots=None,n_pars=0,chi2_scale=1.0,
 	font = 12,savefig=True,path='',no_bump=15,best_fit=True,xmajor=None,xminor=None,
-	ymajor1=None,yminor1=None,ymajor2=None,yminor2=None,plot_intransit=True,xmax=None,xmin=None):
+	ymajor1=None,yminor1=None,ymajor2=None,yminor2=None,plot_intransit=True,xmax=None,xmin=None,
+	plot_tex=False):
 	'''Plot out-of-transit CCFs.
 
 	
@@ -1765,7 +1767,8 @@ def plot_oot_ccf_gp(parameters,data,updated_pars=None,oots=None,n_pars=0,chi2_sc
 
 def plot_oot_ccf_2Gauss(parameters,data,updated_pars=None,oots=None,n_pars=0,chi2_scale=1.0,
 	font = 12,savefig=True,path='',no_bump=15,best_fit=True,xmajor=None,xminor=None,
-	ymajor1=None,yminor1=None,ymajor2=None,yminor2=None,plot_intransit=True,xmax=None,xmin=None):
+	ymajor1=None,yminor1=None,ymajor2=None,yminor2=None,plot_intransit=True,xmax=None,xmin=None,
+	plot_tex=False):
 	'''Plot out-of-transit CCFs.
 
 	
@@ -1968,7 +1971,8 @@ def plot_oot_ccf_2Gauss(parameters,data,updated_pars=None,oots=None,n_pars=0,chi
 
 def plot_oot_ccf(parameters,data,updated_pars=None,oots=None,n_pars=0,chi2_scale=1.0,
 	font = 12,savefig=True,path='',no_bump=15,best_fit=True,xmajor=None,xminor=None,
-	ymajor1=None,yminor1=None,ymajor2=None,yminor2=None,plot_intransit=True,xmax=None,xmin=None):
+	ymajor1=None,yminor1=None,ymajor2=None,yminor2=None,plot_intransit=True,xmax=None,xmin=None,
+	plot_tex=False):
 
 	plt.rc('text',usetex=plot_tex)
 
@@ -2270,7 +2274,7 @@ def plot_oot_ccf(parameters,data,updated_pars=None,oots=None,n_pars=0,chi2_scale
 def plot_distortion(param_fname,data_fname,updated_pars=None,observation=False,
 	oots=None,n_pars=0,display=[],background='white',model=False,ax=None,stack = {},
 	font = 14,savefig=True,path='',contact_color='C3',movie_time=False,return_slopes=False,
-	no_bump=15,best_fit=True,get_vp=False,tickfontsize=10):
+	no_bump=15,best_fit=True,get_vp=False,tickfontsize=10,plot_tex=False):
 
 	#from matplotlib.gridspec import GridSpec
 
@@ -2554,7 +2558,8 @@ def plot_slope(parameters,data,
 	oots=None,n_pars=0,
 	font = 12,savefig=True,path='',
 	contact_color='C3',movie_time=False,return_slopes=False,
-	no_bump=15,best_fit=True,get_vp=False):
+	no_bump=15,best_fit=True,get_vp=False,
+	plot_tex=False):
 	'''Plot the subplanetary velocities.
 
 	Function to plot the subplanetary velocities/the slope across the stellar disk.
@@ -2890,7 +2895,7 @@ def plot_slope_2Gauss(parameters,data,
 	oots=None,n_pars=0,
 	font = 12,savefig=True,path='',
 	contact_color='C3',movie_time=False,return_slopes=False,
-	no_bump=15,best_fit=True,get_vp=False):
+	no_bump=15,best_fit=True,get_vp=False,plot_tex=False):
 	'''Plot the subplanetary velocities.
 
 	Function to plot the subplanetary velocities/the slope across the stellar disk.
@@ -3193,7 +3198,7 @@ def plot_slope_2Gauss(parameters,data,
 
 
 def plot_rv_pgram(param_fname,data_fname,updated_pars=None,savefig=False,path='',pls=None,
-	freq_grid=None,samples_per_peak=5,savefile=False,best_fit=True):#,
+	freq_grid=None,samples_per_peak=5,savefile=False,best_fit=True,plot_tex=False):#,
 #	xminLS=0.0,xmaxLS=None):
 
 	plt.rc('text',usetex=plot_tex)
@@ -3457,7 +3462,7 @@ def plot_rv_pgram(param_fname,data_fname,updated_pars=None,savefig=False,path=''
 # =============================================================================
 
 def plot_lc_pgram(param_fname,data_fname,updated_pars=None,savefig=False,
-	path='',pls=None,tls = False,best_fit=True):#,
+	path='',pls=None,tls = False,best_fit=True,plot_tex=False):#,
 #	xminLS=0.0,xmaxLS=None):
 	'''Periodogram from light curves.
 
