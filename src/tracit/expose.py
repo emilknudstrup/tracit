@@ -355,6 +355,10 @@ def plot_orbit(parameters,data,updated_pars=None,
 						axrm_oc.errorbar(pp[plot]*per*24,rv[plot]-plo[plot],yerr=rv_err[plot],marker='o',markersize=fms,color='C{}'.format(nn-1),linestyle='none',zorder=5)
 						rm_maxy = max(rv[plot]-rv_o) + max(jitter_err[plot])
 						rm_miny = min(rv[plot]-rv_o) - max(jitter_err[plot])
+						rms = np.std(rv[plot]-drift[plot]-plo[plot])
+						#print(rms)
+						#axrm_oc.text(1.1,13,r'$\rm rms={:0.1f} \ m/s $'.format(rms),bbox=dict(boxstyle="round",
+                   		#															ec='k',fc='none',))
 
 
 						rmoc_maxy = max(rv[plot]-plo[plot]) + max(jitter_err[plot])
@@ -363,6 +367,7 @@ def plot_orbit(parameters,data,updated_pars=None,
 							rv_out = rv_model(time[~plot],n_planet=pl,n_rv=nn,RM=False)
 							axrm.errorbar(pp[~plot]*per*24,rv[~plot]-drift[~plot]-rv_out,yerr=jitter_err[~plot],marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
 							axrm_oc.errorbar(pp[~plot]*per*24,rv[~plot]-drift[~plot]-plo[~plot],yerr=jitter_err[~plot],marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
+
 
 					except ValueError:
 						#figrm.close()
@@ -400,6 +405,7 @@ def plot_orbit(parameters,data,updated_pars=None,
 				min_model = min(rv_m[ss]-rv_m_only[ss])
 				if max_model > rm_maxy: rm_maxy = max_model + 5
 				if min_model < rm_miny: rm_miny = min_model - 5
+
 
 				axrm_oc.axhline(0.0,linestyle='--',color='C7',zorder=-2)
 				axrm_oc.set_xlabel(r'$\rm Hours \ From \ Midtransit$',fontsize=font)
@@ -812,7 +818,7 @@ def create_shadow(phase,vel,shadow,exp_phase,per,
 	savefig=False,fname='shadow',zmin=None,zmax=None,
 	xlims=[],contour=False,vsini=None,cmap='bone_r',
 	ax=None,colorbar=True,cbar_pos='right',plot_tex=False,
-	font = 12,tickfontsize=10,diff_cmap=None,its=[]):
+	font = 12,tickfontsize=10,diff_cmap=None,its=[],**kwargs):
 	'''Shadow plot.
 
 	Creates the planetary shadow.
@@ -890,16 +896,17 @@ def create_shadow(phase,vel,shadow,exp_phase,per,
 		xlims = [xl,xh]
 	ax.set_xlim(xlims[0],xlims[1])
 	if vsini: 
-		ax.axvline(vsini,linestyle='--',color='C0',lw=2.0)
-		ax.axvline(-vsini,linestyle='--',color='C0',lw=2.0)
+		ax.axvline(vsini,linestyle='--',color='C3',**kwargs)
+		ax.axvline(-vsini,linestyle='--',color='C3',**kwargs)
+		#ax.axvline(0.0,linestyle='--',color='C3',**kwargs)
 
 	if savefig: plt.savefig(fname)
 
 
 def plot_shadow(parameters,data,oots=None,n_pars=0,
-	cmap='gray',contact_color='C3',font = 12,savefig=True,path='',
+	cmap='gray',contact_color='C0',font = 12,savefig=True,path='',
 	tickfontsize=10,scale2model=True,xlim=None,xticks=[],yticks=[],
-	only_obs=False,diff_cmap=False,plot_tex=False):
+	only_obs=False,diff_cmap=False,plot_tex=False,**kwargs):
 	'''Shadow plot wrapper.
 
 
@@ -1253,16 +1260,19 @@ def plot_shadow(parameters,data,oots=None,n_pars=0,
 
 				#create_shadow(phase, vel_m_arr, -1*int_shadows, exptime_phase,P,cmap=cmap,
 				create_shadow(phase, vel_m_arr, -1*obs_shadows, exptime_phase,P,cmap=cmap,
-										vsini=vsini,zmin=zmin,zmax=zmax,contour=False,ax=ax1,colorbar=False,plot_tex=plot_tex,font=font)
+										vsini=vsini,zmin=zmin,zmax=zmax,contour=False,ax=ax1,
+										colorbar=False,plot_tex=plot_tex,font=font,**kwargs)
 
 				#create_shadow(phase, vel_m_arr, -1*shadow_model, exptime_phase,P, vsini=vsini,cmap=cmap,font=font,
 				create_shadow(phase, vel_m_arr, -1*shadow2obs, exptime_phase,P, vsini=vsini,cmap=cmap,font=font,
-										zmin=zmin,zmax=zmax,contour=False,ax=ax2,cbar_pos='top',plot_tex=plot_tex,tickfontsize=tickfontsize)
+										zmin=zmin,zmax=zmax,contour=False,ax=ax2,cbar_pos='top',plot_tex=plot_tex,
+										tickfontsize=tickfontsize,**kwargs)
 
 				#diff = -1*(int_shadows - shadow_model)
 				diff = -1*(obs_shadows - shadow2obs)
 				create_shadow(phase, vel_m_arr, diff, exptime_phase,P, cmap=cmap,font=font,
-										vsini=vsini,zmin=zmin,zmax=zmax,contour=False,ax=ax3,colorbar=False,plot_tex=plot_tex);# plt.show()
+										vsini=vsini,zmin=zmin,zmax=zmax,contour=False,ax=ax3,
+										colorbar=False,plot_tex=plot_tex,**kwargs)
 
 				
 				if xlim:
@@ -1274,11 +1284,11 @@ def plot_shadow(parameters,data,oots=None,n_pars=0,
 				for ax in axes:
 					#x1, x2 = ax.get_xlim()
 					y1, y2 = ax.get_ylim()
-					ax.axhline(-1*t23*24/2,linestyle='--',color=contact_color,lw=2.0)
-					ax.axhline(1*t23*24/2,linestyle='--',color=contact_color,lw=2.0)
+					ax.axhline(-1*t23*24/2,linestyle='--',color=contact_color,**kwargs)
+					ax.axhline(1*t23*24/2,linestyle='--',color=contact_color,**kwargs)
 
-					ax.axhline(1*t14*24/2,linestyle='-',color=contact_color,lw=2.0)
-					ax.axhline(-1*t14*24/2,linestyle='-',color=contact_color,lw=2.0)
+					ax.axhline(1*t14*24/2,linestyle='-',color=contact_color,**kwargs)
+					ax.axhline(-1*t14*24/2,linestyle='-',color=contact_color,**kwargs)
 					#if xmax != None: x2 = xmax
 					#if xmin != None: x1 = xmin
 					ax.set_xlim(x1,x2)
@@ -1350,16 +1360,16 @@ def plot_shadow(parameters,data,oots=None,n_pars=0,
 					create_shadow(phase, vel_m_arr, -1*obs_shadows, exptime_phase,P,cmap=cmap,
 											vsini=vsini,zmin=zmin,zmax=zmax,contour=False,ax=ax,
 											colorbar=False,plot_tex=plot_tex,font=font,
-											diff_cmap=ncmap,its=its)
+											diff_cmap=ncmap,its=its,**kwargs)
 				else:
 					create_shadow(phase, vel_m_arr, -1*obs_shadows, exptime_phase,P,cmap=cmap,
 											vsini=False,zmin=zmin,zmax=zmax,contour=False,ax=ax,
-											colorbar=True,plot_tex=plot_tex,font=font)
-				ax.axhline(-1*t23*24/2,linestyle='--',color=contact_color,lw=2.0)
-				ax.axhline(1*t23*24/2,linestyle='--',color=contact_color,lw=2.0)
+											colorbar=True,plot_tex=plot_tex,font=font,**kwargs)
+				ax.axhline(-1*t23*24/2,linestyle='--',color=contact_color,**kwargs)
+				ax.axhline(1*t23*24/2,linestyle='--',color=contact_color,**kwargs)
 
-				ax.axhline(1*t14*24/2,linestyle='-',color=contact_color,lw=2.0)
-				ax.axhline(-1*t14*24/2,linestyle='-',color=contact_color,lw=2.0)
+				ax.axhline(1*t14*24/2,linestyle='-',color=contact_color,**kwargs)
+				ax.axhline(-1*t14*24/2,linestyle='-',color=contact_color,**kwargs)
 
 
 				if len(xticks) == 2:
@@ -1371,7 +1381,7 @@ def plot_shadow(parameters,data,oots=None,n_pars=0,
 				if xlim:
 					ax.set_xlim(-xlim,xlim)
 
-			if savefig: plt.savefig(path+'shadow.png')
+			if savefig: plt.savefig(path+'shadow.png',dpi=1000)
 
 # =============================================================================
 # Out-of-transit plot

@@ -1,0 +1,13 @@
+Parameter,a_Rs_b,Rp_Rs_b,inc_b,K_b,lnL,chi2
+Label,$(a/R_\star) \rm _b$,$(R_\mathrm{p}/R_\star)\rm _b$,$i \rm _b \ (^\circ)$,$K  \rm _b\ (m/s)$,$\ln \mathcal{L}$,$\chi^2$
+Median,9.1,0.077,84.9,272,491.3,1.47
+Lower,1.0,0.003,0.8,5,1.1,0.03
+Upper,0.9,0.002,0.9,5,1.6,0.02
+Best-fit,9.1,0.077,85.0,272,493.2,1.44
+Mode,9.2,0.0772,85.0,272,492.2,1.4979601505443236
+Prior,uni,uni,uni,uni,Derived,Derived
+Location,9.101166327028942,0.07691162868098678,85.01000091070384,272.36633689137756,Derived,Derived
+Width,2.5,0.01,2.0,1,Derived,Derived
+Lower,0,0.0,0,0.0,Derived,Derived
+Upper,1000.0,1.0,90,1000.0,Derived,Derived
+Rhat,1.0055703581622732,1.0058934417828604,1.0061934407915485,1.0049056331247548,Derived,Derived

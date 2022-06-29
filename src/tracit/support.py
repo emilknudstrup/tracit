@@ -114,7 +114,7 @@ def significantFormat(val,low,up=None):
 # Plots
 # =============================================================================
 
-def plot_autocorr(autocorr,index,kk,savefig=True):
+def plot_autocorr(autocorr,index,kk,savefig=True,**kwargs):
     '''Autocorrelation plot.
 
     Plot the autocorrelation of the MCMC sampling.
@@ -122,6 +122,7 @@ def plot_autocorr(autocorr,index,kk,savefig=True):
     Following the example in `emcee <https://emcee.readthedocs.io/en/stable/tutorials/monitor/>`_ :cite:p:`emcee`.
     
     '''
+    plt.rc('text',**kwargs)
     figc = plt.figure()
     axc = figc.add_subplot(111)
     nn, yy = kk*np.arange(1,index+1), autocorr[:index]
@@ -132,7 +133,7 @@ def plot_autocorr(autocorr,index,kk,savefig=True):
     axc.set_ylabel(r'$\rm \mu(\hat{\tau})$')
     if savefig: figc.savefig('autocorr.pdf')
 
-def create_chains(samples,labels=None,savefig=False,fname='chains',ival=5,plot_tex=False):
+def create_chains(samples,labels=None,savefig=False,fname='chains',ival=5,**kwarg):
     '''Chains from the sampling.
 
     Plot the chains from the sampling to monitor the behaviour of the walkers during the run.
@@ -183,7 +184,7 @@ def create_chains(samples,labels=None,savefig=False,fname='chains',ival=5,plot_t
 
 def create_corner(samples,labels=None,truths=None,savefig=True,fname='corner',
         #quantiles=[16,50,84], show_titles=True, priors=None):
-        quantiles=[], diag_titles=None, priors=None,plot_tex=False):
+        quantiles=[], diag_titles=None, priors=None,**kwarg):
     '''Corner plot.
 
     Create corner plot to investigate the covariance between the samples using ``corner`` :cite:p:`corner`.

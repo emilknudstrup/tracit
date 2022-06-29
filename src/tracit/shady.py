@@ -137,21 +137,13 @@ def grid_ring(Rs,thick,xoff=0.,yoff=0.):
 	return ring_grid, vel, mu_grid, mu_mean
 
 
-# def spot_phase(time,t_ref):
-# 	'''
-# 	'''
-
-# 	rot_phase = 2*np.pi*((time - t_ref)/Prot)
-
-
-
 def spot(time,radius,ring_LD,lum,
 		theta,phi,t_ref,
-		Pspot,Rspot,Tspot,lam=0.0):
-	'''
+		Pspot,Rspot,Tspot,Teff):
+	'''Spot model.
 
 	'''
-	Teff = 5675
+	#Teff = 5675
 
 	frac = (Tspot/Teff)**4
 
@@ -159,28 +151,11 @@ def spot(time,radius,ring_LD,lum,
 	spot_grid, spot_vel, mu = grid(rp)
 
 	rot_phase = 2*np.pi*((time - t_ref)/Pspot)
-	#phi = ((time - t_ref)/Pspot)
-	print(rot_phase)
-	ww = 90
-	inc = 135
-	ww *= np.pi/180
-	inc *= np.pi/180
-	xx = np.cos(theta+rot_phase)*np.sin(phi)#*radius
-	#yy = np.sin(theta+np.zeros(len(time)))*np.sin(phi)#*radius
-	yy = np.sin(theta+rot_phase)*np.sin(phi)#*radius
-	# cos_f = np.cos(rot_phase)#*np.cos(phi)#*radius
-	# sin_f = np.sin(rot_phase)#*np.cos(phi)#*radius
-	# f = np.arctan2(sin_f,cos_f)
-	# xx = -1*np.cos(ww + f)
-	# yy = -1*np.sin(ww + f)*np.cos(inc)
-	# print(xx.shape)
-	zz = np.cos(phi*np.ones(len(time)))
-	#zz = np.sqrt(1 - xx**2 - yy**2)#np.cos(theta-rot_phase)
-	#cos_f, sin_f = true_anomaly(time,t_ref,0.0,Pspot,90)
-	#xx, yy = xy_pos(cos_f,sin_f,0.0,90,1.0,90.,0.0)
 
-	#xx = x_old*np.cos(lam) - y_old*np.sin(lam)
-	#yy = x_old*np.sin(lam) + y_old*np.cos(lam)
+	xx = np.sin(theta+rot_phase)*np.sin(phi)
+	yy = np.cos(phi*np.ones(len(time)))
+	zz = np.cos(theta+rot_phase)*np.sin(phi)
+
 	xnorm, ynorm = xx*radius, yy*radius
 	x_off, y_off = np.rint(xnorm), np.rint(ynorm)
 

@@ -67,9 +67,9 @@ def par_struct(n_phot=1,n_spec=1,n_planets=1,LD_law='quad',
 	default = ['uni','tgauss','false','none']
 	for ii, pl in enumerate(pls):
 		pars = {'P_{}'.format(pl) : 
-			['Period','days',r'$P \rm _{} \  (days)$'.format(pl),9.0,0.5,5.0,20.0],	
+			['Period','days',r'$P \rm _{} \  (days)$'.format(pl),4.8,0.5,0.0,1e4],	
 			'T0_{}'.format(pl) : 
-			['Midtransit','BJD',r'$T \rm _{} \ (BJD)$'.format('{0,'+pl+'}'),2457000.,0.5,2456999.,2457001],
+			['Midtransit','BJD',r'$T \rm _{} \ (BJD)$'.format('{0,'+pl+'}'),2457000.,0.5,0.0,1e10],
 			'e_{}'.format(pl) : 
 			['Eccentricity',' ',r'$e \rm _{}$'.format(pl),0.0,0.1,0.0,1.0],
 			'w_{}'.format(pl) : 
@@ -81,7 +81,7 @@ def par_struct(n_phot=1,n_spec=1,n_planets=1,LD_law='quad',
 			'inc_{}'.format(pl) : 
 			['Inclination','deg',r'$i \rm _{} \ (^\circ)$'.format(pl),90.,1.0,0.0,90.],
 			'K_{}'.format(pl) : 
-			['K-amplitude','m/s',r'$K  \rm _{}\ (m/s)$'.format(pl),30.,1.0,5.0,50.],
+			['K-amplitude','m/s',r'$K  \rm _{}\ (m/s)$'.format(pl),30.,1.0,0.0,1e5],
 			'Tw_{}'.format(pl) : 
 			['Time of periastron passage','BJD',r'$T_\omega  \rm _{} \ (BJD)$'.format(pl),2457000.,0.5,2456999.,2457001],
 			'lam_{}'.format(pl) : 
@@ -145,7 +145,7 @@ def par_struct(n_phot=1,n_spec=1,n_planets=1,LD_law='quad',
 
 	#add_rv_pars = {}
 	for ii in range(1,n_spec+1):
-		star['RVsys_{}'.format(ii)] = ['Systemic velocity instrument {}'.format(ii),'m/s',r'$\gamma_{} \ \rm (m/s)$'.format(ii),0.0,1.,-20.,20.]
+		star['RVsys_{}'.format(ii)] = ['Systemic velocity instrument {}'.format(ii),'m/s',r'$\gamma_{} \ \rm (m/s)$'.format(ii),0.0,1.,-1e5,1e5]
 		star['RVsigma_{}'.format(ii)] = ['Jitter RV instrument {}'.format(ii),'m/s',r'$\rm \sigma{} \ (m/s)$'.format('_{RV,'+str(ii)+'}'),0.0,1.0,0.0,100.]
 		star['LSsigma_{}'.format(ii)] = ['Jitter LS instrument {}'.format(ii),' ',r'$\rm \log \sigma{}$'.format('_{LS,'+str(ii)+'}'),-30.0,1.0,-50.0,10]
 		star['RV_{}_GP_log_a'.format(ii)] = ['GP log amplitude, CCF {}'.format(ii),' ',r'$\rm \log a{}$'.format('_{RV,'+str(ii)+'}'),-7,0.05,-20.0,5.0]
@@ -678,7 +678,7 @@ def get_expTime(data,setexp=False):
 	n_phot = data['LCs']
 	for ii in range(1,n_phot+1):
 		arr = data['LC_{}'.format(ii)]
-		exp = np.mean(np.diff(arr[:,0]))*24*60
+		exp = np.median(np.diff(arr[:,0]))*24*60
 		print('Exsposure time for LC_{} is {:0.3f} min.'.format(ii,exp))
 		if setexp: data['Exp. LC_{}'.format(ii)] = exp
 	

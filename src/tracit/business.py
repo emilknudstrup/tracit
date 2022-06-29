@@ -1465,7 +1465,7 @@ def lnprob(positions):
 def mcmc(par,dat,maxdraws,nwalkers,
 		save_results = True, results_filename='results.csv',
 		sample_filename='samples.h5',reset=True,burn=0.5,
-		plot_convergence=True,save_samples=True,
+		plot_convergence=True,save_samples=False,
 		corner=True,chains=False,nproc=1,
 		stop_converged=True,post_name='posteriors.npy',
 		triangles=[],moves=None):
@@ -1587,7 +1587,7 @@ def mcmc(par,dat,maxdraws,nwalkers,
 	## - chain is longer than 100 times the estimated autocorrelation time 
 	## - & this estimate changed by less than 1%.
 	if plot_convergence:
-		plot_autocorr(autocorr,index,kk)
+		plot_autocorr(autocorr,index,kk,**kwargs)
 	
 	return res_df
 
@@ -1597,7 +1597,7 @@ def check_convergence(parameters_local,data_local,filename=None,
 					plot_chains=True, plot_corner=True,chain_ival=5,
 					save_df=True,results_filename='results.csv',
 					n_auto=4,per_burn=None,plot_priors=True,
-					triangles=[]):
+					triangles=[],**kwargs):
 	'''Check convergence and diagnostics.
 
 	Function that checks the convergence of the MCMC and provides some diagnostics. 
@@ -1728,9 +1728,8 @@ def check_convergence(parameters_local,data_local,filename=None,
 	raw_samples = reader.get_chain()
 	## plot the trace/chains
 	if plot_chains:
-		create_chains(raw_samples,labels=labels,savefig=True,ival=chain_ival)
+		create_chains(raw_samples,labels=labels,savefig=True,ival=chain_ival,**kwargs)
 	del raw_samples
-
 
 	thin = int(0.5 * np.min(tau))
 	samples = reader.get_chain(discard=burnin)
@@ -1988,7 +1987,7 @@ def check_convergence(parameters_local,data_local,filename=None,
 			for i, fp in enumerate(fps): priors[i] = [parameters_local[fp]['Prior'],parameters_local[fp]['Prior_vals'][0],parameters_local[fp]['Prior_vals'][1],parameters_local[fp]['Prior_vals'][2],parameters[fp]['Prior_vals'][3]]
 		else:
 			priors = None
-		create_corner(all_samples,labels=labels,truths=None,savefig=True,priors=priors,quantiles=qs,diag_titles=value_formats)
+		create_corner(all_samples,labels=labels,truths=None,savefig=True,priors=priors,quantiles=qs,diag_titles=value_formats,**kwargs)
 
 		del all_samples
 		for triangle in triangles:	
@@ -2009,7 +2008,7 @@ def check_convergence(parameters_local,data_local,filename=None,
 			fname = 'corner'
 			for tri in triangle: fname += '_' + tri
 			fname += '.pdf'
-			create_corner(subarr,labels=sublabels,fname=fname,truths=None,savefig=True,priors=subpriors,quantiles=qs,diag_titles=subvalue_formats)
+			create_corner(subarr,labels=sublabels,fname=fname,truths=None,savefig=True,priors=subpriors,quantiles=qs,diag_titles=subvalue_formats,**kwargs)
 
 
 	return res_df
@@ -2129,8 +2128,8 @@ def residuals(params,parameters,data):
 
 
 #def lmfitter(param_fname,data_fname,method='leastsq',eps=0.01,
-def lmfitter(parameters,data,method='leastsq',eps=0.01,
-		print_fit=True):#,path_to_tracit='./'):
+def lmfitter(parameters,data,method='nelder',eps=0.01,
+		print_fit=True,convert_to_df=True):#,path_to_tracit='./'):
 	'''Fit data using ``lmfit``.
 
 	'''
@@ -2184,6 +2183,8 @@ def lmfitter(parameters,data,method='leastsq',eps=0.01,
 			args=(parameters,data),method=method,
 			max_nfev=500,xtol=1e-8,ftol=1e-8,epsfcn=eps)
 	if print_fit: print(lmfit.fit_report(fit, show_correl=False))
+
+	if convert_to_df: fit = fit_to_df(fit)
 
 	return fit
 

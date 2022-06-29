@@ -130,3 +130,4 @@ dmypy.json
 
 # samples from emcee
 samples.h5
+posteriors.npy
