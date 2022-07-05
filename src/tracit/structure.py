@@ -137,9 +137,9 @@ def par_struct(n_phot=1,n_spec=1,n_planets=1,LD_law='quad',
 		star['LCsigma_{}'.format(ii)] = ['Log jitter photometer {}'.format(ii),' ',r'$\rm \log \sigma{}$'.format('_{LC,'+str(ii)+'}'),-30,0.05,-50,1.0]
 		star['LC_{}_GP_log_a'.format(ii)] = ['GP log amplitude, photometer {}'.format(ii),' ',r'$\rm \log A{}$'.format('_{LC,'+str(ii)+'}'),-7,0.05,-20.0,5.0]
 		star['LC_{}_GP_log_c'.format(ii)] = ['GP log time scale, photometer {}'.format(ii),' ',r'$\rm \log \tau{} \ (days)$'.format('_{LC,'+str(ii)+'}'),-0.7,0.05,-5.0,5.0]
-		star['LC_{}_log_S0'.format(ii)] = ['GP log time scale, photometer {}'.format(ii),' ',r'$\rm \log \tau{} \ (days)$'.format('_{LC,'+str(ii)+'}'),-1.6,0.05,-5.0,5.0]
-		star['LC_{}_log_Q'.format(ii)] = ['GP log time scale, photometer {}'.format(ii),' ',r'$\rm \log \tau{} \ (days)$'.format('_{LC,'+str(ii)+'}'),3.37,0.05,0.0,10.0]
-		star['LC_{}_log_w0'.format(ii)] = ['GP log time scale, photometer {}'.format(ii),' ',r'$\rm \log \tau{} \ (days)$'.format('_{LC,'+str(ii)+'}'),-0.329,0.05,-5.0,5.0]
+		star['LC_{}_GP_log_S0'.format(ii)] = ['GP log time scale, photometer {}'.format(ii),' ',r'$\rm \log \tau{} \ (days)$'.format('_{LC,'+str(ii)+'}'),-1.6,0.05,-5.0,5.0]
+		star['LC_{}_GP_log_Q'.format(ii)] = ['GP log time scale, photometer {}'.format(ii),' ',r'$\rm \log \tau{} \ (days)$'.format('_{LC,'+str(ii)+'}'),3.37,0.05,0.0,10.0]
+		star['LC_{}_GP_log_w0'.format(ii)] = ['GP log time scale, photometer {}'.format(ii),' ',r'$\rm \log \tau{} \ (days)$'.format('_{LC,'+str(ii)+'}'),-0.329,0.05,-5.0,5.0]
 		label = 'LC'+str(ii)
 		set_LD(star,LD_law,label)
 
@@ -148,10 +148,17 @@ def par_struct(n_phot=1,n_spec=1,n_planets=1,LD_law='quad',
 		star['RVsys_{}'.format(ii)] = ['Systemic velocity instrument {}'.format(ii),'m/s',r'$\gamma_{} \ \rm (m/s)$'.format(ii),0.0,1.,-1e5,1e5]
 		star['RVsigma_{}'.format(ii)] = ['Jitter RV instrument {}'.format(ii),'m/s',r'$\rm \sigma{} \ (m/s)$'.format('_{RV,'+str(ii)+'}'),0.0,1.0,0.0,100.]
 		star['LSsigma_{}'.format(ii)] = ['Jitter LS instrument {}'.format(ii),' ',r'$\rm \log \sigma{}$'.format('_{LS,'+str(ii)+'}'),-30.0,1.0,-50.0,10]
-		star['RV_{}_GP_log_a'.format(ii)] = ['GP log amplitude, CCF {}'.format(ii),' ',r'$\rm \log a{}$'.format('_{RV,'+str(ii)+'}'),-7,0.05,-20.0,5.0]
-		star['RV_{}_GP_log_c'.format(ii)] = ['GP log exponent, CCF {}'.format(ii),' ',r'$\rm \log c{}$'.format('_{RV,'+str(ii)+'}'),-0.7,0.05,-5.0,5.0]
+		star['RV_{}_GP_log_a'.format(ii)] = ['GP log amplitude, RV {}'.format(ii),' ',r'$\rm \log a{}$'.format('_{RV,'+str(ii)+'}'),-7,0.05,-20.0,5.0]
+		star['RV_{}_GP_log_c'.format(ii)] = ['GP log exponent, RV {}'.format(ii),' ',r'$\rm \log c{}$'.format('_{RV,'+str(ii)+'}'),-0.7,0.05,-5.0,5.0]
 		star['LS_{}_GP_log_a'.format(ii)] = ['GP log amplitude, CCF {}'.format(ii),' ',r'$\rm \log a{}$'.format('_{LS,'+str(ii)+'}'),-7,0.05,-20.0,5.0]
 		star['LS_{}_GP_log_c'.format(ii)] = ['GP log exponent, CCF {}'.format(ii),' ',r'$\rm \log c{}$'.format('_{LS,'+str(ii)+'}'),-0.7,0.05,-5.0,5.0]
+		star['RV_{}_GP_log_S0'.format(ii)] = ['GP log time scale, RV {}'.format(ii),' ',r'$\rm \log \tau{} \ (days)$'.format('_{RV,'+str(ii)+'}'),-1.6,0.05,-5.0,5.0]
+		star['RV_{}_GP_log_Q'.format(ii)] = ['GP log time scale, RV {}'.format(ii),' ',r'$\rm \log \tau{} \ (days)$'.format('_{RV,'+str(ii)+'}'),3.37,0.05,0.0,10.0]
+		star['RV_{}_GP_log_w0'.format(ii)] = ['GP log time scale, RV {}'.format(ii),' ',r'$\rm \log \tau{} \ (days)$'.format('_{RV,'+str(ii)+'}'),-0.329,0.05,-5.0,5.0]
+		star['RV_{}_GP_sigma'.format(ii)] = ['GP time scale, RV {}'.format(ii),' ',r'$\rm  \tau{} \ (days)$'.format('_{RV,'+str(ii)+'}'),-1.6,0.05,-5.0,5.0]
+		star['RV_{}_GP_tau'.format(ii)] = ['GP time scale, RV {}'.format(ii),' ',r'$\rm  \tau{} \ (days)$'.format('_{RV,'+str(ii)+'}'),3.37,0.05,0.0,10.0]
+		star['RV_{}_GP_rho'.format(ii)] = ['GP time scale, RV {}'.format(ii),' ',r'$\rm  \tau{} \ (days)$'.format('_{RV,'+str(ii)+'}'),-0.329,0.05,-5.0,5.0]
+
 		label = 'RV'+str(ii)
 		set_LD(star,LD_law,label)
 
@@ -538,8 +545,10 @@ def ini_data(data):
 					kernel = celerite.terms.RealTerm(log_a=0.5, log_c=0.1)
 				elif gp_type == 'Matern32':
 					kernel = celerite.terms.Matern32Term(log_sigma=-0.3, log_rho=-0.7)			
-				elif gp_type == 'SHO':
+				elif gp_type == 'logSHO':
 					kernel = celerite.terms.SHOTerm(log_S0=-0.3, log_Q=-0.7,log_omega0=-0.139)			
+				elif gp_type == 'SHO':
+					kernel = celerite.terms.SHOTerm(sigma=1.0, tau=2.0, rho=10)			
 				gp = celerite.GP(kernel)
 				#gp.compute(arr[:,0],arr[:,2]) #probably redundant
 				data['RV_{} GP'.format(ii)] = gp

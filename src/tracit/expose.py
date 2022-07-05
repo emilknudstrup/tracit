@@ -9,6 +9,8 @@ Created on Tue Jun 29 16:30:38 2021
 	* Look at autocorrelation plot.
 
 	* Where should autocorr, chains, and corner be?
+
+	* GP in orbit plot -- should also be shonw/subtracted from other plots
 		
 """
 # =============================================================================
@@ -36,23 +38,23 @@ from scipy.signal import savgol_filter
 from astropy.timeseries import LombScargle
 
 
-def run_exp():
-#def run_exp(tex=True):
-	#global plot_tex
+# def run_exp():
+# #def run_exp(tex=True):
+# 	#global plot_tex
 
-	#plot_tex = tex
+# 	#plot_tex = tex
 
-	global colors
-	colors = {
-		'b' : 'C3',
-		'c' : 'C4',
-		'd' : 'C5',
-		'e' : 'C0',
-		'f' : 'C1',
-		'g' : 'C2',
-		'h' : 'C6',
-		'i' : 'C8'
-	}
+# 	global colors
+# 	colors = {
+# 		'b' : 'C3',
+# 		'c' : 'C4',
+# 		'd' : 'C5',
+# 		'e' : 'C0',
+# 		'f' : 'C1',
+# 		'g' : 'C2',
+# 		'h' : 'C6',
+# 		'i' : 'C8'
+# 	}
 
 
 
@@ -62,7 +64,7 @@ def run_exp():
 
 #def plot_orbit(param_fname,data_fname,updated_pars=None,
 def plot_orbit(parameters,data,updated_pars=None,
-	savefig=False,path='',OC_rv=True,n_pars=0,plot_tex=False):
+	savefig=False,path='',OC_rv=True,n_pars=0,**kwargs):
 	'''Plot the radial velocity curve.
 
 	:param parameters: The parameters. See :py:class:`tracit.structure.par_struct`.
@@ -84,7 +86,7 @@ def plot_orbit(parameters,data,updated_pars=None,
 	:type n_pars: int, optional
 
 	'''
-	plt.rc('text',usetex=plot_tex)
+	plt.rc('text',**kwargs)
 
 	font = 15
 	plt.rc('xtick',labelsize=3*font/4)
@@ -170,9 +172,15 @@ def plot_orbit(parameters,data,updated_pars=None,
 				gp = data['RV_{} GP'.format(nn)]
 				gp_type = data['GP type RV_{}'.format(nn)]
 				if gp_type == 'SHO':
-					log_S0 = parameters['RV_{}_log_S0'.format(nn)]['Value']
-					log_Q = parameters['RV_{}_log_Q'.format(nn)]['Value']
-					log_w0 = parameters['RV_{}_log_w0'.format(nn)]['Value']
+					sigma = parameters['RV_{}_GP_sigma'.format(nn)]['Value']
+					tau = parameters['RV_{}_GP_tau'.format(nn)]['Value']
+					rho = parameters['RV_{}_GP_rho'.format(nn)]['Value']
+				
+					gp_list = [sigma,tau,rho]
+				elif gp_type == 'logSHO':
+					log_S0 = parameters['RV_{}_GP_log_S0'.format(nn)]['Value']
+					log_Q = parameters['RV_{}_GP_log_Q'.format(nn)]['Value']
+					log_w0 = parameters['RV_{}_GP_log_w0'.format(nn)]['Value']
 				
 					gp_list = [log_S0,log_Q,log_w0]
 				else:
@@ -184,19 +192,63 @@ def plot_orbit(parameters,data,updated_pars=None,
 
 				res_rv = rv-drift-mnrv
 
-				off = gp_drift+gp_mnrv
-				ntimes = np.linspace(min(time),max(time),500)
-				mu, var = gp.predict(res_rv, ntimes, return_var=True)
-				std = np.sqrt(var)
+				#off = gp_drift+gp_mnrv
+				#ntimes = np.linspace(min(time),max(time),500)
+				#mu, var = gp.predict(res_rv, ntimes, return_var=True)
+				#std = np.sqrt(var)
 				ax_gp.errorbar(time,rv,yerr=jitter_err,marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
 				ax_gp.errorbar(time,rv,yerr=rv_err,marker='o',markersize=fms,color='C{}'.format(nn-1),linestyle='none',zorder=5,label=r'$\rm {}$'.format(label))
 				
-				ax_gp.plot(ntimes,off,color='k',linestyle='--')
-				ax_gp.plot(ntimes,mu,color='k',linestyle='--')
+				#ax_gp.plot(ntimes,off,color='k',linestyle='--')
+				#ax_gp.plot(ntimes,mu,color='k',linestyle='--')
 				
-				ax_gp.fill_between(ntimes, mu+std+off, mu-std+off, color='C7', alpha=0.9, edgecolor="none",zorder=6)
-				ax_gp.plot(ntimes,mu+off,color='k',lw=2.0,zorder=7)
-				ax_gp.plot(ntimes,mu+off,color='w',lw=1.0,zorder=7)
+				#ax_gp.fill_between(ntimes, mu+std+off, mu-std+off, color='C7', alpha=0.9, edgecolor="none",zorder=6)
+				#ax_gp.plot(ntimes,mu+off,color='k',lw=2.0,zorder=7)
+				#ax_gp.plot(ntimes,mu+off,color='w',lw=1.0,zorder=7)
+
+				gap = 0.3
+				#print(len(off))
+				dls = np.where(np.diff(time) > gap)[0]
+				start = 0
+				for dl in dls:
+					t_lin = np.linspace(min(time[start:int(dl+1)]),max(time[start:int(dl+1)]),500)
+					mu, var = gp.predict(res_rv, t_lin, return_var=True)
+					std = np.sqrt(var)
+					#ax_gp.plot(time[start:int(dl+1)],fl[start:int(dl+1)],marker='.',markersize=6.0,color='k',linestyle='none')
+					#ax_gp.plot(time[start:int(dl+1)],fl[start:int(dl+1)],marker='.',markersize=4.0,color='C{}'.format(nn-1),linestyle='none')
+					gp_mnrv = np.zeros(len(t_lin))
+					for pl in pls: 
+						gp_mnrv += rv_model(t_lin,n_planet=pl,n_rv=nn,RM=RM)
+					gp_drift = aa[1]*(t_lin-zp)**2 + aa[0]*(t_lin-zp)
+					#print(gp_mnrv)
+					off = gp_drift+gp_mnrv
+
+					ax_gp.fill_between(t_lin, mu+std+off, mu-std+off, color='C7', alpha=0.9, edgecolor="none",zorder=6)
+					ax_gp.plot(t_lin,mu+off,color='k',lw=2.0,zorder=7)
+					ax_gp.plot(t_lin,mu+off,color='w',lw=1.0,zorder=7)
+
+					#ax_gp.plot(t_lin,off,color='k',linestyle='--')
+					#ax_gp.plot(t_lin,mu,color='k',linestyle='--')
+					
+					start = int(dl + 1)
+				
+				t_lin = np.linspace(min(time[start:]),max(time[start:]),500)
+				mu, var = gp.predict(res_rv, t_lin, return_var=True)
+				std = np.sqrt(var)
+
+				gp_mnrv = np.zeros(len(t_lin))
+				for pl in pls: 
+					gp_mnrv += rv_model(t_lin,n_planet=pl,n_rv=nn,RM=RM)
+				gp_drift = aa[1]*(t_lin-zp)**2 + aa[0]*(t_lin-zp)
+				#print(gp_mnrv)
+				off = gp_drift+gp_mnrv
+
+				ax_gp.fill_between(t_lin, mu+std+off, mu-std+off, color='C7', alpha=0.9, edgecolor="none",zorder=6)
+				ax_gp.plot(t_lin,mu+off,color='k',lw=2.0,zorder=7)
+				ax_gp.plot(t_lin,mu+off,color='w',lw=1.0,zorder=7)
+
+
+
 				ax_gp.set_ylabel(r'$\rm RV \ (m/s)$',fontsize=font)
 				ax_gp.set_xlabel(r'$\rm Time \ (BJD)$',fontsize=font)
 
@@ -310,10 +362,10 @@ def plot_orbit(parameters,data,updated_pars=None,
 					#ax_gp = gp_fig.add_subplot(111)
 					gp = data['RV_{} GP'.format(nn)]
 					gp_type = data['GP type RV_{}'.format(nn)]
-					if gp_type == 'SHO':
-						log_S0 = parameters['RV_{}_log_S0'.format(nn)]['Value']
-						log_Q = parameters['RV_{}_log_Q'.format(nn)]['Value']
-						log_w0 = parameters['RV_{}_log_w0'.format(nn)]['Value']
+					if gp_type == 'logSHO':
+						log_S0 = parameters['RV_{}_GP_log_S0'.format(nn)]['Value']
+						log_Q = parameters['RV_{}_GP_log_Q'.format(nn)]['Value']
+						log_w0 = parameters['RV_{}_GP_log_w0'.format(nn)]['Value']
 					
 						gp_list = [log_S0,log_Q,log_w0]
 					else:
@@ -324,12 +376,46 @@ def plot_orbit(parameters,data,updated_pars=None,
 					gp.compute(time,jitter_err)
 
 
+
 					res_rv = rv-plo
 
-					mu, var = gp.predict(res_rv, time, return_var=True)
+					gap = 0.3
+					#print(len(off))
+					dls = np.where(np.diff(time) > gap)[0]
+					start = 0
+					for dl in dls:
+						mu, var = gp.predict(res_rv, time[start:int(dl+1)], return_var=True)
+						rv[start:int(dl+1)] -= mu
+						# t_lin = np.linspace(min(time[start:int(dl+1)]),max(time[start:int(dl+1)]),500)
+						# mu, var = gp.predict(res_rv, t_lin, return_var=True)
+						# std = np.sqrt(var)
+						# #ax_gp.plot(time[start:int(dl+1)],fl[start:int(dl+1)],marker='.',markersize=6.0,color='k',linestyle='none')
+						# #ax_gp.plot(time[start:int(dl+1)],fl[start:int(dl+1)],marker='.',markersize=4.0,color='C{}'.format(nn-1),linestyle='none')
+						# gp_mnrv = np.zeros(len(t_lin))
+						# for pl in pls: 
+						# 	gp_mnrv += rv_model(t_lin,n_planet=pl,n_rv=nn,RM=RM)
+						# gp_drift = aa[1]*(t_lin-zp)**2 + aa[0]*(t_lin-zp)
+						# #print(gp_mnrv)
+						# off = gp_drift+gp_mnrv
+
+						# ax_gp.fill_between(t_lin, mu+std+off, mu-std+off, color='C7', alpha=0.9, edgecolor="none",zorder=6)
+						# ax_gp.plot(t_lin,mu+off,color='k',lw=2.0,zorder=7)
+						# ax_gp.plot(t_lin,mu+off,color='w',lw=1.0,zorder=7)
+						
+						start = int(dl + 1)
+					
+					#t_lin = np.linspace(min(time[start:]),max(time[start:]),500)
+					#t_lin = np.linspace(min(time[start:]),max(time[start:]),500)
+					mu, var = gp.predict(res_rv, time[start:], return_var=True)
+					std = np.sqrt(var)
+					rv[start:] -= mu
+
+
+					#mu, var = gp.predict(res_rv, time, return_var=True)
+					#rv -= mu
+					
 					#std = np.sqrt(var)
 					#print(mu)
-					rv -= mu
 					#rv += plo
 
 
@@ -427,7 +513,7 @@ def plot_orbit(parameters,data,updated_pars=None,
 
 #def plot_lightcurve(param_fname,data_fname,updated_pars=None,savefig=False,
 def plot_lightcurve(parameters,data,savefig=False,
-	path='',n_pars=0,errorbar=True,best_fit=True,plot_tex=False):
+	path='',n_pars=0,errorbar=True,best_fit=True,**kwargs):
 	'''Plot the light curve.
 
 	Function to plot a light curve
@@ -454,7 +540,7 @@ def plot_lightcurve(parameters,data,savefig=False,
 
 	'''
 
-	plt.rc('text',usetex=plot_tex)
+	plt.rc('text',**kwargs)
 
 	font = 15
 	plt.rc('xtick',labelsize=3*font/4)
@@ -817,8 +903,8 @@ def plot_lightcurve(parameters,data,savefig=False,
 def create_shadow(phase,vel,shadow,exp_phase,per,
 	savefig=False,fname='shadow',zmin=None,zmax=None,
 	xlims=[],contour=False,vsini=None,cmap='bone_r',
-	ax=None,colorbar=True,cbar_pos='right',plot_tex=False,
-	font = 12,tickfontsize=10,diff_cmap=None,its=[],**kwargs):
+	ax=None,colorbar=True,cbar_pos='right',
+	font=12,tickfontsize=10,diff_cmap=None,its=[],**kwargs):
 	'''Shadow plot.
 
 	Creates the planetary shadow.
@@ -845,7 +931,7 @@ def create_shadow(phase,vel,shadow,exp_phase,per,
 	
 	from matplotlib.colors import ListedColormap
 	import matplotlib.colors as clr
-	plt.rc('text',usetex=plot_tex)
+	plt.rc('text',**kwargs)
 	plt.rc('xtick',labelsize=3*font/4)
 	plt.rc('ytick',labelsize=3*font/4)	
 	## sort in phase
@@ -906,7 +992,7 @@ def create_shadow(phase,vel,shadow,exp_phase,per,
 def plot_shadow(parameters,data,oots=None,n_pars=0,
 	cmap='gray',contact_color='C0',font = 12,savefig=True,path='',
 	tickfontsize=10,scale2model=True,xlim=None,xticks=[],yticks=[],
-	only_obs=False,diff_cmap=False,plot_tex=False,**kwargs):
+	only_obs=False,diff_cmap=False,**kwargs):
 	'''Shadow plot wrapper.
 
 
@@ -923,7 +1009,7 @@ def plot_shadow(parameters,data,oots=None,n_pars=0,
 	'''
 	
 
-	plt.rc('text',usetex=plot_tex)
+	plt.rc('text',**kwargs)
 
 	#business.data_structure(data_fname)
 
@@ -1261,18 +1347,18 @@ def plot_shadow(parameters,data,oots=None,n_pars=0,
 				#create_shadow(phase, vel_m_arr, -1*int_shadows, exptime_phase,P,cmap=cmap,
 				create_shadow(phase, vel_m_arr, -1*obs_shadows, exptime_phase,P,cmap=cmap,
 										vsini=vsini,zmin=zmin,zmax=zmax,contour=False,ax=ax1,
-										colorbar=False,plot_tex=plot_tex,font=font,**kwargs)
+										colorbar=False,font=font,**kwargs)
 
 				#create_shadow(phase, vel_m_arr, -1*shadow_model, exptime_phase,P, vsini=vsini,cmap=cmap,font=font,
 				create_shadow(phase, vel_m_arr, -1*shadow2obs, exptime_phase,P, vsini=vsini,cmap=cmap,font=font,
-										zmin=zmin,zmax=zmax,contour=False,ax=ax2,cbar_pos='top',plot_tex=plot_tex,
+										zmin=zmin,zmax=zmax,contour=False,ax=ax2,cbar_pos='top',
 										tickfontsize=tickfontsize,**kwargs)
 
 				#diff = -1*(int_shadows - shadow_model)
 				diff = -1*(obs_shadows - shadow2obs)
 				create_shadow(phase, vel_m_arr, diff, exptime_phase,P, cmap=cmap,font=font,
 										vsini=vsini,zmin=zmin,zmax=zmax,contour=False,ax=ax3,
-										colorbar=False,plot_tex=plot_tex,**kwargs)
+										colorbar=False,**kwargs)
 
 				
 				if xlim:
@@ -1359,12 +1445,12 @@ def plot_shadow(parameters,data,oots=None,n_pars=0,
 					ncmap = plt.get_cmap('Spectral',len(phase))
 					create_shadow(phase, vel_m_arr, -1*obs_shadows, exptime_phase,P,cmap=cmap,
 											vsini=vsini,zmin=zmin,zmax=zmax,contour=False,ax=ax,
-											colorbar=False,plot_tex=plot_tex,font=font,
+											colorbar=False,font=font,
 											diff_cmap=ncmap,its=its,**kwargs)
 				else:
 					create_shadow(phase, vel_m_arr, -1*obs_shadows, exptime_phase,P,cmap=cmap,
 											vsini=False,zmin=zmin,zmax=zmax,contour=False,ax=ax,
-											colorbar=True,plot_tex=plot_tex,font=font,**kwargs)
+											colorbar=True,font=font,**kwargs)
 				ax.axhline(-1*t23*24/2,linestyle='--',color=contact_color,**kwargs)
 				ax.axhline(1*t23*24/2,linestyle='--',color=contact_color,**kwargs)
 
@@ -1390,7 +1476,7 @@ def plot_shadow(parameters,data,oots=None,n_pars=0,
 def plot_oot_ccf_gp(parameters,data,updated_pars=None,oots=None,n_pars=0,chi2_scale=1.0,
 	font = 12,savefig=True,path='',no_bump=15,best_fit=True,xmajor=None,xminor=None,
 	ymajor1=None,yminor1=None,ymajor2=None,yminor2=None,plot_intransit=True,xmax=None,xmin=None,
-	plot_tex=False):
+	**kwargs):
 	'''Plot out-of-transit CCFs.
 
 	
@@ -1398,7 +1484,7 @@ def plot_oot_ccf_gp(parameters,data,updated_pars=None,oots=None,n_pars=0,chi2_sc
 	'''
 	
 
-	plt.rc('text',usetex=plot_tex)
+	plt.rc('text',**kwargs)
 
 
 	if n_pars == 0: n_pars = len(parameters['FPs'])
@@ -1778,7 +1864,7 @@ def plot_oot_ccf_gp(parameters,data,updated_pars=None,oots=None,n_pars=0,chi2_sc
 def plot_oot_ccf_2Gauss(parameters,data,updated_pars=None,oots=None,n_pars=0,chi2_scale=1.0,
 	font = 12,savefig=True,path='',no_bump=15,best_fit=True,xmajor=None,xminor=None,
 	ymajor1=None,yminor1=None,ymajor2=None,yminor2=None,plot_intransit=True,xmax=None,xmin=None,
-	plot_tex=False):
+	**kwargs):
 	'''Plot out-of-transit CCFs.
 
 	
@@ -1786,7 +1872,7 @@ def plot_oot_ccf_2Gauss(parameters,data,updated_pars=None,oots=None,n_pars=0,chi
 	'''
 	
 
-	plt.rc('text',usetex=plot_tex)
+	plt.rc('text',**kwargs)
 
 
 	if n_pars == 0: n_pars = len(parameters['FPs'])
@@ -1982,9 +2068,9 @@ def plot_oot_ccf_2Gauss(parameters,data,updated_pars=None,oots=None,n_pars=0,chi
 def plot_oot_ccf(parameters,data,updated_pars=None,oots=None,n_pars=0,chi2_scale=1.0,
 	font = 12,savefig=True,path='',no_bump=15,best_fit=True,xmajor=None,xminor=None,
 	ymajor1=None,yminor1=None,ymajor2=None,yminor2=None,plot_intransit=True,xmax=None,xmin=None,
-	plot_tex=False):
+	**kwargs):
 
-	plt.rc('text',usetex=plot_tex)
+	plt.rc('text',**kwargs)
 
 
 	if n_pars == 0: n_pars = len(parameters['FPs'])
@@ -2284,11 +2370,11 @@ def plot_oot_ccf(parameters,data,updated_pars=None,oots=None,n_pars=0,chi2_scale
 def plot_distortion(param_fname,data_fname,updated_pars=None,observation=False,
 	oots=None,n_pars=0,display=[],background='white',model=False,ax=None,stack = {},
 	font = 14,savefig=True,path='',contact_color='C3',movie_time=False,return_slopes=False,
-	no_bump=15,best_fit=True,get_vp=False,tickfontsize=10,plot_tex=False):
+	no_bump=15,best_fit=True,get_vp=False,tickfontsize=10,**kwargs):
 
 	#from matplotlib.gridspec import GridSpec
 
-	plt.rc('text',usetex=plot_tex)
+	plt.rc('text',**kwargs)
 
 	if not get_vp:
 		business.params_structure(param_fname)
@@ -2569,14 +2655,14 @@ def plot_slope(parameters,data,
 	font = 12,savefig=True,path='',
 	contact_color='C3',movie_time=False,return_slopes=False,
 	no_bump=15,best_fit=True,get_vp=False,
-	plot_tex=False):
+	**kwargs):
 	'''Plot the subplanetary velocities.
 
 	Function to plot the subplanetary velocities/the slope across the stellar disk.
 
 	'''
 
-	plt.rc('text',usetex=plot_tex)
+	plt.rc('text',**kwargs)
 
 	# if not get_vp:
 	# 	business.params_structure(param_fname)
@@ -2905,14 +2991,14 @@ def plot_slope_2Gauss(parameters,data,
 	oots=None,n_pars=0,
 	font = 12,savefig=True,path='',
 	contact_color='C3',movie_time=False,return_slopes=False,
-	no_bump=15,best_fit=True,get_vp=False,plot_tex=False):
+	no_bump=15,best_fit=True,get_vp=False,**kwargs):
 	'''Plot the subplanetary velocities.
 
 	Function to plot the subplanetary velocities/the slope across the stellar disk.
 
 	'''
 
-	plt.rc('text',usetex=plot_tex)
+	plt.rc('text',**kwargs)
 
 
 	if n_pars == 0: n_pars = len(parameters['FPs'])
@@ -3208,10 +3294,22 @@ def plot_slope_2Gauss(parameters,data,
 
 
 def plot_rv_pgram(param_fname,data_fname,updated_pars=None,savefig=False,path='',pls=None,
-	freq_grid=None,samples_per_peak=5,savefile=False,best_fit=True,plot_tex=False):#,
+	freq_grid=None,samples_per_peak=5,savefile=False,best_fit=True,**kwargs):#,
 #	xminLS=0.0,xmaxLS=None):
 
-	plt.rc('text',usetex=plot_tex)
+	colors = {
+		'b' : 'C3',
+		'c' : 'C4',
+		'd' : 'C5',
+		'e' : 'C0',
+		'f' : 'C1',
+		'g' : 'C2',
+		'h' : 'C6',
+		'i' : 'C8'
+	}
+
+
+	plt.rc('text',**kwargs)
 
 	font = 15
 	plt.rc('xtick',labelsize=3*font/4)
@@ -3472,14 +3570,25 @@ def plot_rv_pgram(param_fname,data_fname,updated_pars=None,savefig=False,path=''
 # =============================================================================
 
 def plot_lc_pgram(param_fname,data_fname,updated_pars=None,savefig=False,
-	path='',pls=None,tls = False,best_fit=True,plot_tex=False):#,
+	path='',pls=None,tls = False,best_fit=True,**kwargs):#,
 #	xminLS=0.0,xmaxLS=None):
 	'''Periodogram from light curves.
 
 	'''
 
+	colors = {
+		'b' : 'C3',
+		'c' : 'C4',
+		'd' : 'C5',
+		'e' : 'C0',
+		'f' : 'C1',
+		'g' : 'C2',
+		'h' : 'C6',
+		'i' : 'C8'
+	}
 
-	plt.rc('text',usetex=plot_tex)
+
+	plt.rc('text',**kwargs)
 
 	font = 15
 	plt.rc('xtick',labelsize=3*font/4)
@@ -3669,7 +3778,7 @@ def plot_lc_pgram(param_fname,data_fname,updated_pars=None,savefig=False,
 # 	font = 12,savefig=True,path='',no_bump=15,best_fit=True,xmajor=None,xminor=None,
 # 	ymajor1=None,yminor1=None,ymajor2=None,yminor2=None,plot_intransit=True,xmax=None,xmin=None):
 
-# 	plt.rc('text',usetex=plot_tex)
+# 	plt.rc('text',**kwargs)
 	
 # 	import celerite
 
@@ -4034,7 +4143,7 @@ def plot_lc_pgram(param_fname,data_fname,updated_pars=None,savefig=False,
 # 	font = 12,savefig=True,path='',no_bump=15,best_fit=True,xmajor=None,xminor=None,
 # 	ymajor1=None,yminor1=None,ymajor2=None,yminor2=None,plot_intransit=True,xmax=None,xmin=None):
 
-# 	plt.rc('text',usetex=plot_tex)
+# 	plt.rc('text',**kwargs)
 
 # 	#business.data_structure(data_fname)
 # 	#business.params_structure(param_fname)

@@ -1468,7 +1468,7 @@ def mcmc(par,dat,maxdraws,nwalkers,
 		plot_convergence=True,save_samples=False,
 		corner=True,chains=False,nproc=1,
 		stop_converged=True,post_name='posteriors.npy',
-		triangles=[],moves=None):
+		triangles=[],moves=None,**kwargs):
 	'''Markov Chain Monte Carlo.
 
 	Wrapper for `emcee <https://github.com/dfm/emcee>`_ :cite:p:`emcee`.
@@ -1580,7 +1580,7 @@ def mcmc(par,dat,maxdraws,nwalkers,
 		sampler=sampler,post_name=post_name,
 		plot_corner=corner,plot_chains=chains,per_burn=burn,
 		save_df=save_results,results_filename=results_filename,
-		triangles=triangles)
+		triangles=triangles,**kwargs)
 
 	## Plot autocorrelation time
 	## Converged if: 
