@@ -937,10 +937,21 @@ def lnprob(positions):
 						log_w0 = parameters['RV_{}_log_w0'.format(nn)]['Value']
 					
 						gp_list = [log_S0,log_Q,log_w0]
+
+					elif gp_type == 'logSHO':
+						log_S0 = parameters['RV_{}_GP_log_S0'.format(nn)]['Value']
+						log_Q = parameters['RV_{}_GP_log_Q'.format(nn)]['Value']
+						log_w0 = parameters['RV_{}_GP_log_w0'.format(nn)]['Value']
+					
+						gp_list = [log_S0,log_Q,log_w0]
+					
 					else:
 						loga = parameters['RV_{}_GP_log_a'.format(nn)]['Value']
 						logc = parameters['RV_{}_GP_log_c'.format(nn)]['Value']
 						gp_list = [loga,logc]
+
+
+
 
 					gp.set_parameter_vector(np.array(gp_list))
 					gp.compute(rv_times[idxs],ervs[idxs])
@@ -1524,7 +1535,7 @@ def mcmc(par,dat,maxdraws,nwalkers,
 	ndim = len(fit_params)
 	assert ndim > 0, print('Error: No parameters to fit...')
 	for fp in fit_params:
-		print('Fitting {}.'.format(fp))
+		print('Fitting {}, applying a {} prior.'.format(fp,par[fp]['Prior']))
 	print('Fitting {} parameters in total.'.format(ndim))
 
 	backend = emcee.backends.HDFBackend(sample_filename)

@@ -220,6 +220,11 @@ def check_fps(parameters):
 	'''
 
 	fps = parameters['FPs']
+	snowflake = np.unique(fps)
+	if len(fps) != len(snowflake):
+		print('Some fitting paramters entered twice (or more).\nRemoving...')
+		parameters['FPs'] = list(snowflake)
+
 	pls = parameters['Planets']
 
 	for pl in pls:

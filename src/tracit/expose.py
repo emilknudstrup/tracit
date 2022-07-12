@@ -207,7 +207,6 @@ def plot_orbit(parameters,data,updated_pars=None,
 				#ax_gp.plot(ntimes,mu+off,color='w',lw=1.0,zorder=7)
 
 				gap = 0.3
-				#print(len(off))
 				dls = np.where(np.diff(time) > gap)[0]
 				start = 0
 				for dl in dls:
@@ -229,18 +228,28 @@ def plot_orbit(parameters,data,updated_pars=None,
 
 					#ax_gp.plot(t_lin,off,color='k',linestyle='--')
 					#ax_gp.plot(t_lin,mu,color='k',linestyle='--')
-					
+
+					murv, v = gp.predict(res_rv, time[start:int(dl+1)], return_var=True)
+					rv[start:int(dl+1)] -= murv
+					# if any(~np.isfinite(murv)):
+					# 	ax_gp.plot(t_lin,mu+off,color='r',lw=2.0,zorder=7)
+					# 	#ax_gp.plot(t_lin,mu+off,color='r',marker='*',markersize=50)
+					# 	print(murv,len(time[start:int(dl+1)]))
+
 					start = int(dl + 1)
 				
 				t_lin = np.linspace(min(time[start:]),max(time[start:]),500)
 				mu, var = gp.predict(res_rv, t_lin, return_var=True)
 				std = np.sqrt(var)
-
+				
+				murv, v = gp.predict(res_rv, time[start:], return_var=True)
+				rv[start:] -= murv
+				#print(any(~np.isfinite(murv)))
+				
 				gp_mnrv = np.zeros(len(t_lin))
 				for pl in pls: 
 					gp_mnrv += rv_model(t_lin,n_planet=pl,n_rv=nn,RM=RM)
 				gp_drift = aa[1]*(t_lin-zp)**2 + aa[0]*(t_lin-zp)
-				#print(gp_mnrv)
 				off = gp_drift+gp_mnrv
 
 				ax_gp.fill_between(t_lin, mu+std+off, mu-std+off, color='C7', alpha=0.9, edgecolor="none",zorder=6)
@@ -321,6 +330,9 @@ def plot_orbit(parameters,data,updated_pars=None,
 			axpl = figpl.add_subplot(211)
 			axpl_oc = figpl.add_subplot(212)
 
+
+			rmoc_maxys = np.array([])
+			rmoc_minys = np.array([])
 			for nn in range(1,n_rv+1):
 				try:
 					t0n = parameters['Spec_{}:T0_{}'.format(nn,pl)]['Value']
@@ -353,8 +365,10 @@ def plot_orbit(parameters,data,updated_pars=None,
 				
 
 				rv -= drift
+				#rv2 = rv.copy()
 				pp = time2phase(time,per,t0)
 				plo = rv_model(time,n_planet=pl,n_rv=nn,RM=RM)
+				#axpl.errorbar(pp,rv,yerr=jitter_err,marker='o',markersize=bms,color='C3',linestyle='none',zorder=4)
 				#plo = rv_model(time,n_planet=pl,n_rv=nn,RM=RM)
 				plot_gp = data['GP RV_{}'.format(nn)]
 				if plot_gp:
@@ -383,9 +397,13 @@ def plot_orbit(parameters,data,updated_pars=None,
 					#print(len(off))
 					dls = np.where(np.diff(time) > gap)[0]
 					start = 0
+					#mus = np.array([])
 					for dl in dls:
 						mu, var = gp.predict(res_rv, time[start:int(dl+1)], return_var=True)
 						rv[start:int(dl+1)] -= mu
+						#mus = np.append(mus,mu)
+						#axpl.plot(pp[start:int(dl+1)],mu)
+						#print(time[start:int(dl+1)],start,int(dl+1))
 						# t_lin = np.linspace(min(time[start:int(dl+1)]),max(time[start:int(dl+1)]),500)
 						# mu, var = gp.predict(res_rv, t_lin, return_var=True)
 						# std = np.sqrt(var)
@@ -401,6 +419,7 @@ def plot_orbit(parameters,data,updated_pars=None,
 						# ax_gp.fill_between(t_lin, mu+std+off, mu-std+off, color='C7', alpha=0.9, edgecolor="none",zorder=6)
 						# ax_gp.plot(t_lin,mu+off,color='k',lw=2.0,zorder=7)
 						# ax_gp.plot(t_lin,mu+off,color='w',lw=1.0,zorder=7)
+						#print(mu)
 						
 						start = int(dl + 1)
 					
@@ -408,9 +427,12 @@ def plot_orbit(parameters,data,updated_pars=None,
 					#t_lin = np.linspace(min(time[start:]),max(time[start:]),500)
 					mu, var = gp.predict(res_rv, time[start:], return_var=True)
 					std = np.sqrt(var)
+					#print(rv[start:])
 					rv[start:] -= mu
-
-
+					#mus = np.append(mus,mu)
+					#print(rv[start:])
+					#axpl.plot(pp,mus)
+					#axpl.plot(pp[start:],mu)
 					#mu, var = gp.predict(res_rv, time, return_var=True)
 					#rv -= mu
 					
@@ -419,6 +441,8 @@ def plot_orbit(parameters,data,updated_pars=None,
 					#rv += plo
 
 
+				#axpl.errorbar(pp,rv2,yerr=jitter_err,marker='o',markersize=bms,color='C2',linestyle='none',zorder=4)
+				#axpl.errorbar(pp,rv-mus,yerr=jitter_err,marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
 				axpl.errorbar(pp,rv,yerr=jitter_err,marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
 				#axpl.errorbar(pp,rv,yerr=rv_err,marker='o',markersize=6.0,color='k',linestyle='none',zorder=4)
 				axpl.errorbar(pp,rv,yerr=rv_err,marker='o',markersize=fms,color='C{}'.format(nn-1),linestyle='none',zorder=5,label=r'$\rm {}$'.format(label))
@@ -448,7 +472,10 @@ def plot_orbit(parameters,data,updated_pars=None,
 
 
 						rmoc_maxy = max(rv[plot]-plo[plot]) + max(jitter_err[plot])
+						rmoc_maxys = np.append(rmoc_maxys,rmoc_maxy)
 						rmoc_miny = min(rv[plot]-plo[plot]) - max(jitter_err[plot])
+						rmoc_minys = np.append(rmoc_minys,rmoc_miny)
+
 						if any(~plot):
 							rv_out = rv_model(time[~plot],n_planet=pl,n_rv=nn,RM=False)
 							axrm.errorbar(pp[~plot]*per*24,rv[~plot]-drift[~plot]-rv_out,yerr=jitter_err[~plot],marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
@@ -500,6 +527,8 @@ def plot_orbit(parameters,data,updated_pars=None,
 				axrm.set_xlim(x1,x2)
 				axrm_oc.set_xlim(x1,x2)
 				axrm.set_ylim(rm_miny,rm_maxy)
+				rmoc_maxy = max(rmoc_maxys)
+				rmoc_miny = min(rmoc_minys)
 				axrm_oc.set_ylim(rmoc_miny,rmoc_maxy)
 				figrm.subplots_adjust(hspace=0.0)
 
