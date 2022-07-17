@@ -137,9 +137,11 @@ def par_struct(n_phot=1,n_spec=1,n_planets=1,LD_law='quad',
 		star['LCsigma_{}'.format(ii)] = ['Log jitter photometer {}'.format(ii),' ',r'$\rm \log \sigma{}$'.format('_{LC,'+str(ii)+'}'),-30,0.05,-50,1.0]
 		star['LC_{}_GP_log_a'.format(ii)] = ['GP log amplitude, photometer {}'.format(ii),' ',r'$\rm \log A{}$'.format('_{LC,'+str(ii)+'}'),-7,0.05,-20.0,5.0]
 		star['LC_{}_GP_log_c'.format(ii)] = ['GP log time scale, photometer {}'.format(ii),' ',r'$\rm \log \tau{} \ (days)$'.format('_{LC,'+str(ii)+'}'),-0.7,0.05,-5.0,5.0]
-		star['LC_{}_GP_log_S0'.format(ii)] = ['GP log time scale, photometer {}'.format(ii),' ',r'$\rm \log \tau{} \ (days)$'.format('_{LC,'+str(ii)+'}'),-1.6,0.05,-5.0,5.0]
-		star['LC_{}_GP_log_Q'.format(ii)] = ['GP log time scale, photometer {}'.format(ii),' ',r'$\rm \log \tau{} \ (days)$'.format('_{LC,'+str(ii)+'}'),3.37,0.05,0.0,10.0]
-		star['LC_{}_GP_log_w0'.format(ii)] = ['GP log time scale, photometer {}'.format(ii),' ',r'$\rm \log \tau{} \ (days)$'.format('_{LC,'+str(ii)+'}'),-0.329,0.05,-5.0,5.0]
+		
+		star['LC_{}_GP_log_S0'.format(ii)] = ['GP log amplitude, photometer {}'.format(ii),' ',r'$\rm \log A{}$'.format('_{LC,'+str(ii)+'}'),-1.6,0.05,-5.0,5.0]
+		star['LC_{}_GP_log_Q'.format(ii)] = ['GP log qaulity factor, photometer {}'.format(ii),' ',r'$\rm \log Q{}$'.format('_{LC,'+str(ii)+'}'),3.37,0.05,0.0,10.0]
+		star['LC_{}_GP_log_w0'.format(ii)] = ['GP log frequency, photometer {}'.format(ii),' ',r'$\rm \log \omega{} \ (days{})$'.format('_{0,LC,'+str(ii)+'}','^{-1}'),-0.329,0.05,-5.0,5.0]
+		
 		label = 'LC'+str(ii)
 		set_LD(star,LD_law,label)
 
@@ -152,9 +154,11 @@ def par_struct(n_phot=1,n_spec=1,n_planets=1,LD_law='quad',
 		star['RV_{}_GP_log_c'.format(ii)] = ['GP log exponent, RV {}'.format(ii),' ',r'$\rm \log c{}$'.format('_{RV,'+str(ii)+'}'),-0.7,0.05,-5.0,5.0]
 		star['LS_{}_GP_log_a'.format(ii)] = ['GP log amplitude, CCF {}'.format(ii),' ',r'$\rm \log a{}$'.format('_{LS,'+str(ii)+'}'),-7,0.05,-20.0,5.0]
 		star['LS_{}_GP_log_c'.format(ii)] = ['GP log exponent, CCF {}'.format(ii),' ',r'$\rm \log c{}$'.format('_{LS,'+str(ii)+'}'),-0.7,0.05,-5.0,5.0]
-		star['RV_{}_GP_log_S0'.format(ii)] = ['GP log time scale, RV {}'.format(ii),' ',r'$\rm \log \tau{} \ (days)$'.format('_{RV,'+str(ii)+'}'),-1.6,0.05,-5.0,5.0]
-		star['RV_{}_GP_log_Q'.format(ii)] = ['GP log time scale, RV {}'.format(ii),' ',r'$\rm \log \tau{} \ (days)$'.format('_{RV,'+str(ii)+'}'),3.37,0.05,0.0,10.0]
-		star['RV_{}_GP_log_w0'.format(ii)] = ['GP log time scale, RV {}'.format(ii),' ',r'$\rm \log \tau{} \ (days)$'.format('_{RV,'+str(ii)+'}'),-0.329,0.05,-5.0,5.0]
+		
+		star['RV_{}_GP_log_S0'.format(ii)] = ['GP log amplitude, RV {}'.format(ii),' ',r'$\rm \log S0{} \ (m~s{})$'.format('_{RV,'+str(ii)+'}','^{-1}'),-1.6,0.05,-5.0,5.0]
+		star['RV_{}_GP_log_Q'.format(ii)] = ['GP log qaulity factór, RV {}'.format(ii),' ',r'$\rm \log Q{}$'.format('_{RV,'+str(ii)+'}'),3.37,0.05,0.0,10.0]
+		star['RV_{}_GP_log_w0'.format(ii)] = ['GP log frequency, RV {}'.format(ii),' ',r'$\rm \log \omega{} \ (days{})$'.format('_{0,RV,'+str(ii)+'}','^{-1}'),-0.329,0.05,-5.0,5.0]
+		
 		star['RV_{}_GP_sigma'.format(ii)] = ['GP time scale, RV {}'.format(ii),' ',r'$\rm  \tau{} \ (days)$'.format('_{RV,'+str(ii)+'}'),-1.6,0.05,-5.0,5.0]
 		star['RV_{}_GP_tau'.format(ii)] = ['GP time scale, RV {}'.format(ii),' ',r'$\rm  \tau{} \ (days)$'.format('_{RV,'+str(ii)+'}'),3.37,0.05,0.0,10.0]
 		star['RV_{}_GP_rho'.format(ii)] = ['GP time scale, RV {}'.format(ii),' ',r'$\rm  \tau{} \ (days)$'.format('_{RV,'+str(ii)+'}'),-0.329,0.05,-5.0,5.0]

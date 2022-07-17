@@ -345,9 +345,9 @@ def plot_orbit(parameters,data,updated_pars=None,
 				time, rv, rv_err = arr[:,0].copy(), arr[:,1].copy(), arr[:,2].copy()
 				v0 = parameters['RVsys_{}'.format(nn)]['Value']
 				rv -= v0
-				log_jitter = parameters['RVsigma_{}'.format(nn)]['Value']
+				jitter = parameters['RVsigma_{}'.format(nn)]['Value']
 				#jitter = np.exp(log_jitter)
-				jitter = log_jitter
+				#jitter = log_jitter
 				jitter_err = np.sqrt(rv_err**2 + jitter**2)
 
 

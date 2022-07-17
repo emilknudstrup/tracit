@@ -1538,9 +1538,13 @@ def mcmc(par,dat,maxdraws,nwalkers,
 		print('Fitting {}, applying a {} prior.'.format(fp,par[fp]['Prior']))
 	print('Fitting {} parameters in total.'.format(ndim))
 
-	backend = emcee.backends.HDFBackend(sample_filename)
-	if reset: backend.reset(nwalkers,ndim)
-	if not save_samples: backend = None
+	if not save_samples: 
+		backend = None
+	else:
+		backend = emcee.backends.HDFBackend(sample_filename)
+	if reset: 
+		backend = emcee.backends.HDFBackend(sample_filename)
+		backend.reset(nwalkers,ndim)
 
 	if np.log10(maxdraws) > 5.3: kk = 20000
 	elif np.log10(maxdraws) > 5.0: kk = 10000
