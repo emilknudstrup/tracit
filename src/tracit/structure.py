@@ -92,6 +92,10 @@ def par_struct(n_phot=1,n_spec=1,n_planets=1,LD_law='quad',
 			['sqrt(e) cos(w)',' ',r'$\sqrt{e} \ \cos \omega_'+pl+'$',0.0,0.1,-1.,1.],
 			'esinw_{}'.format(pl) : 
 			['sqrt(e) sin(w)',' ',r'$\sqrt{e} \ \sin \omega_'+pl+'$',0.0,0.1,-1.,1.],
+			'vcosl_{}'.format(pl) : 
+			['sqrt(v sin i) cos(lambda)',' ',r'$\sqrt{v \sin i} \ \cos \lambda_'+pl+' (\sqrt{km/s})$',0.0,5,-10.,10.],
+			'vsinl_{}'.format(pl) : 
+			['sqrt(v sin i) sin(lambda)',' ',r'$\sqrt{v \sin i} \ \sin \lambda_'+pl+' (\sqrt{km/s})$',0.0,5,-10.,10.],
 			'T41_{}'.format(pl) : 
 			['T_{41}','hours',r'$T \rm _{41,'+pl+'} (hours)$',4.0,0.1,0.,10.],
 			'T21_{}'.format(pl) : 
@@ -234,33 +238,62 @@ def check_fps(parameters):
 	for pl in pls:
 		if 'ecosw_{}'.format(pl) in fps:
 			try:
-				fps.remove('e_b')
+				fps.remove('e_{}'.format(pl))
 			except ValueError:
 				pass
 			try:
-				fps.remove('w_b')
+				fps.remove('w_{}'.format(pl))
 			except ValueError:
 				pass
 			if not 'esinw_{}'.format(pl) in fps:
 				fps.append('esinw_{}'.format(pl))
 		if 'esinw_{}'.format(pl) in fps:
 			try:
-				fps.remove('e_b')
+				fps.remove('e_{}'.format(pl))
 			except ValueError:
 				pass
 			try:
-				fps.remove('w_b')
+				fps.remove('w_{}'.format(pl))
 			except ValueError:
 				pass
 			if not 'ecosw_{}'.format(pl) in fps:
 				fps.append('ecosw_{}'.format(pl))
 		if 'cosi_{}'.format(pl) in fps:
 			try:
-				fps.remove('i_b')
+				fps.remove('i_{}'.format(pl))
 			except ValueError:
 				pass
 
+		if 'vcosl_{}'.format(pl) in fps:
+			try:
+				fps.remove('vsini')
+			except ValueError:
+				pass
+			try:
+				fps.remove('lambda_{}'.format(pl))
+			except ValueError:
+				pass
+			if not 'vsinl_{}'.format(pl) in fps:
+				fps.append('vsinl_{}'.format(pl))
+
+		if 'vsinl_{}'.format(pl) in fps:
+			try:
+				fps.remove('vsini')
+			except ValueError:
+				pass
+			try:
+				fps.remove('lambda_{}'.format(pl))
+			except ValueError:
+				pass
+			if not 'vcosl_{}'.format(pl) in fps:
+				fps.append('vcosl_{}'.format(pl))
+
 	LD_lincombs = parameters['LinCombs']
+	for fp in fps:
+		if '_sum' in fp:
+			if fp not in LD_lincombs:
+				LD_lincombs.append(fp.split('_sum')[0])
+
 	for LDlc in LD_lincombs:
 		LD1 = LDlc + '1'
 		LD2 = LDlc + '2'

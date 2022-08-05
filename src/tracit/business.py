@@ -25,6 +25,8 @@
 	
 	* Check `poly_pars` CCFs
 
+	* Step in :math:`sqrt(v \sin i) \sin \lambda`,:math:`sqrt(v \sin i) \cos \lambda`: what happes to vsini for multiple planets? probably needs a bit of tweaking.
+
 '''
 # =============================================================================
 # tracit modules
@@ -32,6 +34,7 @@
 
 from .dynamics import *
 from .support import plot_autocorr, create_chains, create_corner, hpd, significantFormat
+from .structure import check_fps
 from .shady import absline_star, absline
 from .priors import tgauss_prior, gauss_prior, flat_prior, tgauss_prior_dis, flat_prior_dis
 
@@ -653,6 +656,19 @@ def lnprob(positions):
 			parameters['e_{}'.format(pl)]['Value'] = ecc
 			omega = np.arctan2(esinw,ecosw)*180./np.pi
 			parameters['w_{}'.format(pl)]['Value'] = omega%360
+		
+		if ('vcosl_{}'.format(pl) in pars) and ('vsinl_{}'.format(pl) in pars):
+			vcosl = parameters['vcosl_{}'.format(pl)]['Value']
+			vsinl = parameters['vsinl_{}'.format(pl)]['Value']
+			vsinl = abs(vsinl)
+
+			vsini = vcosl**2 + vsinl**2
+			if vsini < 0.0:
+				return -np.inf, -np.inf
+			parameters['vsini']['Value'] = vsini
+			lam = np.arctan2(vsinl,vcosl)*180./np.pi
+			parameters['lambda_{}'.format(pl)]['Value'] = lam%360
+
 		aR = parameters['a_Rs_'+pl]['Value']
 		rp = parameters['Rp_Rs_'+pl]['Value']
 		if parameters['e_{}'.format(pl)]['Value'] > (1.0 - (1+rp)/aR):
@@ -1477,7 +1493,7 @@ def mcmc(par,dat,maxdraws,nwalkers,
 		save_results = True, results_filename='results.csv',
 		sample_filename='samples.h5',reset=True,burn=0.5,
 		plot_convergence=True,save_samples=False,
-		corner=True,chains=False,nproc=1,
+		corner=True,chains=False,nproc=1,checkInput=True,
 		stop_converged=True,post_name='posteriors.npy',
 		triangles=[],moves=None,**kwargs):
 	'''Markov Chain Monte Carlo.
@@ -1530,6 +1546,9 @@ def mcmc(par,dat,maxdraws,nwalkers,
 
 	run_bus(par,dat)
 	RM_path()
+
+	if checkInput:
+		check_fps(par)
 
 	fit_params = list(set(parameters['FPs']))
 	ndim = len(fit_params)
@@ -1818,12 +1837,26 @@ def check_convergence(parameters_local,data_local,filename=None,
 			labels += [r'$b \rm _{}$'.format(pl)]
 			hands += ['b_{}'.format(pl)]
 
+		if ('vcosl_{}'.format(pl) in fit_params) and ('vsinl_{}'.format(pl) in fit_params):
+			idx_vcosl = fit_params.index('vcosl_{}'.format(pl))
+			vcosl = flat_samples[:,idx_vcosl]
+			idx_vsinl = fit_params.index('vsinl_{}'.format(pl))
+			vsinl = flat_samples[:,idx_vsinl]
+			vsinl = abs(vsinl)
+			flat_samples[:,idx_vsinl] = vsinl
+			vsini = vcosl**2 + vsinl**2
+			lam = np.arctan2(vsinl,vcosl)*180./np.pi
+			flat_samples = np.concatenate(
+				(flat_samples, vsini[:, None], lam[:, None]), axis=1)
+			labels += [r'$v \sin i \ \rm (km/s)$', r'$\lambda \rm _{} \ (^\circ)$'.format(pl)]
+			hands += ['vsini', 'lambda_{}'.format(pl)]
 		
-		if ('lam_{}'.format(pl) in fit_params):
-			idx_lam = fit_params.index('lam_{}'.format(pl))
-			retrograde = False
-			if retrograde:
-				flat_samples[:,idx_lam] = flat_samples[:,idx_lam]%360
+
+		# if ('lam_{}'.format(pl) in fit_params):
+		# 	idx_lam = fit_params.index('lam_{}'.format(pl))
+		# 	retrograde = False
+		# 	if retrograde:
+		# 		flat_samples[:,idx_lam] = flat_samples[:,idx_lam]%360
 
 
 		if ('a_Rs_{}'.format(pl) in fit_params) and ('inc_{}'.format(pl) in fit_params or 'cosi_{}'.format(pl) in fit_params):

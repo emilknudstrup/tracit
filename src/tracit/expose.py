@@ -64,7 +64,7 @@ from astropy.timeseries import LombScargle
 
 #def plot_orbit(param_fname,data_fname,updated_pars=None,
 def plot_orbit(parameters,data,updated_pars=None,
-	savefig=False,path='',OC_rv=True,n_pars=0,**kwargs):
+	savefig=False,path='',OC_rv=True,n_pars=0,usetex=False,**kwargs):
 	'''Plot the radial velocity curve.
 
 	:param parameters: The parameters. See :py:class:`tracit.structure.par_struct`.
@@ -86,7 +86,7 @@ def plot_orbit(parameters,data,updated_pars=None,
 	:type n_pars: int, optional
 
 	'''
-	plt.rc('text',**kwargs)
+	plt.rc('text',usetex=usetex)
 
 	font = 15
 	plt.rc('xtick',labelsize=3*font/4)
@@ -542,7 +542,7 @@ def plot_orbit(parameters,data,updated_pars=None,
 
 #def plot_lightcurve(param_fname,data_fname,updated_pars=None,savefig=False,
 def plot_lightcurve(parameters,data,savefig=False,
-	path='',n_pars=0,errorbar=True,best_fit=True,**kwargs):
+	path='',n_pars=0,errorbar=True,best_fit=True,usetex=False,**kwargs):
 	'''Plot the light curve.
 
 	Function to plot a light curve
@@ -569,7 +569,7 @@ def plot_lightcurve(parameters,data,savefig=False,
 
 	'''
 
-	plt.rc('text',**kwargs)
+	plt.rc('text',usetex=usetex)
 
 	font = 15
 	plt.rc('xtick',labelsize=3*font/4)
@@ -933,7 +933,7 @@ def create_shadow(phase,vel,shadow,exp_phase,per,
 	savefig=False,fname='shadow',zmin=None,zmax=None,
 	xlims=[],contour=False,vsini=None,cmap='bone_r',
 	ax=None,colorbar=True,cbar_pos='right',
-	font=12,tickfontsize=10,diff_cmap=None,its=[],**kwargs):
+	font=12,tickfontsize=10,diff_cmap=None,its=[],usetex=False,**kwargs):
 	'''Shadow plot.
 
 	Creates the planetary shadow.
@@ -960,7 +960,7 @@ def create_shadow(phase,vel,shadow,exp_phase,per,
 	
 	from matplotlib.colors import ListedColormap
 	import matplotlib.colors as clr
-	plt.rc('text',**kwargs)
+	plt.rc('text',usetex=usetex)
 	plt.rc('xtick',labelsize=3*font/4)
 	plt.rc('ytick',labelsize=3*font/4)	
 	## sort in phase
@@ -1021,7 +1021,7 @@ def create_shadow(phase,vel,shadow,exp_phase,per,
 def plot_shadow(parameters,data,oots=None,n_pars=0,
 	cmap='gray',contact_color='C0',font = 12,savefig=True,path='',
 	tickfontsize=10,scale2model=True,xlim=None,xticks=[],yticks=[],
-	only_obs=False,diff_cmap=False,**kwargs):
+	only_obs=False,diff_cmap=False,usetex=False,**kwargs):
 	'''Shadow plot wrapper.
 
 
@@ -1038,7 +1038,7 @@ def plot_shadow(parameters,data,oots=None,n_pars=0,
 	'''
 	
 
-	plt.rc('text',**kwargs)
+	plt.rc('text',usetex=usetex)
 
 	#business.data_structure(data_fname)
 
@@ -1376,18 +1376,18 @@ def plot_shadow(parameters,data,oots=None,n_pars=0,
 				#create_shadow(phase, vel_m_arr, -1*int_shadows, exptime_phase,P,cmap=cmap,
 				create_shadow(phase, vel_m_arr, -1*obs_shadows, exptime_phase,P,cmap=cmap,
 										vsini=vsini,zmin=zmin,zmax=zmax,contour=False,ax=ax1,
-										colorbar=False,font=font,**kwargs)
+										colorbar=False,font=font,usetex=usetex,**kwargs)
 
 				#create_shadow(phase, vel_m_arr, -1*shadow_model, exptime_phase,P, vsini=vsini,cmap=cmap,font=font,
 				create_shadow(phase, vel_m_arr, -1*shadow2obs, exptime_phase,P, vsini=vsini,cmap=cmap,font=font,
 										zmin=zmin,zmax=zmax,contour=False,ax=ax2,cbar_pos='top',
-										tickfontsize=tickfontsize,**kwargs)
+										tickfontsize=tickfontsize,usetex=usetex,**kwargs)
 
 				#diff = -1*(int_shadows - shadow_model)
 				diff = -1*(obs_shadows - shadow2obs)
 				create_shadow(phase, vel_m_arr, diff, exptime_phase,P, cmap=cmap,font=font,
 										vsini=vsini,zmin=zmin,zmax=zmax,contour=False,ax=ax3,
-										colorbar=False,**kwargs)
+										colorbar=False,usetex=usetex,**kwargs)
 
 				
 				if xlim:
@@ -1505,7 +1505,7 @@ def plot_shadow(parameters,data,oots=None,n_pars=0,
 def plot_oot_ccf_gp(parameters,data,updated_pars=None,oots=None,n_pars=0,chi2_scale=1.0,
 	font = 12,savefig=True,path='',no_bump=15,best_fit=True,xmajor=None,xminor=None,
 	ymajor1=None,yminor1=None,ymajor2=None,yminor2=None,plot_intransit=True,xmax=None,xmin=None,
-	**kwargs):
+	usetex=False,**kwargs):
 	'''Plot out-of-transit CCFs.
 
 	
@@ -1513,7 +1513,7 @@ def plot_oot_ccf_gp(parameters,data,updated_pars=None,oots=None,n_pars=0,chi2_sc
 	'''
 	
 
-	plt.rc('text',**kwargs)
+	plt.rc('text',usetex=usetex)
 
 
 	if n_pars == 0: n_pars = len(parameters['FPs'])
@@ -1893,7 +1893,7 @@ def plot_oot_ccf_gp(parameters,data,updated_pars=None,oots=None,n_pars=0,chi2_sc
 def plot_oot_ccf_2Gauss(parameters,data,updated_pars=None,oots=None,n_pars=0,chi2_scale=1.0,
 	font = 12,savefig=True,path='',no_bump=15,best_fit=True,xmajor=None,xminor=None,
 	ymajor1=None,yminor1=None,ymajor2=None,yminor2=None,plot_intransit=True,xmax=None,xmin=None,
-	**kwargs):
+	usetex=False,**kwargs):
 	'''Plot out-of-transit CCFs.
 
 	
@@ -1901,7 +1901,7 @@ def plot_oot_ccf_2Gauss(parameters,data,updated_pars=None,oots=None,n_pars=0,chi
 	'''
 	
 
-	plt.rc('text',**kwargs)
+	plt.rc('text',usetex=usetex)
 
 
 	if n_pars == 0: n_pars = len(parameters['FPs'])
@@ -2097,9 +2097,9 @@ def plot_oot_ccf_2Gauss(parameters,data,updated_pars=None,oots=None,n_pars=0,chi
 def plot_oot_ccf(parameters,data,updated_pars=None,oots=None,n_pars=0,chi2_scale=1.0,
 	font = 12,savefig=True,path='',no_bump=15,best_fit=True,xmajor=None,xminor=None,
 	ymajor1=None,yminor1=None,ymajor2=None,yminor2=None,plot_intransit=True,xmax=None,xmin=None,
-	**kwargs):
+	usetex=False,**kwargs):
 
-	plt.rc('text',**kwargs)
+	plt.rc('text',usetex=usetex)
 
 
 	if n_pars == 0: n_pars = len(parameters['FPs'])
@@ -2399,11 +2399,11 @@ def plot_oot_ccf(parameters,data,updated_pars=None,oots=None,n_pars=0,chi2_scale
 def plot_distortion(param_fname,data_fname,updated_pars=None,observation=False,
 	oots=None,n_pars=0,display=[],background='white',model=False,ax=None,stack = {},
 	font = 14,savefig=True,path='',contact_color='C3',movie_time=False,return_slopes=False,
-	no_bump=15,best_fit=True,get_vp=False,tickfontsize=10,**kwargs):
+	no_bump=15,best_fit=True,get_vp=False,tickfontsize=10,usetex=False,**kwargs):
 
 	#from matplotlib.gridspec import GridSpec
 
-	plt.rc('text',**kwargs)
+	plt.rc('text',usetex=usetex)
 
 	if not get_vp:
 		business.params_structure(param_fname)
@@ -2684,14 +2684,14 @@ def plot_slope(parameters,data,
 	font = 12,savefig=True,path='',
 	contact_color='C3',movie_time=False,return_slopes=False,
 	no_bump=15,best_fit=True,get_vp=False,
-	**kwargs):
+	usetex=False,**kwargs):
 	'''Plot the subplanetary velocities.
 
 	Function to plot the subplanetary velocities/the slope across the stellar disk.
 
 	'''
 
-	plt.rc('text',**kwargs)
+	plt.rc('text',usetex=usetex)
 
 	# if not get_vp:
 	# 	business.params_structure(param_fname)
@@ -3020,14 +3020,14 @@ def plot_slope_2Gauss(parameters,data,
 	oots=None,n_pars=0,
 	font = 12,savefig=True,path='',
 	contact_color='C3',movie_time=False,return_slopes=False,
-	no_bump=15,best_fit=True,get_vp=False,**kwargs):
+	no_bump=15,best_fit=True,get_vp=False,usetex=False,**kwargs):
 	'''Plot the subplanetary velocities.
 
 	Function to plot the subplanetary velocities/the slope across the stellar disk.
 
 	'''
 
-	plt.rc('text',**kwargs)
+	plt.rc('text',usetex=usetex)
 
 
 	if n_pars == 0: n_pars = len(parameters['FPs'])
@@ -3323,7 +3323,7 @@ def plot_slope_2Gauss(parameters,data,
 
 
 def plot_rv_pgram(param_fname,data_fname,updated_pars=None,savefig=False,path='',pls=None,
-	freq_grid=None,samples_per_peak=5,savefile=False,best_fit=True,**kwargs):#,
+	freq_grid=None,samples_per_peak=5,savefile=False,best_fit=True,usetex=False,**kwargs):#,
 #	xminLS=0.0,xmaxLS=None):
 
 	colors = {
@@ -3338,7 +3338,7 @@ def plot_rv_pgram(param_fname,data_fname,updated_pars=None,savefig=False,path=''
 	}
 
 
-	plt.rc('text',**kwargs)
+	plt.rc('text',usetex=usetex)
 
 	font = 15
 	plt.rc('xtick',labelsize=3*font/4)
@@ -3599,7 +3599,7 @@ def plot_rv_pgram(param_fname,data_fname,updated_pars=None,savefig=False,path=''
 # =============================================================================
 
 def plot_lc_pgram(param_fname,data_fname,updated_pars=None,savefig=False,
-	path='',pls=None,tls = False,best_fit=True,**kwargs):#,
+	path='',pls=None,tls = False,best_fit=True,usetex=False,**kwargs):#,
 #	xminLS=0.0,xmaxLS=None):
 	'''Periodogram from light curves.
 
@@ -3617,7 +3617,7 @@ def plot_lc_pgram(param_fname,data_fname,updated_pars=None,savefig=False,
 	}
 
 
-	plt.rc('text',**kwargs)
+	plt.rc('text',usetex=usetex)
 
 	font = 15
 	plt.rc('xtick',labelsize=3*font/4)
@@ -3807,7 +3807,7 @@ def plot_lc_pgram(param_fname,data_fname,updated_pars=None,savefig=False,
 # 	font = 12,savefig=True,path='',no_bump=15,best_fit=True,xmajor=None,xminor=None,
 # 	ymajor1=None,yminor1=None,ymajor2=None,yminor2=None,plot_intransit=True,xmax=None,xmin=None):
 
-# 	plt.rc('text',**kwargs)
+# 	plt.rc('text',usetex=usetex)
 	
 # 	import celerite
 
@@ -4172,7 +4172,7 @@ def plot_lc_pgram(param_fname,data_fname,updated_pars=None,savefig=False,
 # 	font = 12,savefig=True,path='',no_bump=15,best_fit=True,xmajor=None,xminor=None,
 # 	ymajor1=None,yminor1=None,ymajor2=None,yminor2=None,plot_intransit=True,xmax=None,xmin=None):
 
-# 	plt.rc('text',**kwargs)
+# 	plt.rc('text',usetex=usetex)
 
 # 	#business.data_structure(data_fname)
 # 	#business.params_structure(param_fname)

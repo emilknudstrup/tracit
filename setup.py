@@ -8,7 +8,7 @@ with open("requirements.txt","r") as f:
 
 setup(
 	name="tracit",
-	version='0.1.20',
+	version='0.1.21',
 	description='tracing exoplanets',
 	url='https://github.com/emilknudstrup/tracit',
 	author='Emil Knudstrup',
