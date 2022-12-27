@@ -18,8 +18,11 @@ Created on Tue Jun 29 16:30:38 2021
 # =============================================================================
 
 from .business import lc_model, rv_model, ls_model, ls_model2, localRV_model, get_binned, Gauss, RM_path, inv2Gauss
-#from .dynamics import *#time2phase, total_duration
-from .cdynamic import *#time2phase, total_duration
+cyfy = 0
+if cyfy:
+	from .cdynamic import *#time2phase, total_duration
+else:
+	from .dynamics import *#time2phase, total_duration
 
 # =============================================================================
 # external modules
@@ -30,7 +33,7 @@ from matplotlib.ticker import MultipleLocator
 
 import numpy as np
 import lmfit
-import celerite
+#import celerite
 
 from scipy import interpolate
 from scipy.optimize import curve_fit
@@ -50,7 +53,7 @@ def time2phase(time,per,T0):
 	:param T0: Reference time (mid-transit time).
 	:type T0: float
 
-	:rerturn: Phase.
+	:return: Phase.
 	:rtype: array
 
 	'''
@@ -78,94 +81,6 @@ def time2phase(time,per,T0):
 # 		'h' : 'C6',
 # 		'i' : 'C8'
 # 	}
-gamcep = 1
-if gamcep:
-	import glob
-	import sys
-	sys.path.append('/home/emil/Desktop/PhD/projects/gamCep_master/')
-	import ps_v02 as ps2
-	from lightkurve import TessLightCurve
-	import pandas as pd
-	path = '/home/emil/Desktop/PhD/exoplanets/'
-	sys.path.append(path)
-	import orbits
-	so = glob.glob('/home/emil/Desktop/PhD/projects/gamCep_master/gamCep/orbit/exo_dfm/trace/SONG_rv.txt')[0]
-	arr = np.loadtxt(so)
-	tt = arr[:,0]
-	rv = arr[:,1]
-	erv = arr[:,2]
-
-
-	def make_lc(tic, time, flux):
-		lc = TessLightCurve(
-			time = time,
-			flux = flux,
-			time_format = 'jd',
-			time_scale = 'tdb',
-			targetid = tic,
-			label = 'Star{}'.format(tic)
-			)
-		return lc
-
-
-	df = pd.read_csv('/home/emil/Desktop/PhD/projects/gamCep_master/gamCep/orbit/exo_dfm/trace/results.csv')
-	rvsys = float(df['RVsys_1'][1])
-
-	rv -= rvsys
-
-	pb = float(df['P_b'][1])
-	t0b = float(df['T0_b'][1])
-	Kb =  float(df['K_b'][1])
-	eccb = float(df['e_b'][1])
-	wb =  float(df['w_b'][1])
-
-	pc = float(df['P_c'][1])
-	t0c = float(df['T0_c'][1])
-	Kc =  float(df['K_c'][1])
-	eccc = float(df['e_c'][1])
-	wc =  float(df['w_c'][1])
-
-
-	#%%
-	op = orbits.OrbitalParams()
-	op.per = pb
-	op.T0 = t0b
-	op.ecc = eccb
-	op.w = wb
-	op.K = Kb
-	op.RVsys = 0.0#np.mean(rvs)#-50344.07855260793 - 3
-	# np.mean(rvs)#0.0
-	op.Tw = t0b
-
-	subb = orbits.get_RV(tt, op)
-
-
-
-	op = orbits.OrbitalParams()
-	op.per = pc
-	op.T0 = t0c
-	op.ecc = eccc
-	op.w = wc
-	op.K = Kc
-	op.RVsys = 0.0#np.mean(rvs)#-50344.07855260793 - 3
-	# np.mean(rvs)#0.0
-	op.Tw = t0c
-
-	subc = orbits.get_RV(tt, op)
-
-	tt -= min(tt)
-	
-	lcf = make_lc('gamCep',tt,rv)
-	psdf = ps2.powerspectrum(lcf,weights=erv)
-	frf, PSDf = psdf.powerspectrum()
-	PSDf *= 1e6
-
-	rv -= subb+subc
-
-	lc = make_lc('gamCep',tt,rv)
-	psd1 = ps2.powerspectrum(lc,weights=erv)
-	fr, PSD = psd1.powerspectrum()
-	PSD *= 1e6
 
 
 # =============================================================================
