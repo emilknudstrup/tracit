@@ -8,7 +8,6 @@
 # Packages
 # =============================================================================
 from scipy.special import erf
-#from scipy.stats import truncnorm, beta
 import scipy.stats as ss
 import numpy as np
 
@@ -41,9 +40,6 @@ def tgauss_prior_dis(mu,sigma,xmin,xmax):
 
 	See :py:func:`tgauss_prior`.
 
-	:param val: :math:`x`.
-	:type val: float
-
 	:param xmid: :math:`\mu`.
 	:type xmid: float
 
@@ -63,6 +59,25 @@ def tgauss_prior_dis(mu,sigma,xmin,xmax):
 	a = (xmin - mu)/sigma
 	b = (xmax - mu)/sigma
 	return ss.truncnorm.rvs(a,b,loc=mu,scale=sigma)
+
+def gauss_prior_dis(mu,sigma):
+	'''Gaussian distribution.
+
+	See :py:func:`gauss_prior`.
+
+	:param xmid: :math:`\mu`.
+	:type xmid: float
+
+	:param xwid: :math:`\sigma`.
+	:type xwid: float
+	
+
+	:returns: :math:`f(x)`
+	:rtype: float
+
+	'''
+	return np.random.normal(mu,sigma)
+
 
 def jeff_prior_dis(val,xmin,xmax):
 	if r <= 0.0:

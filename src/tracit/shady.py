@@ -79,7 +79,6 @@ def grid(Rs,xoff=0,yoff=0):
 
 	return start_grid, vel, mu
 
-
 def grid_ring(Rs,thick,xoff=0.,yoff=0.):
 	'''Initial grid of star in rings of :math:`\mu`.
 
@@ -252,7 +251,8 @@ def transit_ring(vel,vel_ext,ring_LD,mu_grid,mu_mean,lum,
 
 	rp = int(round(Rp_Rs*radius))
 	pl_grid, pl_vel, mu = grid(rp)
-	cos_f, sin_f = true_anomaly(time,Tw,ecc,per,w)
+	#cos_f, sin_f = true_anomaly(time,Tw,ecc,per,w)
+	cos_f, sin_f = true_anomaly(time,Tw,ecc,per)
 	xx, yy = xy_pos(cos_f,sin_f,ecc,w,a_Rs,inc,lam)
 	xnorm, ynorm = xx*radius, yy*radius
 	x_off, y_off = np.rint(xnorm), np.rint(ynorm)
@@ -475,38 +475,38 @@ def convolve(vel,ring_LD,mu_mean,xi,zeta,vels,sigma=3.):
 # Stellar surface/atmosphere
 # =============================================================================
 
-def limb_darkening(gridini,mu,cs=[],LD_law='quad'):
-	'''Limb darkening in stellar grid.
+# def limb_darkening(gridini,mu,cs=[],LD_law='quad'):
+# 	'''Limb darkening in stellar grid.
 
-	Function that calculates the limb darkening at each position of the stellar grid.
+# 	Function that calculates the limb darkening at each position of the stellar grid.
 
-	:param gridini: Grid of positions on the stellar disk.
-	:type gridini: array 
+# 	:param gridini: Grid of positions on the stellar disk.
+# 	:type gridini: array 
 
-	:param mu: Normalized radial coordinates. See :py:func:`grid_ring` for the definition of :math:`\mu`.
-	:type mu: array
+# 	:param mu: Normalized radial coordinates. See :py:func:`grid_ring` for the definition of :math:`\mu`.
+# 	:type mu: array
 	
-	:param cs: Limb darkening coefficients. Default ``[]``.
-	:type cs: list, optional
+# 	:param cs: Limb darkening coefficients. Default ``[]``.
+# 	:type cs: list, optional
 
-	:param	LD_law: limb darkening law. Default ``'quad'``. See :py:class:`dynamics.StellarParams`.
-	:type LD_law: str, optional 
+# 	:param	LD_law: limb darkening law. Default ``'quad'``. See :py:class:`dynamics.StellarParams`.
+# 	:type LD_law: str, optional 
 	
-	:return: Limb-darkened surface. 
-	:rtype: array
-	'''
+# 	:return: Limb-darkened surface. 
+# 	:rtype: array
+# 	'''
 
-	if LD_law == 'quad':
-		c1, c2 = cs
-		law = 1 - c1*(1 - mu) - c2*np.power(1 - mu,2)
-	elif LD_law == 'nonlinear':
-		c1, c2, c3, c4 = cs
-		law = 1. - c1*(1. - np.sqrt(mu)) - c2*(1. - mu) - c3*(1. - np.power(mu,3/2)) - c4*(1. - np.power(mu,2))
-	elif LD_law == 'uni':
-		law = 1
+# 	if LD_law == 'quad':
+# 		c1, c2 = cs
+# 		law = 1 - c1*(1 - mu) - c2*np.power(1 - mu,2)
+# 	elif LD_law == 'nonlinear':
+# 		c1, c2, c3, c4 = cs
+# 		law = 1. - c1*(1. - np.sqrt(mu)) - c2*(1. - mu) - c3*(1. - np.power(mu,3/2)) - c4*(1. - np.power(mu,2))
+# 	elif LD_law == 'uni':
+# 		law = 1
 
-	lum = gridini*law
-	return lum 
+# 	lum = gridini*law
+# 	return lum 
 
 def absline_star(gridini,vel,ring_grid,
 	mu,mu_mean,vsini,xi,zeta,vels,

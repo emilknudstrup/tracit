@@ -41,7 +41,7 @@ extensions = [
 
 # mock imports (alternatively add packages to docs/requirements.txt)
 autodoc_mock_imports = ['matplotlib','scipy','astropy',
-                        'emcee','batman','lmfit',
+                        'emcee','batman','lmfit','corner',
                         'pandas','h5py','arviz',
                         'statsmodels','celerite']
 

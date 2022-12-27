@@ -18,7 +18,8 @@ Created on Tue Jun 29 16:30:38 2021
 # =============================================================================
 
 from .business import lc_model, rv_model, ls_model, ls_model2, localRV_model, get_binned, Gauss, RM_path, inv2Gauss
-from .dynamics import *#time2phase, total_duration
+#from .dynamics import *#time2phase, total_duration
+from .cdynamic import *#time2phase, total_duration
 
 # =============================================================================
 # external modules
@@ -36,6 +37,28 @@ from scipy.optimize import curve_fit
 from scipy.signal import savgol_filter
 
 from astropy.timeseries import LombScargle
+
+def time2phase(time,per,T0):
+	'''Convert time to phase.
+
+	Phase centered on the reference time, i.e., from -0.5 to 0.5.
+
+	:param time: Times to convert.
+	:type time: array
+	:param per: Period.
+	:type per: float
+	:param T0: Reference time (mid-transit time).
+	:type T0: float
+
+	:rerturn: Phase.
+	:rtype: array
+
+	'''
+	phase = ((time-T0)%per)/per
+	for ii in range(len(phase)):
+		if phase[ii] > 0.5: phase[ii] = phase[ii] - 1
+	return phase
+
 
 
 # def run_exp():
@@ -55,7 +78,94 @@ from astropy.timeseries import LombScargle
 # 		'h' : 'C6',
 # 		'i' : 'C8'
 # 	}
+gamcep = 1
+if gamcep:
+	import glob
+	import sys
+	sys.path.append('/home/emil/Desktop/PhD/projects/gamCep_master/')
+	import ps_v02 as ps2
+	from lightkurve import TessLightCurve
+	import pandas as pd
+	path = '/home/emil/Desktop/PhD/exoplanets/'
+	sys.path.append(path)
+	import orbits
+	so = glob.glob('/home/emil/Desktop/PhD/projects/gamCep_master/gamCep/orbit/exo_dfm/trace/SONG_rv.txt')[0]
+	arr = np.loadtxt(so)
+	tt = arr[:,0]
+	rv = arr[:,1]
+	erv = arr[:,2]
 
+
+	def make_lc(tic, time, flux):
+		lc = TessLightCurve(
+			time = time,
+			flux = flux,
+			time_format = 'jd',
+			time_scale = 'tdb',
+			targetid = tic,
+			label = 'Star{}'.format(tic)
+			)
+		return lc
+
+
+	df = pd.read_csv('/home/emil/Desktop/PhD/projects/gamCep_master/gamCep/orbit/exo_dfm/trace/results.csv')
+	rvsys = float(df['RVsys_1'][1])
+
+	rv -= rvsys
+
+	pb = float(df['P_b'][1])
+	t0b = float(df['T0_b'][1])
+	Kb =  float(df['K_b'][1])
+	eccb = float(df['e_b'][1])
+	wb =  float(df['w_b'][1])
+
+	pc = float(df['P_c'][1])
+	t0c = float(df['T0_c'][1])
+	Kc =  float(df['K_c'][1])
+	eccc = float(df['e_c'][1])
+	wc =  float(df['w_c'][1])
+
+
+	#%%
+	op = orbits.OrbitalParams()
+	op.per = pb
+	op.T0 = t0b
+	op.ecc = eccb
+	op.w = wb
+	op.K = Kb
+	op.RVsys = 0.0#np.mean(rvs)#-50344.07855260793 - 3
+	# np.mean(rvs)#0.0
+	op.Tw = t0b
+
+	subb = orbits.get_RV(tt, op)
+
+
+
+	op = orbits.OrbitalParams()
+	op.per = pc
+	op.T0 = t0c
+	op.ecc = eccc
+	op.w = wc
+	op.K = Kc
+	op.RVsys = 0.0#np.mean(rvs)#-50344.07855260793 - 3
+	# np.mean(rvs)#0.0
+	op.Tw = t0c
+
+	subc = orbits.get_RV(tt, op)
+
+	tt -= min(tt)
+	
+	lcf = make_lc('gamCep',tt,rv)
+	psdf = ps2.powerspectrum(lcf,weights=erv)
+	frf, PSDf = psdf.powerspectrum()
+	PSDf *= 1e6
+
+	rv -= subb+subc
+
+	lc = make_lc('gamCep',tt,rv)
+	psd1 = ps2.powerspectrum(lc,weights=erv)
+	fr, PSD = psd1.powerspectrum()
+	PSD *= 1e6
 
 
 # =============================================================================
@@ -64,7 +174,7 @@ from astropy.timeseries import LombScargle
 
 #def plot_orbit(param_fname,data_fname,updated_pars=None,
 def plot_orbit(parameters,data,updated_pars=None,
-	savefig=False,path='',OC_rv=True,n_pars=0,usetex=False,**kwargs):
+	savefig=False,path='',save_res=False,OC_rv=True,n_pars=0,usetex=False,**kwargs):
 	'''Plot the radial velocity curve.
 
 	:param parameters: The parameters. See :py:class:`tracit.structure.par_struct`.
@@ -165,62 +275,61 @@ def plot_orbit(parameters,data,updated_pars=None,
 			ax.errorbar(time,rv,yerr=rv_err,marker='o',markersize=fms,color='C{}'.format(nn-1),linestyle='none',zorder=5,label=r'$\rm {}$'.format(label))
 			axoc.errorbar(time,rv-drift-mnrv,yerr=jitter_err,marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
 			axoc.errorbar(time,rv-drift-mnrv,yerr=rv_err,marker='o',markersize=fms,color='C{}'.format(nn-1),linestyle='none',zorder=5)
+			if save_res: 
+				rarr = np.zeros(shape=(len(time),3))
+				rarr[:,0] = time
+				rarr[:,1] = rv-drift-mnrv
+				rarr[:,2] = rv_err
+				np.savetxt(path+'RV{}_res.txt'.format(nn),rarr)
+
 			if plot_gp:
+				gptime = time.copy()*24*3600
 				gp_fig = plt.figure(figsize=(12,6))
 				ax_gp = gp_fig.add_subplot(111)
-				#ax_gp2 = gp_fig.add_subplot(212)
+
+
+
 				gp = data['RV_{} GP'.format(nn)]
-				gp_type = data['GP type RV_{}'.format(nn)]
-				if gp_type == 'SHO':
-					sigma = parameters['RV_{}_GP_sigma'.format(nn)]['Value']
-					tau = parameters['RV_{}_GP_tau'.format(nn)]['Value']
-					rho = parameters['RV_{}_GP_rho'.format(nn)]['Value']
-				
-					gp_list = [sigma,tau,rho]
-				elif gp_type == 'logSHO':
-					log_S0 = parameters['RV_{}_GP_log_S0'.format(nn)]['Value']
-					log_Q = parameters['RV_{}_GP_log_Q'.format(nn)]['Value']
-					log_w0 = parameters['RV_{}_GP_log_w0'.format(nn)]['Value']
-				
-					gp_list = [log_S0,log_Q,log_w0]
-				else:
-					loga = parameters['RV_{}_GP_log_a'.format(nn)]['Value']
-					logc = parameters['RV_{}_GP_log_c'.format(nn)]['Value']
-					gp_list = [loga,logc]
+				gp_pars = parameters['GP pars RV_{}'.format(nn)]
+				gp_list = []
+
+				for gpar in gp_pars:
+					gp_list.append(parameters[gpar]['Value'])
+
+
+				print(gp_list)
 				gp.set_parameter_vector(np.array(gp_list))
-				gp.compute(time,jitter_err)
+				gp.compute(gptime-min(gptime),jitter_err)
 
 				res_rv = rv-drift-mnrv
 
-				#off = gp_drift+gp_mnrv
-				#ntimes = np.linspace(min(time),max(time),500)
-				#mu, var = gp.predict(res_rv, ntimes, return_var=True)
-				#std = np.sqrt(var)
-				ax_gp.errorbar(time,rv,yerr=jitter_err,marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
-				ax_gp.errorbar(time,rv,yerr=rv_err,marker='o',markersize=fms,color='C{}'.format(nn-1),linestyle='none',zorder=5,label=r'$\rm {}$'.format(label))
+				ax_gp.errorbar(gptime-min(gptime),res_rv,yerr=jitter_err,marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
+				ax_gp.errorbar(gptime-min(gptime),res_rv,yerr=rv_err,marker='o',markersize=fms,color='C{}'.format(nn-1),linestyle='none',zorder=5,label=r'$\rm {}$'.format(label))
 				
-				#ax_gp.plot(ntimes,off,color='k',linestyle='--')
-				#ax_gp.plot(ntimes,mu,color='k',linestyle='--')
-				
-				#ax_gp.fill_between(ntimes, mu+std+off, mu-std+off, color='C7', alpha=0.9, edgecolor="none",zorder=6)
-				#ax_gp.plot(ntimes,mu+off,color='k',lw=2.0,zorder=7)
-				#ax_gp.plot(ntimes,mu+off,color='w',lw=1.0,zorder=7)
 
-				gap = 0.3
+
+				off = 0.0
+
+				t_poor = np.linspace(0.0,max(gptime)-min(gptime),500)
+				mup, varp = gp.predict(res_rv, t_poor, return_var=True)
+				ax_gp.plot(t_poor,mup+off,color='k',lw=2.0,zorder=7,alpha=0.2)
+
+
+				gap = 0.3#/(24*3600)
 				dls = np.where(np.diff(time) > gap)[0]
 				start = 0
 				for dl in dls:
-					t_lin = np.linspace(min(time[start:int(dl+1)]),max(time[start:int(dl+1)]),500)
+					t_lin = np.linspace(min(gptime[start:int(dl+1)])-min(gptime)-gap/2,max(gptime[start:int(dl+1)])-min(gptime)+gap/2,500)
 					mu, var = gp.predict(res_rv, t_lin, return_var=True)
 					std = np.sqrt(var)
 					#ax_gp.plot(time[start:int(dl+1)],fl[start:int(dl+1)],marker='.',markersize=6.0,color='k',linestyle='none')
 					#ax_gp.plot(time[start:int(dl+1)],fl[start:int(dl+1)],marker='.',markersize=4.0,color='C{}'.format(nn-1),linestyle='none')
-					gp_mnrv = np.zeros(len(t_lin))
-					for pl in pls: 
-						gp_mnrv += rv_model(t_lin,n_planet=pl,n_rv=nn,RM=RM)
-					gp_drift = aa[1]*(t_lin-zp)**2 + aa[0]*(t_lin-zp)
-					#print(gp_mnrv)
-					off = gp_drift+gp_mnrv
+					# gp_mnrv = np.zeros(len(t_lin))
+					# for pl in pls: 
+					# 	gp_mnrv += rv_model(t_lin,n_planet=pl,n_rv=nn,RM=RM)
+					# gp_drift = aa[1]*(t_lin-zp)**2 + aa[0]*(t_lin-zp)
+					# #print(gp_mnrv)
+					# off = gp_drift+gp_mnrv
 
 					ax_gp.fill_between(t_lin, mu+std+off, mu-std+off, color='C7', alpha=0.9, edgecolor="none",zorder=6)
 					ax_gp.plot(t_lin,mu+off,color='k',lw=2.0,zorder=7)
@@ -229,7 +338,7 @@ def plot_orbit(parameters,data,updated_pars=None,
 					#ax_gp.plot(t_lin,off,color='k',linestyle='--')
 					#ax_gp.plot(t_lin,mu,color='k',linestyle='--')
 
-					murv, v = gp.predict(res_rv, time[start:int(dl+1)], return_var=True)
+					murv, v = gp.predict(res_rv, gptime[start:int(dl+1)]-min(gptime), return_var=True)
 					rv[start:int(dl+1)] -= murv
 					# if any(~np.isfinite(murv)):
 					# 	ax_gp.plot(t_lin,mu+off,color='r',lw=2.0,zorder=7)
@@ -237,20 +346,39 @@ def plot_orbit(parameters,data,updated_pars=None,
 					# 	print(murv,len(time[start:int(dl+1)]))
 
 					start = int(dl + 1)
-				
-				t_lin = np.linspace(min(time[start:]),max(time[start:]),500)
+				t_lin = np.linspace(min(gptime[start:])-min(gptime),max(gptime[start:])-min(gptime),500)
 				mu, var = gp.predict(res_rv, t_lin, return_var=True)
 				std = np.sqrt(var)
 				
-				murv, v = gp.predict(res_rv, time[start:], return_var=True)
+				murv, v = gp.predict(res_rv, gptime[start:]-min(gptime), return_var=True)
 				rv[start:] -= murv
 				#print(any(~np.isfinite(murv)))
+
+				# freq = np.linspace(0, 10, 200)#*1e-6
+				# freq = np.append(freq,np.linspace(10, 1500, 2000))#*1e-6
+				# omega = freq*2*np.pi*1e-6
+				# figw = plt.figure()
+				# axw = figw.add_subplot(111)
+				# #axr = figw.add_subplot(212)
+				# axw.loglog(frf, PSDf,color='C1',zorder=-10)
+				# axw.loglog(fr, PSD,zorder=-1,color='C7')
 				
-				gp_mnrv = np.zeros(len(t_lin))
-				for pl in pls: 
-					gp_mnrv += rv_model(t_lin,n_planet=pl,n_rv=nn,RM=RM)
-				gp_drift = aa[1]*(t_lin-zp)**2 + aa[0]*(t_lin-zp)
-				off = gp_drift+gp_mnrv
+				# lc = make_lc('gamCep2',time,res_rv)
+				# psd = ps2.powerspectrum(lc,weights=rv_err)
+				# fr2, PSD2 = psd.powerspectrum()
+				# PSD2 *= 1e6
+				# axw.loglog(fr2, PSD2,color='k')
+				# axw.loglog(freq, gp.kernel.get_psd(omega),color='k',lw=3.0)
+				# axw.loglog(freq, gp.kernel.get_psd(omega),color='w',lw=2.0)
+				# for n, term in enumerate(gp.kernel.terms):
+				# 	axw.loglog(freq, term.get_psd(omega))
+
+				#axr.plot(time,rv,ls='none')
+				# gp_mnrv = np.zeros(len(t_lin))
+				# for pl in pls: 
+				# 	gp_mnrv += rv_model(t_lin,n_planet=pl,n_rv=nn,RM=RM)
+				# gp_drift = aa[1]*(t_lin-zp)**2 + aa[0]*(t_lin-zp)
+				# off = gp_drift+gp_mnrv
 
 				ax_gp.fill_between(t_lin, mu+std+off, mu-std+off, color='C7', alpha=0.9, edgecolor="none",zorder=6)
 				ax_gp.plot(t_lin,mu+off,color='k',lw=2.0,zorder=7)
@@ -375,19 +503,77 @@ def plot_orbit(parameters,data,updated_pars=None,
 					#gp_fig = plt.figure(figsize=(12,6))
 					#ax_gp = gp_fig.add_subplot(111)
 					gp = data['RV_{} GP'.format(nn)]
-					gp_type = data['GP type RV_{}'.format(nn)]
-					if gp_type == 'logSHO':
-						log_S0 = parameters['RV_{}_GP_log_S0'.format(nn)]['Value']
-						log_Q = parameters['RV_{}_GP_log_Q'.format(nn)]['Value']
-						log_w0 = parameters['RV_{}_GP_log_w0'.format(nn)]['Value']
+					#gp_type = data['GP type RV_{}'.format(nn)]
+
+
+					gp = data['RV_{} GP'.format(nn)]
+					gp_pars = parameters['GP pars RV_{}'.format(nn)]
+					gp_list = []
+					for gpar in gp_pars:
+						gp_list.append(parameters[gpar]['Value'])
+					# if gp_type == 'SHO':
+					# 	#sigma = parameters['RV_{}_GP_sigma'.format(nn)]['Value']
+					# 	#tau = parameters['RV_{}_GP_tau'.format(nn)]['Value']
+					# 	#rho = parameters['RV_{}_GP_rho'.format(nn)]['Value']
+					# 	#gp_list = [sigma,tau,rho]
+					# 	S0 = parameters['RV_{}_GP_S0'.format(nn)]['Value']
+					# 	Q = parameters['RV_{}_GP_Q'.format(nn)]['Value']
+					# 	w0 = parameters['RV_{}_GP_w0'.format(nn)]['Value']
+
+
+					# 	P = 2*np.pi/(90*24*3600)
+					# 	#P = 1000
+					# 	a = 8
+					# 	#term2 = terms.RealTerm(a=a, c=P)
+
+					# 	P3 = 2*np.pi/(2*24*3600)
+					# 	#P = 1000
+					# 	a3 = 8
+			
+					# 	#gp_list = [np.log(S0),np.log(Q),np.log(w0)]
+					# 	gp_list = [np.log(S0),np.log(Q),np.log(w0),np.log(a),np.log(P),np.log(a3),np.log(P3)]
+					# elif gp_type == 'logSHO':
+					# 	log_S0 = parameters['RV_{}_GP_log_S0'.format(nn)]['Value']
+					# 	log_Q = parameters['RV_{}_GP_log_Q'.format(nn)]['Value']
+					# 	log_w0 = parameters['RV_{}_GP_log_w0'.format(nn)]['Value']
 					
-						gp_list = [log_S0,log_Q,log_w0]
-					else:
-						loga = parameters['RV_{}_GP_log_a'.format(nn)]['Value']
-						logc = parameters['RV_{}_GP_log_c'.format(nn)]['Value']
-						gp_list = [loga,logc]
+					# 	gp_list = [log_S0,log_Q,log_w0]
+					# else:
+					# 	loga = parameters['RV_{}_GP_log_a'.format(nn)]['Value']
+					# 	logc = parameters['RV_{}_GP_log_c'.format(nn)]['Value']
+					# 	gp_list = [loga,logc]
+
+					# # gp_types = data['GP type RV_{}'.format(nn)]
+					# # gp_list = []
+					# # nsho = 1
+					# # nlogsho = 1
+					# # nreal = 1
+					# # for gp_type in gp_types:
+					# # 	if gp_type == 'SHO':
+					# # 		sigma = parameters['RV_{}_GP_sigma_{}'.format(nn,nsho)]['Value']
+					# # 		tau = parameters['RV_{}_GP_tau_{}'.format(nn,nsho)]['Value']
+					# # 		rho = parameters['RV_{}_GP_rho_{}'.format(nn,nsho)]['Value']
+							
+					# # 		gp_list.extend([sigma,tau,rho])
+					# # 	elif gp_type == 'logSHO':
+					# # 		log_S0 = parameters['RV_{}_GP_log_S0_{}'.format(nn,nlogsho)]['Value']
+					# # 		log_Q = parameters['RV_{}_GP_log_Q_{}'.format(nn,nlogsho)]['Value']
+					# # 		log_w0 = parameters['RV_{}_GP_log_w0_{}'.format(nn,nlogsho)]['Value']
+					# # 		#sigma = np.sqrt(w0*np.exp(log_S0)*Q)
+					# # 		#rho = 2*np.pi/w0
+					# # 		#tau = 2*Q/w0
+					# # 		#gp_list = [log_S0,log_Q,log_w0]
+					# # 		gp_list.extend([log_S0,log_Q,log_w0])
+					# # 		#gp_list.extend([sigma,rho,tau])
+					# # 		#gp.kernel = terms.SHOTerm(sigma=sigma,rho=rho,tau=tau)
+					# # 	else:
+					# # 		loga = parameters['RV_{}_GP_log_a_{}'.format(nn,nreal)]['Value']
+					# # 		logc = parameters['RV_{}_GP_log_c_{}'.format(nn,nreal)]['Value']
+					# # 		#gp_list = [loga,logc]
+					# # 		gp_list.extend([loga,logc])
+							
 					gp.set_parameter_vector(np.array(gp_list))
-					gp.compute(time,jitter_err)
+					gp.compute(gptime-min(gptime),jitter_err)
 
 
 
@@ -399,7 +585,7 @@ def plot_orbit(parameters,data,updated_pars=None,
 					start = 0
 					#mus = np.array([])
 					for dl in dls:
-						mu, var = gp.predict(res_rv, time[start:int(dl+1)], return_var=True)
+						mu, var = gp.predict(res_rv, gptime[start:int(dl+1)]-min(gptime), return_var=True)
 						rv[start:int(dl+1)] -= mu
 						#mus = np.append(mus,mu)
 						#axpl.plot(pp[start:int(dl+1)],mu)
@@ -419,13 +605,12 @@ def plot_orbit(parameters,data,updated_pars=None,
 						# ax_gp.fill_between(t_lin, mu+std+off, mu-std+off, color='C7', alpha=0.9, edgecolor="none",zorder=6)
 						# ax_gp.plot(t_lin,mu+off,color='k',lw=2.0,zorder=7)
 						# ax_gp.plot(t_lin,mu+off,color='w',lw=1.0,zorder=7)
-						#print(mu)
 						
 						start = int(dl + 1)
 					
 					#t_lin = np.linspace(min(time[start:]),max(time[start:]),500)
 					#t_lin = np.linspace(min(time[start:]),max(time[start:]),500)
-					mu, var = gp.predict(res_rv, time[start:], return_var=True)
+					mu, var = gp.predict(res_rv, gptime[start:]-min(gptime), return_var=True)
 					std = np.sqrt(var)
 					#print(rv[start:])
 					rv[start:] -= mu
@@ -859,6 +1044,7 @@ def plot_lightcurve(parameters,data,savefig=False,
 					dur *= 24
 					figpl = plt.figure()
 					#if OC_lc:
+					figpl.title(r'$\rm Planet \ {}$'.format(pl))
 					axpl = figpl.add_subplot(211)
 					axocpl = figpl.add_subplot(212,sharex=axpl)
 
@@ -932,7 +1118,7 @@ def plot_lightcurve(parameters,data,savefig=False,
 def create_shadow(phase,vel,shadow,exp_phase,per,
 	savefig=False,fname='shadow',zmin=None,zmax=None,
 	xlims=[],contour=False,vsini=None,cmap='bone_r',
-	ax=None,colorbar=True,cbar_pos='right',
+	ax=None,colorbar=True,cbar_pos='right',vsini_zero=True,
 	font=12,tickfontsize=10,diff_cmap=None,its=[],usetex=False,**kwargs):
 	'''Shadow plot.
 
@@ -978,17 +1164,18 @@ def create_shadow(phase,vel,shadow,exp_phase,per,
 		ax = fig.add_subplot(111)
 	else:
 		fig = ax.get_figure()
-	for ii in range(nn):
-		xi = vel[ii] - np.append(np.diff(vel[ii])/2.,np.diff(vel[ii])[-1]/2.)
-		x_low, y_low = np.meshgrid(xi,low_phase)
-		x_high, y_high = np.meshgrid(xi,high_phase)
-		xx = np.array([x_low[ii],x_high[ii]])
-		yy = np.array([y_low[ii],y_high[ii]])
-		if diff_cmap and (ii in its):
-			ncmap = clr.LinearSegmentedColormap.from_list('custom blue', ['black',diff_cmap(ii),'white'], N=256)
-			mm = ax.pcolormesh(xx,yy*per*24,shadow[ii:ii+1],cmap=ncmap,vmin=zmin,vmax=zmax)
-		else:
-			mm = ax.pcolormesh(xx,yy*per*24,shadow[ii:ii+1],cmap=cmap,vmin=zmin,vmax=zmax)
+	mm = ax.pcolormesh(vel,phase*per*24,shadow,cmap=cmap,vmin=zmin,vmax=zmax)
+	# for ii in range(nn):
+	# 	xi = vel[ii] - np.append(np.diff(vel[ii])/2.,np.diff(vel[ii])[-1]/2.)
+	# 	x_low, y_low = np.meshgrid(xi,low_phase)
+	# 	x_high, y_high = np.meshgrid(xi,high_phase)
+	# 	xx = np.array([x_low[ii],x_high[ii]])
+	# 	yy = np.array([y_low[ii],y_high[ii]])
+	# 	if diff_cmap and (ii in its):
+	# 		ncmap = clr.LinearSegmentedColormap.from_list('custom blue', ['black',diff_cmap(ii),'white'], N=256)
+	# 		mm = ax.pcolormesh(xx,yy*per*24,shadow[ii:ii+1],cmap=ncmap,vmin=zmin,vmax=zmax)
+	# 	else:
+	# 		mm = ax.pcolormesh(xx,yy*per*24,shadow[ii:ii+1],cmap=cmap,vmin=zmin,vmax=zmax)
 	
 	if contour:
 		XX, YY = np.meshgrid(vel[0,:],phase*per*24)	
@@ -1011,14 +1198,15 @@ def create_shadow(phase,vel,shadow,exp_phase,per,
 		xlims = [xl,xh]
 	ax.set_xlim(xlims[0],xlims[1])
 	if vsini: 
-		ax.axvline(vsini,linestyle='--',color='C3',**kwargs)
-		ax.axvline(-vsini,linestyle='--',color='C3',**kwargs)
-		#ax.axvline(0.0,linestyle='--',color='C3',**kwargs)
+		ax.axvline(vsini,linestyle='-',color='C3',**kwargs)
+		ax.axvline(-vsini,linestyle='-',color='C3',**kwargs)
+		if vsini_zero:
+			ax.axvline(0.0,linestyle='--',color='C3',**kwargs)
 
 	if savefig: plt.savefig(fname)
 
 
-def plot_shadow(parameters,data,oots=None,n_pars=0,
+def plot_shadow(parameters,data,n_pars=0,#oots=None,
 	cmap='gray',contact_color='C0',font = 12,savefig=True,path='',
 	tickfontsize=10,scale2model=True,xlim=None,xticks=[],yticks=[],
 	only_obs=False,diff_cmap=False,usetex=False,**kwargs):
@@ -1081,7 +1269,7 @@ def plot_shadow(parameters,data,oots=None,n_pars=0,
 			shadow_data = data['LS_{}'.format(nn)]
 			label = data['LS_label_{}'.format(nn)]
 			jitter = 0.0
-			#chi2scale = data['Chi2 LS_{}'.format(nn)]
+			chi2scale = data['Chi2 LS_{}'.format(nn)]
 			times = []
 
 			for key in shadow_data.keys():
@@ -1150,9 +1338,11 @@ def plot_shadow(parameters,data,oots=None,n_pars=0,
 			bright = np.sum(oot_lum)
 
 			idxs = [ii for ii in range(len(times))]
-			if oots is None:
-				oots = data['idxs_{}'.format(nn)]
+			# if oots is None:
+			# 	oots = data['idxs_{}'.format(nn)]
+			oots = data['idxs_{}'.format(nn)]
 
+			print('Number of spectra: {}'.format(len(idxs)))
 			print('Using indices {} as out-of-transit spectra'.format(oots))
 			its = [ii for ii in idxs if ii not in oots]
 
@@ -1165,82 +1355,306 @@ def plot_shadow(parameters,data,oots=None,n_pars=0,
 
 
 			if use_gp:
-				loga = parameters['LS_{}_GP_log_a'.format(nn)]['Value']
-				logc = parameters['LS_{}_GP_log_c'.format(nn)]['Value']
+
+				sigma = parameters['LS_{}_GP_log_sigma'.format(nn)]['Value']
+				rho = parameters['LS_{}_GP_log_rho'.format(nn)]['Value']
+				diag = np.exp(parameters['LS_{}_GP_log_diag'.format(nn)]['Value'])
 				gp = data['LS_{} GP'.format(nn)]
-				gp.set_parameter_vector(np.array([loga,logc]))
-
-				jitter = parameters['LSsigma_{}'.format(nn)]['Value']
-				jitter = np.exp(jitter)
-
-				model_int = interpolate.interp1d(vel_model,model_ccf,kind='cubic',fill_value='extrapolate')
-				newline = model_int(vels)
+				gp.set_parameter_vector(np.array([sigma,rho]))
 				
-				unc = np.zeros(len(vels))
+				# oot_sd = []
+				# for ii, idx in enumerate(oots):
+				# 	time = times[idx]
+				# 	vel = shadow_data[time]['vel'].copy() - rv_m[idx]*1e-3
+				# 	# if not ii:
+				# 	# 	## Interpolate to grid in stellar restframe
+				# 	# 	# vel_min, vel_max = min(vel), max(vel)
+				# 	# 	# span  = (vel_max - vel_min)
+				# 	# 	# vels = np.arange(vel_min+span/10,vel_max-span/10,vel_res)
+				# 	# 	vels = np.arange(-span,span,vel_res)
+				# 	# 	avg_ccf = np.zeros(len(vels))
+				# 	# 	oot_ccfs = np.zeros(shape=(len(vels),len(oots)))
 
-				oot_sd_b = []
+				# 	#vels[:,idx] = vel
+				# 	no_peak = (vel > no_bump) | (vel < -no_bump)
+					
+
+				# 	ccf = shadow_data[time]['ccf'].copy()
+				# 	poly_pars = np.polyfit(vel[no_peak],ccf[no_peak],1)
+				# 	ccf -= vel*poly_pars[0] + poly_pars[1]
+
+				# 	area = np.trapz(ccf,vel)
+
+				# 	ccf /= abs(area)
+
+				# 	ccf_int = interpolate.interp1d(vel,ccf,kind='cubic',fill_value='extrapolate')
+				# 	nccf = ccf_int(vels)
+
+				# 	#oot_ccfs[:,ii] = nccf
+				# 	avg_ccf += nccf
+				
+				oot_sd = []
 				for ii, idx in enumerate(oots):
 					time = times[idx]
 					vel = shadow_data[time]['vel'].copy() - rv_m[idx]*1e-3
-					ccf = shadow_data[time]['ccf'].copy()
-					err = shadow_data[time]['err'].copy()
 
+					ccf = shadow_data[time]['ccf'].copy()
+
+					no_peak = (vel > no_bump) | (vel < -no_bump)
+					
+					poly_pars = np.polyfit(vel[no_peak],ccf[no_peak],1)
+					ccf -= (poly_pars[0]*vel + poly_pars[1])
+
+					area = np.trapz(ccf,vel)
+				
+							
+					ccf /= area	
+					oot_sd.append(np.std(ccf[no_peak]))
 
 					ccf_int = interpolate.interp1d(vel,ccf,kind='cubic',fill_value='extrapolate')
 					nccf = ccf_int(vels)
-						
+					avg_ccf += nccf
 
-					unc += np.sqrt(np.mean(err)**2 + jitter**2)
-					gp.compute(vels,unc)
-					unc -= np.sqrt(np.mean(err)**2 + jitter**2)
-
-					gp_mean, var = gp.predict(avg_ccf  - newline, vels, return_var=True)
-		
-					area = np.trapz(nccf,vels)	
-					nccf /= area	
-
-					avg_ccf += nccf - gp_mean
 				avg_ccf /= len(oots)
+
+				#avg_vel /= len(oots)
+
+				model_int = interpolate.interp1d(vel_model,model_ccf,kind='cubic',fill_value='extrapolate')
+				newline = model_int(vels)
+				sd = np.mean(oot_sd)
+				unc = np.ones(len(vels))*sd
+				
+				# gp.compute(vels,unc)
+				# gp_mean, var = gp.predict(avg_ccf - newline, vels, return_var=True)
+
+				# figgp = plt.figure()
+				# axgp = figgp.add_subplot(111)
+				# axgp.plot(vels,gp_mean)
+				# axgp.plot(vels,avg_ccf - newline)
 
 				red_chi2_avg = []
 				#oot_sd_b = []
 				nps = []
-
+				#jitter = 1e-2#0.
 				for idx in range(len(times)):
 					time = times[idx]
 					vel = shadow_data[time]['vel'].copy() - rv_m[idx]*1e-3
-					ccf = shadow_data[time]['ccf'].copy()
-					err = shadow_data[time]['err'].copy()
 
+					ccf = shadow_data[time]['ccf'].copy()
+
+
+					no_peak = (vel > no_bump) | (vel < -no_bump)
+
+					poly_pars = np.polyfit(vel[no_peak],ccf[no_peak],1)
+					ccf -= (poly_pars[0]*vel + poly_pars[1])
+
+					area = np.trapz(ccf,vel)
+
+					ccf /= area
+					
+
+					ccf *= darks[idx]/bright#blc[idx]		
 
 					ccf_int = interpolate.interp1d(vel,ccf,kind='cubic',fill_value='extrapolate')
 					nccf = ccf_int(vels)
 						
-					unc += np.sqrt(np.mean(err)**2 + jitter**2)
-					gp.compute(vels,unc)
-					unc -= np.sqrt(np.mean(err)**2 + jitter**2)
-
-
-					model_to_obs = interpolate.interp1d(vel_model,model_ccf_transit[idx],kind='cubic',fill_value='extrapolate')
-					int_transit = model_to_obs(vels)
-
-					gp_mean, var = gp.predict(nccf  - int_transit, vels, return_var=True)
-					
-					nccf -= gp_mean
-					area = np.trapz(nccf,vels)
-					nccf /= area
-					nccf *= darks[idx]/bright#blc[idx]		
-
-
 					shadow = avg_ccf - nccf
-					obs_shadows[idx,:] = shadow
+					obs_shadows[idx,:] = shadow# - (poly_pars[0]*vel + poly_pars[1])
+									
+
+					#int_to_model = interpolate.interp1d(vels,shadow,kind='cubic',fill_value='extrapolate')
+					#ishadow = int_to_model(vel_model)
 					
+					#int_shadows[idx,:] = ishadow
+
+					no_peak = (vels > no_bump) | (vels < -no_bump)
+					sd = np.std(nccf[no_peak])
+					unc = np.ones(len(vels))*np.sqrt(sd**2 + jitter**2)					
+
 					shadow_model[idx,:] = model_ccf - model_ccf_transit[idx]
 
-					int_to_model = interpolate.interp1d(vels,shadow,kind='cubic',fill_value='extrapolate')
-					ishadow = int_to_model(vel_model)
+					int_to_obs = interpolate.interp1d(vel_model,shadow_model[idx],kind='cubic',fill_value='extrapolate')
+					model_to_obs = int_to_obs(vels)
+
+					mean = shadow - model_to_obs
+					gp.compute(vels,diag)
+					gp_mean, var = gp.predict(mean, vels, return_var=True)
+					obs_shadows[idx,:] = shadow# - gp_mean
+					shadow2obs[idx,:] = model_to_obs + gp_mean
+
+					print(gp.log_likelihood(mean))
+
+					#obs_shadows[idx,:] = shadow - gp_mean
+				
+
+				if 0:
+					## Again shift CCFs to star rest frame
+					## and detrend CCFs
+					## Compare to shadow model
+					jitter = 0
+					for ii, idx in enumerate(its):
+						#arr = data[time]
+						time = times[idx]
+						vel = shadow_data[time]['vel'].copy() - rv_m[idx]*1e-3
+						#vels[:,idx] = vel
+						no_peak = (vel > no_bump) | (vel < -no_bump)
+							
+						ccf = shadow_data[time]['ccf'].copy()
+						if False:#use_gp:
+							ccf -= np.median(ccf[no_peak])
+						else:
+							poly_pars = np.polyfit(vel[no_peak],ccf[no_peak],1)
+							ccf -= vel*poly_pars[0] + poly_pars[1]
+						
+						area = np.trapz(ccf,vel)
+						ccf /= area
+						
+						
+
+						ccf *= darks[idx]/bright#blc[ii]		
+
+						ccf_int = interpolate.interp1d(vel,ccf,kind='cubic',fill_value='extrapolate')
+						nccf = ccf_int(vels)
+						
+
+						no_peak = (vels > no_bump) | (vels < -no_bump)
+						sd = np.std(nccf[no_peak])
+						unc = np.ones(len(vels))*np.sqrt(sd**2 + jitter**2)
+						# if use_gp:			
+						# 	unc = np.ones(len(vels))*np.sqrt(sd**2 + jitter**2)
+						# 	nccf -= mean
+						# else:
+						# 	unc = np.ones(len(vels))*sd
+						# 	unc *= chi2scale_shadow
+
+						
+						#shadow = nccf
+						shadow = avg_ccf - nccf
+
+						#ff = interpolate.interp1d(vel_model,shadow_model[idx],kind='cubic',fill_value='extrapolate')
+						#ishadow = ff(vels)
+
+						model_to_obs = interpolate.interp1d(vel_model,model_ccf_transit[idx],kind='cubic',fill_value='extrapolate')
+						ishadow = newline - model_to_obs(vels)
+						shadow2obs[idx,:] = ishadow
+
+
+						#mean = shadow - ishadow
+						#gp.compute(vels,unc)
+						#gp_mean, var = gp.predict(mean, vels, return_var=True)
+						obs_shadows[idx,:] = shadow #- gp_mean
+						# vv,ss = get_binned(vel,shadow)
+
+					# no_peak = (vv > 15) | (vv < -15)
+					# sd = np.std(ss[no_peak])
+					# poly_pars = np.polyfit(vv[no_peak],ss[no_peak],1)
+					# nvv,nss = get_binned(vel,ishadow)
+
+					# unc = np.ones(len(vv))*np.sqrt(sd**2 + jitter**2)
+
+			# 		res_cff = avg_ccf - newline
+
+			# 		lprob = gp.log_likelihood(res_cff)
+			# 		log_prob += lprob#lnlike(flux_m,flux,sigma)
+					#lprob = gp.log_likelihood(mean)
+
+
+
+
+					#shadow = avg_ccf - nccf
 					
-					int_shadows[idx,:] = ishadow
+					# shadow_model[idx,:] = model_ccf - model_ccf_transit[idx]
+
+					# int_to_model = interpolate.interp1d(vels,shadow,kind='cubic',fill_value='extrapolate')
+					# ishadow = int_to_model(vel_model)
+					
+
+
+					#chisq += chi2(shadow,ishadow,unc)
+					#log_prob += lnlike(shadow,ishadow,unc)
+
+					# log_prob += lprob#lnlike(flux_m,flux,sigma)
+
+					# chisq += -2*lprob - np.sum(np.log(2*np.pi*unc**2))#chi2(flux_m,flux,sigma)
+					
+					# n_dps += len(shadow)
+
+				# loga = parameters['LS_{}_GP_log_a'.format(nn)]['Value']
+				# logc = parameters['LS_{}_GP_log_c'.format(nn)]['Value']
+				# gp = data['LS_{} GP'.format(nn)]
+				# gp.set_parameter_vector(np.array([loga,logc]))
+
+				# jitter = parameters['LSsigma_{}'.format(nn)]['Value']
+				# jitter = np.exp(jitter)
+
+				# model_int = interpolate.interp1d(vel_model,model_ccf,kind='cubic',fill_value='extrapolate')
+				# newline = model_int(vels)
+				
+				# unc = np.zeros(len(vels))
+
+				# oot_sd_b = []
+				# for ii, idx in enumerate(oots):
+				# 	time = times[idx]
+				# 	vel = shadow_data[time]['vel'].copy() - rv_m[idx]*1e-3
+				# 	ccf = shadow_data[time]['ccf'].copy()
+				# 	err = shadow_data[time]['err'].copy()
+
+
+				# 	ccf_int = interpolate.interp1d(vel,ccf,kind='cubic',fill_value='extrapolate')
+				# 	nccf = ccf_int(vels)
+						
+
+				# 	unc += np.sqrt(np.mean(err)**2 + jitter**2)
+				# 	gp.compute(vels,unc)
+				# 	unc -= np.sqrt(np.mean(err)**2 + jitter**2)
+
+				# 	gp_mean, var = gp.predict(avg_ccf  - newline, vels, return_var=True)
+		
+				# 	area = np.trapz(nccf,vels)	
+				# 	nccf /= area	
+
+				# 	avg_ccf += nccf - gp_mean
+				# avg_ccf /= len(oots)
+
+				# red_chi2_avg = []
+				# #oot_sd_b = []
+				# nps = []
+
+				# for idx in range(len(times)):
+				# 	time = times[idx]
+				# 	vel = shadow_data[time]['vel'].copy() - rv_m[idx]*1e-3
+				# 	ccf = shadow_data[time]['ccf'].copy()
+				# 	err = shadow_data[time]['err'].copy()
+
+
+				# 	ccf_int = interpolate.interp1d(vel,ccf,kind='cubic',fill_value='extrapolate')
+				# 	nccf = ccf_int(vels)
+						
+				# 	unc += np.sqrt(np.mean(err)**2 + jitter**2)
+				# 	gp.compute(vels,unc)
+				# 	unc -= np.sqrt(np.mean(err)**2 + jitter**2)
+
+
+				# 	model_to_obs = interpolate.interp1d(vel_model,model_ccf_transit[idx],kind='cubic',fill_value='extrapolate')
+				# 	int_transit = model_to_obs(vels)
+
+				# 	gp_mean, var = gp.predict(nccf  - int_transit, vels, return_var=True)
+					
+				# 	nccf -= gp_mean
+				# 	area = np.trapz(nccf,vels)
+				# 	nccf /= area
+				# 	nccf *= darks[idx]/bright#blc[idx]		
+
+
+				# 	shadow = avg_ccf - nccf
+				# 	obs_shadows[idx,:] = shadow
+					
+				# 	shadow_model[idx,:] = model_ccf - model_ccf_transit[idx]
+
+				# 	int_to_model = interpolate.interp1d(vels,shadow,kind='cubic',fill_value='extrapolate')
+				# 	ishadow = int_to_model(vel_model)
+					
+				# 	int_shadows[idx,:] = ishadow
 
 
 
@@ -1307,7 +1721,7 @@ def plot_shadow(parameters,data,oots=None,n_pars=0,
 					
 					#int_shadows[idx,:] = ishadow
 
-					#no_peak = (vels > no_bump) | (vels < -no_bump)
+					no_peak = (vels > no_bump) | (vels < -no_bump)
 					
 
 					shadow_model[idx,:] = model_ccf - model_ccf_transit[idx]
@@ -1316,29 +1730,29 @@ def plot_shadow(parameters,data,oots=None,n_pars=0,
 					model_to_obs = int_to_obs(vels)
 					shadow2obs[idx,:] = model_to_obs
 
-				# 	vv,cc = get_binned(vels,shadow)
-				# 	vn,ncc = get_binned(vels,model_to_obs)	
-				# 	no_peak_b = (vv > no_bump) | (vv < -no_bump)
-				# 	sd = np.std(cc[no_peak_b])
-				# 	#unc_b = np.ones(len(vv))*np.sqrt((sd**2 + jitter**2))*chi2scale
-				# 	unc_b = np.ones(len(vv))*np.sqrt((sd**2 + jitter**2))
-				# 	red_chi2 = np.sum((cc-ncc)**2/unc_b**2)/(len(cc)-n_pars)
+					#vv,cc = get_binned(vels,shadow)
+					#vn,ncc = get_binned(vels,model_to_obs)	
+					#no_peak_b = (vv > no_bump) | (vv < -no_bump)
+					#sd = np.std(cc[no_peak_b])
+					#unc_b = np.ones(len(vv))*np.sqrt((sd**2 + jitter**2))*chi2scale
+					#unc_b = np.ones(len(vv))*np.sqrt((sd**2 + jitter**2))
+					#red_chi2 = np.sum((cc-ncc)**2/unc_b**2)/(len(cc)-n_pars)
 					
-				# 	#unc = np.ones(len(vel))*np.sqrt((np.std(shadow[no_peak])**2 + jitter**2))*chi2scale
-				# 	unc = np.ones(len(vels))*np.sqrt((np.std(shadow[no_peak])**2 + jitter**2))
-				# 	red_chi2 = np.sum((shadow-model_to_obs)**2/unc**2)/(len(shadow)/4 - n_pars)
-				# 	nps.append(len(shadow)/4)
-				# 	red_chi2_avg.append(red_chi2)
-				# n_points = np.mean(nps)
+					#unc = np.ones(len(vel))*np.sqrt((np.std(shadow[no_peak])**2 + jitter**2))*chi2scale
+					unc = np.ones(len(vels))*np.sqrt((np.std(shadow[no_peak])**2 + jitter**2))*chi2scale
+					red_chi2 = np.sum((shadow-model_to_obs)**2/unc**2)/(len(shadow)/4 - n_pars)
+					nps.append(len(shadow)/4)
+					red_chi2_avg.append(red_chi2)
+				n_points = np.mean(nps)
 
 
 
-			# print('## Spectroscopic system {}/{} ##:'.format(nn,label))
-			# print('\nReduced chi-squared for the shadow is:\n\t {:.03f}'.format(np.mean(red_chi2_avg)))
-			# #print('Factor to apply to get a reduced chi-squared around 1.0 is:\n\t {:.03f}\n'.format(np.sqrt(np.mean(red_chi2_avg))))
-			# print('Number of data points: {}'.format(n_points))
-			# print('Number of fitting parameters: {}'.format(n_pars))
-			# print('#########################')
+			print('## Spectroscopic system {}/{} ##:'.format(nn,label))
+			print('\nReduced chi-squared for the shadow is:\n\t {:.03f}'.format(np.mean(red_chi2_avg)))
+			#print('Factor to apply to get a reduced chi-squared around 1.0 is:\n\t {:.03f}\n'.format(np.sqrt(np.mean(red_chi2_avg))))
+			print('Number of data points: {}'.format(n_points))
+			print('Number of fitting parameters: {}'.format(n_pars))
+			print('#########################')
 
 			phase = time2phase(times,P,T0) #phase of observing times
 			exptime = np.mean(np.diff(times))*np.ones(len(times))*24.*3600.
@@ -1474,12 +1888,12 @@ def plot_shadow(parameters,data,oots=None,n_pars=0,
 					ncmap = plt.get_cmap('Spectral',len(phase))
 					create_shadow(phase, vel_m_arr, -1*obs_shadows, exptime_phase,P,cmap=cmap,
 											vsini=vsini,zmin=zmin,zmax=zmax,contour=False,ax=ax,
-											colorbar=False,font=font,
+											colorbar=False,font=font,usetex=usetex,
 											diff_cmap=ncmap,its=its,**kwargs)
 				else:
 					create_shadow(phase, vel_m_arr, -1*obs_shadows, exptime_phase,P,cmap=cmap,
 											vsini=False,zmin=zmin,zmax=zmax,contour=False,ax=ax,
-											colorbar=True,font=font,**kwargs)
+											colorbar=True,font=font,usetex=usetex,**kwargs)
 				ax.axhline(-1*t23*24/2,linestyle='--',color=contact_color,**kwargs)
 				ax.axhline(1*t23*24/2,linestyle='--',color=contact_color,**kwargs)
 
@@ -1496,14 +1910,15 @@ def plot_shadow(parameters,data,oots=None,n_pars=0,
 				if xlim:
 					ax.set_xlim(-xlim,xlim)
 
-			if savefig: plt.savefig(path+'shadow.png',dpi=1000)
+			if savefig: plt.savefig(path+'shadow.png',dpi=500,bbox_inches='tight')
+			#if savefig: plt.savefig(path+'shadow.pdf')
 
 # =============================================================================
 # Out-of-transit plot
 # =============================================================================
 
-def plot_oot_ccf_gp(parameters,data,updated_pars=None,oots=None,n_pars=0,chi2_scale=1.0,
-	font = 12,savefig=True,path='',no_bump=15,best_fit=True,xmajor=None,xminor=None,
+def plot_oot_ccf_gp(parameters,data,updated_pars=None,n_pars=0,chi2_scale=1.0,#oots=None,
+	font = 12,savefig=True,path='',best_fit=True,xmajor=None,xminor=None,
 	ymajor1=None,yminor1=None,ymajor2=None,yminor2=None,plot_intransit=True,xmax=None,xmin=None,
 	usetex=False,**kwargs):
 	'''Plot out-of-transit CCFs.
@@ -1577,8 +1992,9 @@ def plot_oot_ccf_gp(parameters,data,updated_pars=None,oots=None,n_pars=0,chi2_sc
 		assert span > no_bump, print('\n ### \n The range of the velocity grid must be larger than the specified range with no bump in the CCF.\n Range of velocity grid is from +/-{} km/s, and the no bump region isin the interval m +/-{} km/s \n ### \n '.format(span,no_bump))
 		
 		idxs = [ii for ii in range(len(times))]
-		if oots is None:
-			oots = data['idxs_{}'.format(nn)]
+		# if oots is None:
+		# 	oots = data['idxs_{}'.format(nn)]
+		oots = data['idxs_{}'.format(nn)]
 		#nvel = len(shadow_data[times[0]]['vel'])
 		vel_res = data['Velocity_resolution_{}'.format(nn)]
 		vels = np.arange(-span,span,vel_res)
@@ -1666,44 +2082,95 @@ def plot_oot_ccf_gp(parameters,data,updated_pars=None,oots=None,n_pars=0,chi2_sc
 			# ax2.errorbar(vels,avg_ccf-newline-mu,yerr=np.mean(oot_sd),linestyle='none',color='k')
 			# #ax2.plot(vels,avg_ccf-newline-mu,color='k')
 
-			loga = parameters['LS_{}_GP_log_a'.format(nn)]['Value']
-			logc = parameters['LS_{}_GP_log_c'.format(nn)]['Value']
+			loga = parameters['LS_{}_GP_log_sigma'.format(nn)]['Value']
+			logc = parameters['LS_{}_GP_log_rho'.format(nn)]['Value']
 			gp = data['LS_{} GP'.format(nn)]
 			gp.set_parameter_vector(np.array([loga,logc]))
 
 			jitter = parameters['LSsigma_{}'.format(nn)]['Value']
 			jitter = np.exp(jitter)
 
-			model_int = interpolate.interp1d(vel_model,model_ccf,kind='cubic',fill_value='extrapolate')
-			newline = model_int(vels)
+			# model_int = interpolate.interp1d(vel_model,model_ccf,kind='cubic',fill_value='extrapolate')
+			# newline = model_int(vels)
 			
-			unc = np.zeros(len(vels))
+			# unc = np.zeros(len(vels))
+
+			# oot_sd = []
+			# for ii, idx in enumerate(oots):
+			# 	time = times[idx]
+			# 	vel = shadow_data[time]['vel'].copy() - rv_m[idx]*1e-3
+			# 	ccf = shadow_data[time]['ccf'].copy()
+			# 	err = shadow_data[time]['err'].copy()
+
+
+			# 	ccf_int = interpolate.interp1d(vel,ccf,kind='cubic',fill_value='extrapolate')
+			# 	nccf = ccf_int(vels)
+					
+
+			# 	unc += np.sqrt(np.mean(err)**2 + jitter**2)
+			# 	gp.compute(vels,unc)
+			# 	unc -= np.sqrt(np.mean(err)**2 + jitter**2)
+
+			# 	oot_sd.append(err)
+			# 	gp_mean, var = gp.predict(avg_ccf  - newline, vels, return_var=True)
+	
+			# 	area = np.trapz(nccf,vels)	
+			# 	nccf /= area	
+
+			# 	oot_ccfs[:,ii] = nccf - gp_mean
+			# 	avg_ccf += nccf - gp_mean
+
+			# avg_ccf /= len(oots)
+
 
 			oot_sd = []
 			for ii, idx in enumerate(oots):
 				time = times[idx]
 				vel = shadow_data[time]['vel'].copy() - rv_m[idx]*1e-3
+				# if not ii:
+				# 	## Interpolate to grid in stellar restframe
+				# 	# vel_min, vel_max = min(vel), max(vel)
+				# 	# span  = (vel_max - vel_min)
+				# 	# vels = np.arange(vel_min+span/10,vel_max-span/10,vel_res)
+				# 	vels = np.arange(-span,span,vel_res)
+				# 	avg_ccf = np.zeros(len(vels))
+				# 	oot_ccfs = np.zeros(shape=(len(vels),len(oots)))
+
+				#vels[:,idx] = vel
+				no_peak = (vel > no_bump) | (vel < -no_bump)
+				
+
 				ccf = shadow_data[time]['ccf'].copy()
-				err = shadow_data[time]['err'].copy()
+				poly_pars = np.polyfit(vel[no_peak],ccf[no_peak],1)
+				ccf -= vel*poly_pars[0] + poly_pars[1]
+
+				area = np.trapz(ccf,vel)
+
+				ccf /= abs(area)
+				oot_sd.append(np.std(ccf[no_peak]))
+
 
 
 				ccf_int = interpolate.interp1d(vel,ccf,kind='cubic',fill_value='extrapolate')
 				nccf = ccf_int(vels)
-					
 
-				unc += np.sqrt(np.mean(err)**2 + jitter**2)
-				gp.compute(vels,unc)
-				unc -= np.sqrt(np.mean(err)**2 + jitter**2)
 
-				oot_sd.append(err)
-				gp_mean, var = gp.predict(avg_ccf  - newline, vels, return_var=True)
-	
-				area = np.trapz(nccf,vels)	
-				nccf /= area	
+				oot_ccfs[:,ii] = nccf
+				avg_ccf += nccf
 
-				oot_ccfs[:,ii] = nccf - gp_mean
-				avg_ccf += nccf - gp_mean
 			avg_ccf /= len(oots)
+			
+			#avg_vel /= len(oots)
+
+			model_int = interpolate.interp1d(vel_model,model_ccf,kind='cubic',fill_value='extrapolate')
+			newline = model_int(vels)
+			sd = np.mean(oot_sd)
+			unc = np.ones(len(vels))*sd
+			gp.compute(vels,unc)
+			gp_mean, var = gp.predict(avg_ccf  - newline, vels, return_var=True)
+
+
+
 			lab = r'$\rm Obs.\ avg. \ CCF \ w/ \ GP$'
 
 		else:
@@ -1743,6 +2210,8 @@ def plot_oot_ccf_gp(parameters,data,updated_pars=None,oots=None,n_pars=0,chi2_sc
 			newline = model_int(vels)
 
 			unc = np.ones(len(vels))*np.sqrt((np.mean(oot_sd)**2 + jitter**2))
+			chi2scale_oot = data['Chi2 OOT_{}'.format(nn)]
+			unc *= chi2scale_oot
 			gp_mean = np.zeros(len(vels))
 			lab = r'$\rm Obs.\ avg. \ CCF$'
 
@@ -1762,9 +2231,10 @@ def plot_oot_ccf_gp(parameters,data,updated_pars=None,oots=None,n_pars=0,chi2_sc
 		ax2_ccf = figccf.add_subplot(212)
 
 		ax1_ccf.plot(vels,avg_ccf - gp_mean,'-',color='k',label=lab,lw=5.0,zorder=0)
-		ax1_ccf.plot(vels,newline - gp_mean,'--',color='C7',label=r'$\rm Model \ CCF$',lw=2.0)
-		ax2_ccf.plot(vels,avg_ccf - newline,color='k',linestyle='-',lw=5.0,zorder=0)#,mfc='C7')
+		ax1_ccf.plot(vels,newline,'--',color='C7',label=r'$\rm Model \ CCF$',lw=2.0)
+		ax2_ccf.plot(vels,avg_ccf - newline - gp_mean,color='k',linestyle='-',lw=5.0,zorder=0)#,mfc='C7')
 		out = (vels < -no_bump) | (no_bump < vels)
+		#print(gp_mean)
 		#ax2_ccf.errorbar(vels[out],avg_ccf[out]  - newline[out],yerr=unc[out],color='k',marker='.',mfc='k',linestyle='none',ecolor='k')
 		#ax2_ccf.errorbar(vels[out],avg_ccf[out]  - newline[out],yerr=np.ones(len(vels))[out]*np.mean(oot_sd),color='k',marker='.',mfc='C7',linestyle='none',ecolor='k')
 		for ii, idx in enumerate(oots):
@@ -1773,8 +2243,8 @@ def plot_oot_ccf_gp(parameters,data,updated_pars=None,oots=None,n_pars=0,chi2_sc
 
 
 		#ax2_ccf.errorbar(vv[out],cc[out]-ncc[out],yerr=unc_b[out],color='k',marker='o',mfc='C3',ecolor='C3',linestyle='none')
-		ax2_ccf.errorbar(vels[out],avg_ccf[out]-newline[out],yerr=unc[out],color='k',marker='o',mfc='k',ecolor='k',linestyle='none')
-		ax2_ccf.errorbar(vels[out],avg_ccf[out]-newline[out],yerr=np.ones(len(vels))[out]*np.mean(oot_sd),color='k',marker='o',mfc='C7',ecolor='C7',linestyle='none')
+		#ax2_ccf.errorbar(vels[out],avg_ccf[out]-newline[out],yerr=unc[out],color='k',marker='o',mfc='k',ecolor='k',linestyle='none')
+		#ax2_ccf.errorbar(vels[out],avg_ccf[out]-newline[out],yerr=np.ones(len(vels))[out]*np.mean(oot_sd),color='k',marker='o',mfc='C7',ecolor='C7',linestyle='none')
 		ax2_ccf.axhline(0.0,linestyle='--',color='C7',zorder=-4)
 
 		ax2_ccf.set_xlabel(r'$\rm Velocity \ (km/s)$',fontsize=font)
@@ -1949,6 +2419,7 @@ def plot_oot_ccf_2Gauss(parameters,data,updated_pars=None,oots=None,n_pars=0,chi
 		if oots is None:
 			oots = data['idxs_{}'.format(nn)]
 
+		print('Number of spectra: {}'.format(len(idxs)))
 		print('Using indices {} as out-of-transit spectra'.format(oots))
 
 		its = [ii for ii in idxs if ii not in oots]	
@@ -2174,6 +2645,7 @@ def plot_oot_ccf(parameters,data,updated_pars=None,oots=None,n_pars=0,chi2_scale
 		if oots is None:
 			oots = data['idxs_{}'.format(nn)]
 
+		print('Number of spectra: {}'.format(len(idxs)))
 		print('Using indices {} as out-of-transit spectra'.format(oots))
 
 		its = [ii for ii in idxs if ii not in oots]	
@@ -2495,7 +2967,7 @@ def plot_distortion(param_fname,data_fname,updated_pars=None,observation=False,
 				vel_m_arr = np.asarray([vel_model]*len(times))
 
 
-
+			print('Number of spectra: {}'.format(len(idxs)))
 			print('Using indices {} as out-of-transit spectra'.format(oots))
 
 			its = [ii for ii in idxs if ii not in oots]	
@@ -2790,6 +3262,7 @@ def plot_slope(parameters,data,
 			if oots is None:
 				oots = data['idxs_{}'.format(nn)]
 
+			print('Number of spectra: {}'.format(len(idxs)))
 			print('Using indices {} as out-of-transit spectra'.format(oots))
 
 			its = [ii for ii in idxs if ii not in oots]	
@@ -3091,6 +3564,8 @@ def plot_slope_2Gauss(parameters,data,
 			if oots is None:
 				oots = data['idxs_{}'.format(nn)]
 
+				print('Number of spectra: {}'.format(len(idxs)))
+			print('Number of spectra: {}'.format(len(idxs)))
 			print('Using indices {} as out-of-transit spectra'.format(oots))
 
 
@@ -3900,6 +4375,7 @@ def plot_lc_pgram(param_fname,data_fname,updated_pars=None,savefig=False,
 # 			#oots = [ii for ii in range(len(times)-3,len(times))]
 # 			oots = data['idxs_{}'.format(nn)]
 
+	print('Number of spectra: {}'.format(len(idxs)))
 # 		print('Using indices {} as out-of-transit spectra'.format(oots))
 
 # 		its = [ii for ii in idxs if ii not in oots]	
@@ -4262,6 +4738,7 @@ def plot_lc_pgram(param_fname,data_fname,updated_pars=None,savefig=False,
 # 				#oots = [ii for ii in range(len(times)-3,len(times))]
 # 				oots = data['idxs_{}'.format(nn)]
 
+	print('Number of spectra: {}'.format(len(idxs)))
 # 			print('Using indices {} as out-of-transit spectra'.format(oots))
 
 # 			its = [ii for ii in idxs if ii not in oots]	

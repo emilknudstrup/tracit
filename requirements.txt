@@ -11,3 +11,4 @@ arviz
 statsmodels
 astropy
 tqdm
+Cython

@@ -5,6 +5,8 @@
 .. todo::
 	* parameters, data only need to be made global within `business.mcmc/lmfitter` and `expose`, maybe set that in run_sys/run_bus.
 	* move updated_pars out of par_struct
+	* export kernel building -- probably easier, simpler to do it explicitly following ` celerite: Kernel building <https://celerite.readthedocs.io/en/stable/python/kernel/>`_
+
 
 """
 import string
@@ -154,18 +156,44 @@ def par_struct(n_phot=1,n_spec=1,n_planets=1,LD_law='quad',
 		star['RVsys_{}'.format(ii)] = ['Systemic velocity instrument {}'.format(ii),'m/s',r'$\gamma_{} \ \rm (m/s)$'.format(ii),0.0,1.,-1e5,1e5]
 		star['RVsigma_{}'.format(ii)] = ['Jitter RV instrument {}'.format(ii),'m/s',r'$\rm \sigma{} \ (m/s)$'.format('_{RV,'+str(ii)+'}'),0.0,1.0,0.0,100.]
 		star['LSsigma_{}'.format(ii)] = ['Jitter LS instrument {}'.format(ii),' ',r'$\rm \log \sigma{}$'.format('_{LS,'+str(ii)+'}'),-30.0,1.0,-50.0,10]
-		star['RV_{}_GP_log_a'.format(ii)] = ['GP log amplitude, RV {}'.format(ii),' ',r'$\rm \log a{}$'.format('_{RV,'+str(ii)+'}'),-7,0.05,-20.0,5.0]
-		star['RV_{}_GP_log_c'.format(ii)] = ['GP log exponent, RV {}'.format(ii),' ',r'$\rm \log c{}$'.format('_{RV,'+str(ii)+'}'),-0.7,0.05,-5.0,5.0]
-		star['LS_{}_GP_log_a'.format(ii)] = ['GP log amplitude, CCF {}'.format(ii),' ',r'$\rm \log a{}$'.format('_{LS,'+str(ii)+'}'),-7,0.05,-20.0,5.0]
-		star['LS_{}_GP_log_c'.format(ii)] = ['GP log exponent, CCF {}'.format(ii),' ',r'$\rm \log c{}$'.format('_{LS,'+str(ii)+'}'),-0.7,0.05,-5.0,5.0]
+				
+		star['LS_{}_GP_log_sigma'.format(ii)] = ['GP log amplitude, lineshape {}'.format(ii),' ',r'$\rm \log A{}$'.format('_{LS,'+str(ii)+'}'),-6,0.05,-20.0,5.0]
+		star['LS_{}_GP_log_rho'.format(ii)] = ['GP log time scale, lineshape {}'.format(ii),' ',r'$\rm \log \tau{} \ (days)$'.format('_{LS,'+str(ii)+'}'),-0.7,0.05,-5.0,5.0]
+		star['LS_{}_GP_log_diag'.format(ii)] = ['GP log diagonal elements, lineshape {}'.format(ii),' ',r'$\rm \log \sigma{}$'.format('_{LS,'+str(ii)+'}'),-6,0.05,-20.0,20.0]
 		
-		star['RV_{}_GP_log_S0'.format(ii)] = ['GP log amplitude, RV {}'.format(ii),' ',r'$\rm \log S0{} \ (m~s{})$'.format('_{RV,'+str(ii)+'}','^{-1}'),-1.6,0.05,-5.0,5.0]
-		star['RV_{}_GP_log_Q'.format(ii)] = ['GP log qaulity factór, RV {}'.format(ii),' ',r'$\rm \log Q{}$'.format('_{RV,'+str(ii)+'}'),3.37,0.05,0.0,10.0]
-		star['RV_{}_GP_log_w0'.format(ii)] = ['GP log frequency, RV {}'.format(ii),' ',r'$\rm \log \omega{} \ (days{})$'.format('_{0,RV,'+str(ii)+'}','^{-1}'),-0.329,0.05,-5.0,5.0]
+
+		parameters['GP pars RV_{}'.format(ii)] = []
+		# for nn in range(1,n_kernels+1):
+		# 	star['RV_{}_GP_log_a_{}'.format(ii,nn)] = ['GP log amplitude, RV {}'.format(ii),' ',r'$\rm \log a{}$'.format('_{RV,'+str(ii)+'}'),-7,0.05,-20.0,5.0]
+		# 	star['RV_{}_GP_log_c_{}'.format(ii,nn)] = ['GP log exponent, RV {}'.format(ii),' ',r'$\rm \log c{}$'.format('_{RV,'+str(ii)+'}'),-0.7,0.05,-5.0,5.0]
+		# 	star['LS_{}_GP_log_a_{}'.format(ii,nn)] = ['GP log amplitude, CCF {}'.format(ii),' ',r'$\rm \log a{}$'.format('_{LS,'+str(ii)+'}'),-7,0.05,-20.0,5.0]
+		# 	star['LS_{}_GP_log_c_{}'.format(ii,nn)] = ['GP log exponent, CCF {}'.format(ii),' ',r'$\rm \log c{}$'.format('_{LS,'+str(ii)+'}'),-0.7,0.05,-5.0,5.0]
+			
+		# 	star['RV_{}_GP_log_S0_{}'.format(ii,nn)] = ['GP log amplitude, RV {}'.format(ii),' ',r'$\rm \log S0{} \ (m~s{})$'.format('_{RV,'+str(ii)+'}','^{-1}'),-1.6,0.05,-5.0,5.0]
+		# 	star['RV_{}_GP_log_Q_{}'.format(ii,nn)] = ['GP log qaulity factór, RV {}'.format(ii),' ',r'$\rm \log Q{}$'.format('_{RV,'+str(ii)+'}'),3.37,0.05,0.0,10.0]
+		# 	star['RV_{}_GP_log_w0_{}'.format(ii,nn)] = ['GP log frequency, RV {}'.format(ii),' ',r'$\rm \log \omega{} \ (days{})$'.format('_{0,RV,'+str(ii)+'}','^{-1}'),-0.329,0.05,-5.0,5.0]
+			
+		# 	star['RV_{}_GP_sigma_{}'.format(ii,nn)] = ['GP time scale, RV {}'.format(ii),' ',r'$\rm  \tau{} \ (days)$'.format('_{RV,'+str(ii)+'}'),-1.6,0.05,-5.0,5.0]
+		# 	star['RV_{}_GP_tau_{}'.format(ii,nn)] = ['GP time scale, RV {}'.format(ii),' ',r'$\rm  \tau{} \ (days)$'.format('_{RV,'+str(ii)+'}'),3.37,0.05,0.0,10.0]
+		# 	star['RV_{}_GP_rho_{}'.format(ii,nn)] = ['GP time scale, RV {}'.format(ii),' ',r'$\rm  \tau{} \ (days)$'.format('_{RV,'+str(ii)+'}'),-0.329,0.05,-5.0,5.0]
+
+		# star['RV_{}_GP_log_a'.format(ii)] = ['GP log amplitude, RV {}'.format(ii),' ',r'$\rm \log a{}$'.format('_{RV,'+str(ii)+'}'),-7,0.05,-20.0,5.0]
+		# star['RV_{}_GP_log_c'.format(ii)] = ['GP log exponent, RV {}'.format(ii),' ',r'$\rm \log c{}$'.format('_{RV,'+str(ii)+'}'),-0.7,0.05,-5.0,5.0]
+		# star['LS_{}_GP_log_a'.format(ii)] = ['GP log amplitude, CCF {}'.format(ii),' ',r'$\rm \log a{}$'.format('_{LS,'+str(ii)+'}'),-7,0.05,-20.0,5.0]
+		# star['LS_{}_GP_log_c'.format(ii)] = ['GP log exponent, CCF {}'.format(ii),' ',r'$\rm \log c{}$'.format('_{LS,'+str(ii)+'}'),-0.7,0.05,-5.0,5.0]
 		
-		star['RV_{}_GP_sigma'.format(ii)] = ['GP time scale, RV {}'.format(ii),' ',r'$\rm  \tau{} \ (days)$'.format('_{RV,'+str(ii)+'}'),-1.6,0.05,-5.0,5.0]
-		star['RV_{}_GP_tau'.format(ii)] = ['GP time scale, RV {}'.format(ii),' ',r'$\rm  \tau{} \ (days)$'.format('_{RV,'+str(ii)+'}'),3.37,0.05,0.0,10.0]
-		star['RV_{}_GP_rho'.format(ii)] = ['GP time scale, RV {}'.format(ii),' ',r'$\rm  \tau{} \ (days)$'.format('_{RV,'+str(ii)+'}'),-0.329,0.05,-5.0,5.0]
+		# star['RV_{}_GP_log_S0'.format(ii)] = ['GP log amplitude, RV {}'.format(ii),' ',r'$\rm \log S0{} \ (m~s{})$'.format('_{RV,'+str(ii)+'}','^{-1}'),-1.6,0.05,-5.0,5.0]
+		# star['RV_{}_GP_log_Q'.format(ii)] = ['GP log qaulity factór, RV {}'.format(ii),' ',r'$\rm \log Q{}$'.format('_{RV,'+str(ii)+'}'),3.37,0.05,0.0,10.0]
+		# star['RV_{}_GP_log_w0'.format(ii)] = ['GP log frequency, RV {}'.format(ii),' ',r'$\rm \log \omega{} \ (days{})$'.format('_{0,RV,'+str(ii)+'}','^{-1}'),-0.329,0.05,-5.0,5.0]
+
+		# star['RV_{}_GP_S0'.format(ii)] = ['GP amplitude, RV {}'.format(ii),' ',r'$\rm S0{} \ (m~s{})$'.format('_{RV,'+str(ii)+'}','^{-1}'),-1.6,0.05,-5.0,5.0]
+		# star['RV_{}_GP_Q'.format(ii)] = ['GP qaulity factór, RV {}'.format(ii),' ',r'$\rm Q{}$'.format('_{RV,'+str(ii)+'}'),3.37,0.05,0.0,10.0]
+		# star['RV_{}_GP_w0'.format(ii)] = ['GP frequency, RV {}'.format(ii),' ',r'$\rm \\omega{} \ (days{})$'.format('_{0,RV,'+str(ii)+'}','^{-1}'),-0.329,0.05,-5.0,5.0]
+
+		
+		# star['RV_{}_GP_sigma'.format(ii)] = ['GP time scale, RV {}'.format(ii),' ',r'$\rm  \tau{} \ (days)$'.format('_{RV,'+str(ii)+'}'),-1.6,0.05,-5.0,5.0]
+		# star['RV_{}_GP_tau'.format(ii)] = ['GP time scale, RV {}'.format(ii),' ',r'$\rm  \tau{} \ (days)$'.format('_{RV,'+str(ii)+'}'),3.37,0.05,0.0,10.0]
+		# star['RV_{}_GP_rho'.format(ii)] = ['GP time scale, RV {}'.format(ii),' ',r'$\rm  \tau{} \ (days)$'.format('_{RV,'+str(ii)+'}'),-0.329,0.05,-5.0,5.0]
 
 		label = 'RV'+str(ii)
 		set_LD(star,LD_law,label)
@@ -174,22 +202,22 @@ def par_struct(n_phot=1,n_spec=1,n_planets=1,LD_law='quad',
 	star['a1'] = ['RV slope','m/(s*d)',r'$\dot{\gamma} \ \rm (m \ s^{-1} \ d^{-1})$',0.0,1.0,-10.,10.]
 
 
-	for par in star.keys(): 
+	#for par in star.keys(): 
 		#for de in default:
 		#	star[par].append(de)
 
-		for par in star.keys():
-			parameters[par] = {
-				'Name'         : star[par][0],
-				'Unit'         : star[par][1],
-				'Label'        : star[par][2],#ndf[handle][1][:-1] + ' ' + transit + '$',
-				'Value'        : star[par][3],
-				'Prior_vals'   : [star[par][ii] for ii in range(3,7)],
-				'Prior'        : 'uni',
-				'Distribution' : 'tgauss',
-				'Fix'          : False,
-				'Comment'      : 'none',
-			}
+	for par in star.keys():
+		parameters[par] = {
+			'Name'         : star[par][0],
+			'Unit'         : star[par][1],
+			'Label'        : star[par][2],#ndf[handle][1][:-1] + ' ' + transit + '$',
+			'Value'        : star[par][3],
+			'Prior_vals'   : [star[par][ii] for ii in range(3,7)],
+			'Prior'        : 'uni',
+			'Distribution' : 'tgauss',
+			'Fix'          : False,
+			'Comment'      : 'none',
+		}
 
 	ext = {'rho_s' : 
 			['Stellar density','g/cm^3',r'$\rho_\star \ \rm (g/cm^{3})$',0.5,0.1,0.0,2.]}
@@ -495,7 +523,7 @@ def dat_struct(n_phot=1,n_rvs=1,n_ls=0,n_sl=0):
 
 		data['Resolution_{}'.format(ii)] = 100 # Disc resolution
 		data['Thickness_{}'.format(ii)] = 20 # Ring thickness
-		data['PSF_{}'.format(ii)] = 1.1 # Point spread function of PSF
+		data['PSF_{}'.format(ii)] = 1.1 # Point spread function of PSF | FWHM=c/R, sigma=FWHM/(2ln2) | default PSF=1.1km/s -- R=115,000 (HARPS/HARPS-N)
 		data['Velocity_resolution_{}'.format(ii)] = 0.25 # Resolution of grid in velocity space in km/s
 		data['Velocity_range_{}'.format(ii)] = 15 # Range of velocity grid in km/s
 		data['No_bump_{}'.format(ii)] = 15 # Flat part of CCF (i.e., no bump) in km/s
@@ -580,6 +608,13 @@ def ini_data(data):
 		fname = data['RV filename_{}'.format(ii)]
 		arr = np.loadtxt(fname)
 		data['RV_{}'.format(ii)] = arr		
+
+		try:
+			data['PSF_{}'.format(ii)]
+		except KeyError:
+			data['PSF_{}'.format(ii)] = 1.1 # Point spread function of spectrograph (km/s)
+
+
 		try:
 			if data['GP RV_{}'.format(ii)]:
 				gp_type = data['GP type RV_{}'.format(ii)]
@@ -588,12 +623,64 @@ def ini_data(data):
 				elif gp_type == 'Matern32':
 					kernel = celerite.terms.Matern32Term(log_sigma=-0.3, log_rho=-0.7)			
 				elif gp_type == 'logSHO':
-					kernel = celerite.terms.SHOTerm(log_S0=-0.3, log_Q=-0.7,log_omega0=-0.139)			
+					kernel = celerite.terms.SHOTerm(log_S0=-0.3, log_Q=-0.7,log_omega0=-0.139)	
+					# import celerite2
+					# from celerite2 import terms
+					# kernel = terms.SHOTerm(sigma=-0.3,rho=-0.2,tau=0.1)		
+					# gp = celerite2.GaussianProcess(kernel,mean=0.0)
+
 				elif gp_type == 'SHO':
-					kernel = celerite.terms.SHOTerm(sigma=1.0, tau=2.0, rho=10)			
+					#kernel = celerite.terms.SHOTerm(sigma=1.0, tau=2.0, rho=10)			
+					#kernel = celerite.terms.SHOTerm(log_S0=-0.3, log_Q=-0.7,log_omega0=-0.139)	
+					t1 = celerite.terms.SHOTerm(log_S0=-0.3, log_Q=-0.7,log_omega0=-0.139)	
+					print(gp_type)
+					P = 2*np.pi/(90*24*3600)
+					#P = 1000
+					a = 8
+					t2 = celerite.terms.RealTerm(log_a=np.log(a), log_c=np.log(P))
+
+					P3 = 2*np.pi/(2*24*3600)
+					#P = 1000
+					a3 = 8
+					t3 = celerite.terms.RealTerm(log_a=np.log(a3), log_c=np.log(P3))
+					kernel = t1 + t2 + t3
+				#gp = celerite.GP(kernel)
+				# gp_types = data['GP type RV_{}'.format(ii)]
+				# #if type(gp_types) != list: gp_types = list(gp_types)
+				# assert type(gp_types) == list, 'GP type RV_{}'.format(ii) + "must be a list of GP types, for instance, ['Real','logSHO'] or ['logSHO']"
+				# kernel = None
+				# for gp_type in gp_types:
+				# 	#kernel = None
+				# 	if gp_type == 'Real':
+				# 		term = celerite.terms.RealTerm(log_a=0.5, log_c=0.1)
+				# 	elif gp_type == 'Matern32':
+				# 		term = celerite.terms.Matern32Term(log_sigma=-0.3, log_rho=-0.7)			
+				# 	elif gp_type == 'logSHO':
+				# 		#term = celerite.terms.SHOTerm(log_S0=-0.3, log_Q=-0.7,log_omega0=-0.139)			
+				# 		term = celerite.terms.SHOTerm(log_S0=8.03,log_omega0=-6.697629451765305, log_Q=1.38)
+				# 		# S0 = 3000
+				# 		# logS0=np.log(S0)
+				# 		# w0 = 189*1e-6*2*np.pi
+				# 		# Q = 4
+				# 		# import celerite2
+				# 		# from celerite2 import terms
+
+				# 		# term = terms.SHOTerm(sigma=np.sqrt(w0*np.exp(logS0)*Q),rho=2*np.pi/w0,tau=2*Q/w0)
+
+				# 	elif gp_type == 'SHO':
+				# 		term = celerite.terms.SHOTerm(sigma=1.0, tau=2.0, rho=10)			
+
+				# 	if not kernel:
+				# 		kernel = term
+
+				# 	else:
+				# 		kernel += term
+
 				gp = celerite.GP(kernel)
+				#gp = celerite2.GaussianProcess(kernel,mean=0.0)
 				#gp.compute(arr[:,0],arr[:,2]) #probably redundant
-				data['RV_{} GP'.format(ii)] = gp
+
+				#data['RV_{} GP'.format(ii)] = gp
 		except KeyError:
 			pass
 
@@ -677,6 +764,16 @@ def ini_data(data):
 		data['mu_{}'.format(ii)] = mu
 		data['mu_grid_{}'.format(ii)] = mu_grid
 		data['mu_mean_{}'.format(ii)] = mu_mean
+		
+		## Resolution of velocity grid
+		vel_res = data['Velocity_resolution_{}'.format(ii)]
+
+		## Range without a bump in the CCFs
+		no_bump = data['No_bump_{}'.format(ii)]
+		span = data['Velocity_range_{}'.format(ii)]
+		assert span > no_bump, print('\n ### \n The range of the velocity grid must be larger than the specified range with no bump in the CCF.\n Range of velocity grid is from +/-{} km/s, and the no bump region isin the interval m +/-{} km/s \n ### \n '.format(span,no_bump))
+		vels = np.arange(-span,span,vel_res)
+		data['Velocity_grid_{}'.format(ii)] = vels
 
 	n_sl = data['SLs']
 	for ii in range(1,n_sl+1):
@@ -711,6 +808,23 @@ def ini_data(data):
 			data['SL_label_{}'.format(ii)] = 'Spectrograph\ {}'.format(ii)
 
 		data['SL_{}'.format(ii)] = shadow_data
+
+
+def createPars(parameters,pars=[]):
+
+	for par in pars:
+		parameters[par] = {
+			'Name'         : 'Name',
+			'Unit'         : 'unit',
+			'Label'        : r'$\rm Label$',
+			'Value'        : 1.0,
+			'Prior_vals'   : [2.0,0.5,0.,10.],
+			'Prior'        : 'uni',
+			'Distribution' : 'tgauss',
+			'Fix'          : False,
+			'Comment'      : 'none',
+		}
+
 
 
 def get_expTime(data,setexp=False):

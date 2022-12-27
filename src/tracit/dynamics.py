@@ -339,7 +339,7 @@ def solve_keplers_eq(mean_anomaly, ecc, tolerance=1.e-5):
 
     return new_ecc_anomaly
 
-def true_anomaly(time, Tw, ecc, per, ww):#, T0=True):
+def true_anomaly(time, Tw, ecc, per):#, ww):#, T0=True):
     '''Function that returns the true anomaly.
 
     The approach follows :cite:t:`Murray2010`.
@@ -599,12 +599,13 @@ def get_RV(time, orbpars, RM=False, stelpars=None,mpath=None):
     K = orbpars.K
     RVsys = orbpars.RVsys
 
+
     ## Convert angle from degree to radians
-    w *= np.pi/180.
+    w = np.deg2rad(w)
 
     ## Get cosine and sine of the true anomaly
-    cos_f, sin_f = true_anomaly(time,Tw,ecc,per,w)
-    
+    #cos_f, sin_f = true_anomaly(time,Tw,ecc,per,w)
+    cos_f, sin_f = true_anomaly(time,Tw,ecc,per)
     ## Radial velocity
     vr = K*(np.cos(w)*(ecc + cos_f) - np.sin(w)*sin_f)
 
@@ -612,11 +613,10 @@ def get_RV(time, orbpars, RM=False, stelpars=None,mpath=None):
         a = orbpars.a
         inc = orbpars.inc
         ## Convert angle from degree to radians
-        inc *= np.pi/180.
+        inc = np.deg2rad(inc)
 
         Rp = orbpars.Rp
         sep = proj_dist(cos_f,sin_f,w,inc,a,ecc)
-
         ## Projected stellar rotation
         vsini = stelpars.vsini
         ## Macroturbulence 
@@ -626,7 +626,8 @@ def get_RV(time, orbpars, RM=False, stelpars=None,mpath=None):
         #beta = 3
         ## The all important obliquity
         lam = orbpars.lam
-        lam *= np.pi/180.
+        lam = np.deg2rad(lam)
+
         ## LD coefficients
         c1, c2 = orbpars.cs
         ## Impact parameter

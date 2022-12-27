@@ -31,11 +31,16 @@
 # =============================================================================
 # tracit modules
 # =============================================================================
+cyfy = 0
+if cyfy:
+	from .cdynamic import *
+	from .cshady import absline_star, absline
+else:
+	from .dynamics import *
+	from .shady import absline_star, absline
 
-from .dynamics import *
 from .support import plot_autocorr, create_chains, create_corner, hpd, significantFormat
 from .structure import check_fps
-from .shady import absline_star, absline
 from .priors import tgauss_prior, gauss_prior, flat_prior, tgauss_prior_dis, flat_prior_dis
 
 # =============================================================================
@@ -248,72 +253,136 @@ def rv_model(time,n_planet='b',n_rv=1,RM=False):
 	:type RM: bool
 
 	'''
-	pllabel = '_{}'.format(n_planet)
-	
-	orbpars = OrbitalParams()
-	per = parameters['P'+pllabel]['Value']
-	orbpars.per = per
-	orbpars.K = parameters['K'+pllabel]['Value']
-	omega = parameters['w'+pllabel]['Value']
-	omega = omega%360
-	orbpars.w = omega
-	ecc = parameters['e'+pllabel]['Value']
-	orbpars.ecc = ecc
-	orbpars.RVsys = 0.0
-
-	T0 = parameters['T0'+pllabel]['Value']
-
-    ## With this you supply the mid-transit time 
-    ## and then the time of periastron is calculated
-    ## from S. R. Kane et al. (2009), PASP, 121, 886. DOI: 10.1086/648564
-	if (ecc > 1e-5) & (omega != 90.):
-		f = np.pi/2 - omega*np.pi/180.
-		ew = 2*np.arctan(np.tan(f/2)*np.sqrt((1 - ecc)/(1 + ecc)))
-		Tw = T0 - per/(2*np.pi)*(ew - ecc*np.sin(ew))
-	else:
-		Tw = T0
-
-	orbpars.Tw = Tw
-
-	if RM:
-		label = 'RV{}'.format(n_rv)	
-		stelpars = StellarParams()
-		stelpars.vsini = parameters['vsini']['Value']
-		stelpars.zeta = parameters['zeta']['Value']
-		### HARD-CODED
-		xi = parameters['xi']['Value']
-		conv_par = np.sqrt(xi**2 + 1.1**2)#parameters['xi']['Value']
-		stelpars.xi = conv_par
+	if cyfy:
+		pllabel = '_{}'.format(n_planet)
 		
-		orbpars.a = parameters['a_Rs'+pllabel]['Value']
-		orbpars.Rp = parameters['Rp_Rs'+pllabel]['Value']
-		orbpars.inc = parameters['inc'+pllabel]['Value']
-		lam = parameters['lam'+pllabel]['Value']
-		retrograde = False
-		if retrograde:
-			lam = lam%360
-		orbpars.lam = lam
-		LD_law =  parameters[label+'_q1']['Unit']
-		fix = parameters[label+'_q1']['Fix']
-		if fix != False:
-			LDlabel = fix.split('_')[0]
-		else:
-			LDlabel = label
-		if LD_law == 'quadratic':
-			q1, q2 = parameters[LDlabel+'_q1']['Value'], parameters[LDlabel+'_q2']['Value']
-			qs = [q1,q2]
-		elif LD_law == 'nonlinear':
-			q1, q2  = parameters[LDlabel+'_q1']['Value'], parameters[LDlabel+'_q2']['Value']
-			q3, q4  = parameters[LDlabel+'_q3']['Value'], parameters[LDlabel+'_q4']['Value']
-			qs = [q1,q2,q3,q4]
-		elif LD_law == 'uniform':
-			qs = []
-		orbpars.cs = qs
+		per = parameters['P'+pllabel]['Value']
+		K = parameters['K'+pllabel]['Value']
+		omega = parameters['w'+pllabel]['Value']
+		omega = omega%360
+		ecc = parameters['e'+pllabel]['Value']
+		RVsys = 0.0
 
-		calcRV = get_RV(time,orbpars,RM=RM,stelpars=stelpars,mpath=mpath)
+		T0 = parameters['T0'+pllabel]['Value']
+
+	    ## With this you supply the mid-transit time 
+	    ## and then the time of periastron is calculated
+	    ## from S. R. Kane et al. (2009), PASP, 121, 886. DOI: 10.1086/648564
+		if (ecc > 0.0) or (omega != 90.):
+			f = np.pi/2 - omega*np.pi/180.
+			ew = 2*np.arctan(np.tan(f/2)*np.sqrt((1 - ecc)/(1 + ecc)))
+			Tw = T0 - per/(2*np.pi)*(ew - ecc*np.sin(ew))
+		else:
+			Tw = T0
+
+		if RM:
+			label = 'RV{}'.format(n_rv)	
+			vsini = parameters['vsini']['Value']
+			zeta = parameters['zeta']['Value']
+			xi = parameters['xi']['Value']
+			psf = data['PSF_{}'.format(n_rv)]
+			conv_par = np.sqrt(xi**2 + psf**2)#parameters['xi']['Value']
+			
+			a = parameters['a_Rs'+pllabel]['Value']
+			Rp = parameters['Rp_Rs'+pllabel]['Value']
+			inc = parameters['inc'+pllabel]['Value']
+			lam = parameters['lam'+pllabel]['Value']
+			LD_law =  parameters[label+'_q1']['Unit']
+			fix = parameters[label+'_q1']['Fix']
+			if fix != False:
+				LDlabel = fix.split('_')[0]
+			else:
+				LDlabel = label
+			if LD_law == 'quadratic':
+				q1, q2 = parameters[LDlabel+'_q1']['Value'], parameters[LDlabel+'_q2']['Value']
+				qs = [q1,q2]
+			elif LD_law == 'nonlinear':
+				q1, q2  = parameters[LDlabel+'_q1']['Value'], parameters[LDlabel+'_q2']['Value']
+				q3, q4  = parameters[LDlabel+'_q3']['Value'], parameters[LDlabel+'_q4']['Value']
+				qs = [q1,q2,q3,q4]
+			elif LD_law == 'uniform':
+				qs = []
+
+			calcRV = get_RV(time,Tw,per,ecc,omega,K,RVsys,a,inc,Rp,lam,vsini,zeta,conv_par,q1,q2,RM=RM)
+		else:
+			calcRV = get_RV(time,Tw,per,ecc,omega,K,RVsys,RM=RM)
+		return calcRV
 	else:
-		calcRV = get_RV(time,orbpars)
-	return calcRV
+		########### TO BE DELETED ##########
+		pllabel = '_{}'.format(n_planet)
+		
+		orbpars = OrbitalParams()
+		per = parameters['P'+pllabel]['Value']
+		orbpars.per = per
+		K = parameters['K'+pllabel]['Value']
+		orbpars.K = K
+		omega = parameters['w'+pllabel]['Value']
+		omega = omega%360
+		orbpars.w = omega
+		ecc = parameters['e'+pllabel]['Value']
+		orbpars.ecc = ecc
+		orbpars.RVsys = 0.0
+		RVsys = 0.0
+
+		T0 = parameters['T0'+pllabel]['Value']
+
+	    ## With this you supply the mid-transit time 
+	    ## and then the time of periastron is calculated
+	    ## from S. R. Kane et al. (2009), PASP, 121, 886. DOI: 10.1086/648564
+		if (ecc > 0.0) or (omega != 90.):
+			f = np.pi/2 - omega*np.pi/180.
+			ew = 2*np.arctan(np.tan(f/2)*np.sqrt((1 - ecc)/(1 + ecc)))
+			Tw = T0 - per/(2*np.pi)*(ew - ecc*np.sin(ew))
+		else:
+			Tw = T0
+		orbpars.Tw = Tw
+
+		if RM:
+			label = 'RV{}'.format(n_rv)	
+			stelpars = StellarParams()
+			vsini = parameters['vsini']['Value']
+			stelpars.vsini = vsini
+			zeta = parameters['zeta']['Value']
+			stelpars.zeta = zeta
+
+			xi = parameters['xi']['Value']
+			psf = data['PSF_{}'.format(n_rv)]
+			conv_par = np.sqrt(xi**2 + psf**2)#parameters['xi']['Value']
+			stelpars.xi = conv_par
+			#xi = np.sqrt(xi**2 + psf**2)#parameters['xi']['Value']
+			
+			a = parameters['a_Rs'+pllabel]['Value']
+			orbpars.a = a
+			Rp = parameters['Rp_Rs'+pllabel]['Value']
+			orbpars.Rp = Rp
+			inc = parameters['inc'+pllabel]['Value']
+			orbpars.inc = inc
+			lam = parameters['lam'+pllabel]['Value']
+			retrograde = False
+			#if retrograde:
+			#	lam = lam%360
+			orbpars.lam = lam
+			LD_law =  parameters[label+'_q1']['Unit']
+			fix = parameters[label+'_q1']['Fix']
+			if fix != False:
+				LDlabel = fix.split('_')[0]
+			else:
+				LDlabel = label
+			if LD_law == 'quadratic':
+				q1, q2 = parameters[LDlabel+'_q1']['Value'], parameters[LDlabel+'_q2']['Value']
+				qs = [q1,q2]
+			elif LD_law == 'nonlinear':
+				q1, q2  = parameters[LDlabel+'_q1']['Value'], parameters[LDlabel+'_q2']['Value']
+				q3, q4  = parameters[LDlabel+'_q3']['Value'], parameters[LDlabel+'_q4']['Value']
+				qs = [q1,q2,q3,q4]
+			elif LD_law == 'uniform':
+				qs = []
+			orbpars.cs = qs
+
+			calcRV = get_RV(time,orbpars,RM=RM,stelpars=stelpars,mpath=mpath)
+		else:
+			calcRV = get_RV(time,orbpars)
+		return calcRV
 
 def ls_model2(time,start_grid,ring_grid,vel_grid,
 	mu,mu_grid,mu_mean,rad_disk,vels,
@@ -325,103 +394,205 @@ def ls_model2(time,start_grid,ring_grid,vel_grid,
 		The instrumental broadening, :math:`\sigma_\mathrm{PSF}`, is added to :math:`\\xi` in quadrature, i.e., :math:`\sqrt{\\xi^2 + \sigma_\mathrm{PSF}^2}`.	
 	'''
 
-	pllabel = '_{}'.format(n_planet)
-	
-	## Planet parameters
-	per = parameters['P'+pllabel]['Value']
-	T0 = parameters['T0'+pllabel]['Value']
 
-	inc = parameters['inc'+pllabel]['Value']*np.pi/180.
-	a_Rs = parameters['a_Rs'+pllabel]['Value']
-	b = a_Rs*np.cos(inc)
-	rp = parameters['Rp_Rs'+pllabel]['Value']
-	ecc = parameters['e'+pllabel]['Value']
-	omega = parameters['w'+pllabel]['Value']
+	if cyfy:
+		pllabel = '_{}'.format(n_planet)
+		
+		## Planet parameters
+		per = parameters['P'+pllabel]['Value']
+		T0 = parameters['T0'+pllabel]['Value']
 
-    ## With this you supply the mid-transit time 
-    ## and then the time of periastron is calculated
-    ## from S. R. Kane et al. (2009), PASP, 121, 886. DOI: 10.1086/648564
-	if (ecc > 1e-5) & (omega != 90.):
-		f = np.pi/2 - omega*np.pi/180.
-		ew = 2*np.arctan(np.tan(f/2)*np.sqrt((1 - ecc)/(1 + ecc)))
-		Tw = T0 - per/(2*np.pi)*(ew - ecc*np.sin(ew))
-	else:
-		Tw = T0
+		inc = parameters['inc'+pllabel]['Value']#*np.pi/180.
+		inc = np.deg2rad(inc)
+		a_Rs = parameters['a_Rs'+pllabel]['Value']
+		b = a_Rs*np.cos(inc)
+		rp = parameters['Rp_Rs'+pllabel]['Value']
+		ecc = parameters['e'+pllabel]['Value']
+		w = parameters['w'+pllabel]['Value']
+		omega = np.deg2rad(w)
 
-	T0 = Tw
-	
-	lam = parameters['lam'+pllabel]['Value']
+	    ## With this you supply the mid-transit time 
+	    ## and then the time of periastron is calculated
+	    ## from S. R. Kane et al. (2009), PASP, 121, 886. DOI: 10.1086/648564
+		if (ecc > 0.0) or (w != 90.):
+			f = 0.5*np.pi - omega
+			ew = 2*np.arctan(np.tan(0.5*f)*np.sqrt((1 - ecc)/(1 + ecc)))
+			Tw = T0 - per/(2*np.pi)*(ew - ecc*np.sin(ew))
+		else:
+			Tw = T0
 
-	omega = omega%360
-	omega *= np.pi/180.
-	retrograde = False
-	if retrograde:
-		lam = lam%360
-	lam *= np.pi/180.
-
-	## Stellar parameters
-	label = 'RV{}'.format(n_rv)	
-	
-	LD_law =  parameters[label+'_q1']['Unit']
-	# fix = parameters[label+'_q1']['Fix']
-	# if fix != False:
-	# 	LDlabel = fix.split('_')[0]
-	# else:
-	# 	LDlabel = label
-	LDlabel = label
+		#T0 = Tw
+		
+		lam = parameters['lam'+pllabel]['Value']
+		lam = np.deg2rad(lam)
+		#omega *= np.pi/180.
+		#retrograde = False
+		#if retrograde:
+		#	lam = lam%360
+		#lam *= np.pi/180.
 
 
-	if LD_law == 'quadratic':
-		q1, q2 = parameters[LDlabel+'_q1']['Value'], parameters[LDlabel+'_q2']['Value']
-		qs = [q1,q2]
-	elif LD_law == 'nonlinear':
-		q1, q2  = parameters[LDlabel+'_q1']['Value'], parameters[LDlabel+'_q2']['Value']
-		q3, q4  = parameters[LDlabel+'_q3']['Value'], parameters[LDlabel+'_q4']['Value']
-		qs = [q1,q2,q3,q4]
-	elif LD_law == 'uniform':
-		qs = []
+		## Stellar parameters
+		label = 'RV{}'.format(n_rv)	
+		
+		LD_law =  parameters[label+'_q1']['Unit']
+		# fix = parameters[label+'_q1']['Fix']
+		# if fix != False:
+		# 	LDlabel = fix.split('_')[0]
+		# else:
+		# 	LDlabel = label
+		LDlabel = label
 
 
-	vsini = parameters['vsini']['Value']
-	zeta = parameters['zeta']['Value']
-	xi = parameters['xi']['Value']
-	psf = data['PSF_{}'.format(n_rv)]
+		if LD_law == 'quadratic':
+			q1, q2 = parameters[LDlabel+'_q1']['Value'], parameters[LDlabel+'_q2']['Value']
+			qs = [q1,q2]
+		elif LD_law == 'nonlinear':
+			q1, q2  = parameters[LDlabel+'_q1']['Value'], parameters[LDlabel+'_q2']['Value']
+			q3, q4  = parameters[LDlabel+'_q3']['Value'], parameters[LDlabel+'_q4']['Value']
+			qs = [q1,q2,q3,q4]
+		elif LD_law == 'uniform':
+			qs = []
 
-	conv_par = np.sqrt(xi**2 + psf**2)#parameters['xi']['Value']
 
-	## If we are only fitting OOT CCFS
-	if oot:
-		vel_1d, line_conv, lum = absline_star(start_grid,vel_grid,ring_grid,
-								mu,mu_mean,vsini,conv_par,zeta,vels,
-								cs=qs
-								)
+		vsini = parameters['vsini']['Value']
+		zeta = parameters['zeta']['Value']
+		xi = parameters['xi']['Value']
+		psf = data['PSF_{}'.format(n_rv)]
+
+		conv_par = np.sqrt(xi**2 + psf**2)#parameters['xi']['Value']
+
+		## If we are only fitting OOT CCFS
+		if oot:
+			vel_1d, line_conv, lum = absline_star(start_grid,vel_grid,ring_grid,
+									mu,mu_mean,vsini,conv_par,zeta,vels,
+									cs=qs
+									)
+			line_oot = np.sum(line_conv,axis=0)
+			area = np.trapz(line_oot,vel_1d)
+			line_oot_norm = line_oot/area
+			return vel_1d, line_oot_norm, lum
+
+		## Make shadow                   
+		vel_1d, line_conv, line_transit, planet_rings, lum, index_error = absline(
+																		start_grid,vel_grid,ring_grid,
+																		mu,mu_mean,mu_grid,
+																		vsini,conv_par,zeta,vels,
+																		qs,time,
+																		radius=rad_disk,
+																		Tw=Tw,per=per,
+																		Rp_Rs=rp,a_Rs=a_Rs,inc=inc,
+																		ecc=ecc,w=omega,lam=lam)
+		
 		line_oot = np.sum(line_conv,axis=0)
 		area = np.trapz(line_oot,vel_1d)
+		## Normalize such that out-of-transit lines have heights of unity
 		line_oot_norm = line_oot/area
-		return vel_1d, line_oot_norm, lum
+		line_transit = line_transit/area#np.max(line_oot)
+		## Shadow
+		#shadow = line_oot_norm - line_transit
+		
 
-	## Make shadow                   
-	vel_1d, line_conv, line_transit, planet_rings, lum, index_error = absline(
-																	start_grid,vel_grid,ring_grid,
-																	mu,mu_mean,mu_grid,
-																	vsini,conv_par,zeta,vels,
-																	cs=qs,radius=rad_disk,
-																	times=time,
-																	Tw=T0,per=per,
-																	Rp_Rs=rp,a_Rs=a_Rs,inc=inc,
-																	ecc=ecc,w=omega,lam=lam)
-	
-	line_oot = np.sum(line_conv,axis=0)
-	area = np.trapz(line_oot,vel_1d)
-	## Normalize such that out-of-transit lines have heights of unity
-	line_oot_norm = line_oot/area
-	line_transit = line_transit/area#np.max(line_oot)
-	## Shadow
-	#shadow = line_oot_norm - line_transit
-	
+		#return vel_1d, shadow, line_oot_norm, planet_rings, lum, index_error
+		return vel_1d, line_transit, line_oot_norm, planet_rings, lum, index_error
+	else:
+		pllabel = '_{}'.format(n_planet)
+		
+		## Planet parameters
+		per = parameters['P'+pllabel]['Value']
+		T0 = parameters['T0'+pllabel]['Value']
 
-	#return vel_1d, shadow, line_oot_norm, planet_rings, lum, index_error
-	return vel_1d, line_transit, line_oot_norm, planet_rings, lum, index_error
+		inc = parameters['inc'+pllabel]['Value']*np.pi/180.
+		a_Rs = parameters['a_Rs'+pllabel]['Value']
+		b = a_Rs*np.cos(inc)
+		rp = parameters['Rp_Rs'+pllabel]['Value']
+		ecc = parameters['e'+pllabel]['Value']
+		omega = parameters['w'+pllabel]['Value']
+
+	    ## With this you supply the mid-transit time 
+	    ## and then the time of periastron is calculated
+	    ## from S. R. Kane et al. (2009), PASP, 121, 886. DOI: 10.1086/648564
+		if (ecc > 0.0) or (omega != 90.):
+			f = 0.5*np.pi - omega*np.pi/180.
+			ew = 2*np.arctan(np.tan(0.5*f)*np.sqrt((1 - ecc)/(1 + ecc)))
+			Tw = T0 - per/(2*np.pi)*(ew - ecc*np.sin(ew))
+		else:
+			Tw = T0
+
+		T0 = Tw
+		
+		lam = parameters['lam'+pllabel]['Value']
+
+		omega = omega%360
+		omega *= np.pi/180.
+		retrograde = False
+		if retrograde:
+			lam = lam%360
+		lam *= np.pi/180.
+
+		## Stellar parameters
+		label = 'RV{}'.format(n_rv)	
+		
+		LD_law =  parameters[label+'_q1']['Unit']
+		# fix = parameters[label+'_q1']['Fix']
+		# if fix != False:
+		# 	LDlabel = fix.split('_')[0]
+		# else:
+		# 	LDlabel = label
+		LDlabel = label
+
+
+		if LD_law == 'quadratic':
+			q1, q2 = parameters[LDlabel+'_q1']['Value'], parameters[LDlabel+'_q2']['Value']
+			qs = [q1,q2]
+		elif LD_law == 'nonlinear':
+			q1, q2  = parameters[LDlabel+'_q1']['Value'], parameters[LDlabel+'_q2']['Value']
+			q3, q4  = parameters[LDlabel+'_q3']['Value'], parameters[LDlabel+'_q4']['Value']
+			qs = [q1,q2,q3,q4]
+		elif LD_law == 'uniform':
+			qs = []
+
+
+		vsini = parameters['vsini']['Value']
+		zeta = parameters['zeta']['Value']
+		xi = parameters['xi']['Value']
+		psf = data['PSF_{}'.format(n_rv)]
+
+		conv_par = np.sqrt(xi**2 + psf**2)#parameters['xi']['Value']
+
+		## If we are only fitting OOT CCFS
+		if oot:
+			vel_1d, line_conv, lum = absline_star(start_grid,vel_grid,ring_grid,
+									mu,mu_mean,vsini,conv_par,zeta,vels,
+									cs=qs
+									)
+			line_oot = np.sum(line_conv,axis=0)
+			area = np.trapz(line_oot,vel_1d)
+			line_oot_norm = line_oot/area
+			return vel_1d, line_oot_norm, lum
+
+		## Make shadow                   
+		vel_1d, line_conv, line_transit, planet_rings, lum, index_error = absline(
+																		start_grid,vel_grid,ring_grid,
+																		mu,mu_mean,mu_grid,
+																		vsini,conv_par,zeta,vels,
+																		cs=qs,radius=rad_disk,
+																		times=time,
+																		Tw=T0,per=per,
+																		Rp_Rs=rp,a_Rs=a_Rs,inc=inc,
+																		ecc=ecc,w=omega,lam=lam)
+		
+		line_oot = np.sum(line_conv,axis=0)
+		area = np.trapz(line_oot,vel_1d)
+		## Normalize such that out-of-transit lines have heights of unity
+		line_oot_norm = line_oot/area
+		line_transit = line_transit/area#np.max(line_oot)
+		## Shadow
+		#shadow = line_oot_norm - line_transit
+		
+
+		#return vel_1d, shadow, line_oot_norm, planet_rings, lum, index_error
+		return vel_1d, line_transit, line_oot_norm, planet_rings, lum, index_error
 
 def ls_model(time,start_grid,ring_grid,vel_grid,
 	mu,mu_grid,mu_mean,rad_disk,vels,
@@ -534,6 +705,142 @@ def ls_model(time,start_grid,ring_grid,vel_grid,
 	shadow = line_oot_norm - line_transit
 	
 	return vel_1d, shadow, line_oot_norm, planet_rings, lum, index_error
+
+def lineshaper(nn):
+
+	pls = parameters['Planets']
+	shadow_data = data['LS_{}'.format(nn)]
+	times = []
+	for key in shadow_data.keys():
+		try:
+			times.append(float(key))
+		except ValueError:
+			pass
+	times = np.asarray(times)
+	ss = np.argsort(times)
+	times = times[ss]
+
+	v0 = parameters['RVsys_{}'.format(nn)]['Value']
+	rv_m = np.zeros(len(times))
+	for pl in pls:
+		rv_pl = rv_model(times,n_planet=pl,n_rv=nn,RM=False)
+		rv_m += rv_pl
+	rv_m += v0
+
+
+	idxs = [ii for ii in range(len(times))]
+	oots = data['idxs_{}'.format(nn)]
+
+	its = [ii for ii in idxs if ii not in oots]	
+
+	## Resolution of velocity grid
+	vel_res = data['Velocity_resolution_{}'.format(nn)]
+	vels = np.array([])			
+	## Range without a bump in the CCFs
+	no_bump = data['No_bump_{}'.format(nn)]
+	span = data['Velocity_range_{}'.format(nn)]
+	assert span > no_bump, print('\n ### \n The range of the velocity grid must be larger than the specified range with no bump in the CCF.\n Range of velocity grid is from +/-{} km/s, and the no bump region isin the interval m +/-{} km/s \n ### \n '.format(span,no_bump))
+	vels = np.arange(-span,span,vel_res)
+
+	resol = data['Resolution_{}'.format(nn)]
+	start_grid = data['Start_grid_{}'.format(nn)]
+	ring_grid = data['Ring_grid_{}'.format(nn)]
+	vel_grid = data['Velocity_{}'.format(nn)]
+	mu = data['mu_{}'.format(nn)]
+	mu_grid = data['mu_grid_{}'.format(nn)]
+	mu_mean = data['mu_mean_{}'.format(nn)]
+	chi2scale_shadow = data['Chi2 LS_{}'.format(nn)]
+	#chi2scale_oot = data['Chi2 OOT_{}'.format(nn)]
+
+
+	vel_model, model_ccf_transit, model_ccf, darks, oot_lum, index_error = ls_model2(
+		times,start_grid,ring_grid,
+		vel_grid,mu,mu_grid,mu_mean,resol,vels,
+		n_rv=nn,
+		)
+	bright = np.sum(oot_lum)
+
+
+	## Create average out-of-transit CCF
+	## Used to create shadow for in-transit CCFs
+	## Shift CCFs to star rest frame
+	## and detrend CCFs
+	avg_ccf = np.zeros(len(vels))
+	oot_ccfs = np.zeros(shape=(len(vels),len(oots)))
+	oot_sd = []
+	for ii, idx in enumerate(oots):
+		time = times[idx]
+		vel = shadow_data[time]['vel'].copy() - rv_m[idx]*1e-3
+		no_peak = (vel > no_bump) | (vel < -no_bump)
+		
+		ccf = shadow_data[time]['ccf'].copy()
+		poly_pars = np.polyfit(vel[no_peak],ccf[no_peak],1)
+		ccf -= vel*poly_pars[0] + poly_pars[1]
+
+		area = np.trapz(ccf,vel)
+
+		ccf /= abs(area)
+		oot_sd.append(np.std(ccf[no_peak]))
+
+		ccf_int = interpolate.interp1d(vel,ccf,kind='cubic',fill_value='extrapolate')
+		nccf = ccf_int(vels)
+
+		oot_ccfs[:,ii] = nccf
+		avg_ccf += nccf
+
+	avg_ccf /= len(oots)
+	
+	model_int = interpolate.interp1d(vel_model,model_ccf,kind='cubic',fill_value='extrapolate')
+	newline = model_int(vels)
+	#print(vel_model,vels)
+	#newline = model_ccf
+	#sd = np.mean(oot_sd)
+	#unc = np.ones(len(vels))*sd
+	#unc *= chi2scale_oot
+
+	obs_shadows = np.empty(shape=(len(vels),len(its)))
+	calc_shadows = np.empty(shape=(len(vels),len(its)))
+	uncertainties = np.ones(shape=(len(vels),len(its)))
+
+
+	for ii, idx in enumerate(its):
+		time = times[idx]
+		vel = shadow_data[time]['vel'].copy() - rv_m[idx]*1e-3
+		no_peak = (vel > no_bump) | (vel < -no_bump)
+			
+		ccf = shadow_data[time]['ccf'].copy()
+		poly_pars = np.polyfit(vel[no_peak],ccf[no_peak],1)
+		ccf -= vel*poly_pars[0] + poly_pars[1]
+		
+		area = np.trapz(ccf,vel)
+		ccf /= area
+		
+		
+
+		ccf *= darks[idx]/bright#blc[ii]		
+
+		ccf_int = interpolate.interp1d(vel,ccf,kind='cubic',fill_value='extrapolate')
+		nccf = ccf_int(vels)
+		
+
+		no_peak = (vels > no_bump) | (vels < -no_bump)
+		sd = np.std(nccf[no_peak])
+
+		#unc = np.ones(len(vel_model))*sd
+		#unc *= chi2scale_shadow
+		uncertainties[:,ii] = uncertainties[:,ii]*sd*chi2scale_shadow
+		
+		shadow = avg_ccf - nccf
+		obs_shadows[:,ii] = shadow
+
+
+		model_to_obs = interpolate.interp1d(vel_model,model_ccf_transit[idx],kind='cubic',fill_value='extrapolate')
+		ishadow = newline - model_to_obs(vels)
+		#ishadow = newline - model_ccf_transit[idx]
+
+		calc_shadows[:,ii] = ishadow
+
+	return vels, obs_shadows, calc_shadows, uncertainties, avg_ccf, newline
 
 def localRV_model(time,n_planet='b'):
 	'''Subplanetary velocities.
@@ -941,36 +1248,43 @@ def lnprob(positions):
 			for nn in range(1,n_rv+1): 
 				idxs = rv_idxs == nn
 				if data['GP RV_{}'.format(nn)]:
-
+					gptimes = rv_times[idxs].copy()*24*3600
 					gp = data['RV_{} GP'.format(nn)]
 
 					res_rv = rvs[idxs] - model_rvs[idxs]
 
-					gp_type = data['GP type RV_{}'.format(nn)]
-					if gp_type == 'SHO':
-						log_S0 = parameters['RV_{}_log_S0'.format(nn)]['Value']
-						log_Q = parameters['RV_{}_log_Q'.format(nn)]['Value']
-						log_w0 = parameters['RV_{}_log_w0'.format(nn)]['Value']
+					# gp_type = data['GP type RV_{}'.format(nn)]
+					# if gp_type == 'SHO':
+					# 	log_S0 = parameters['RV_{}_log_S0'.format(nn)]['Value']
+					# 	log_Q = parameters['RV_{}_log_Q'.format(nn)]['Value']
+					# 	log_w0 = parameters['RV_{}_log_w0'.format(nn)]['Value']
 					
-						gp_list = [log_S0,log_Q,log_w0]
+					# 	gp_list = [log_S0,log_Q,log_w0]
 
-					elif gp_type == 'logSHO':
-						log_S0 = parameters['RV_{}_GP_log_S0'.format(nn)]['Value']
-						log_Q = parameters['RV_{}_GP_log_Q'.format(nn)]['Value']
-						log_w0 = parameters['RV_{}_GP_log_w0'.format(nn)]['Value']
+					# elif gp_type == 'logSHO':
+					# 	log_S0 = parameters['RV_{}_GP_log_S0'.format(nn)]['Value']
+					# 	log_Q = parameters['RV_{}_GP_log_Q'.format(nn)]['Value']
+					# 	log_w0 = parameters['RV_{}_GP_log_w0'.format(nn)]['Value']
 					
-						gp_list = [log_S0,log_Q,log_w0]
+					# 	gp_list = [log_S0,log_Q,log_w0]
 					
-					else:
-						loga = parameters['RV_{}_GP_log_a'.format(nn)]['Value']
-						logc = parameters['RV_{}_GP_log_c'.format(nn)]['Value']
-						gp_list = [loga,logc]
+					# else:
+					# 	loga = parameters['RV_{}_GP_log_a'.format(nn)]['Value']
+					# 	logc = parameters['RV_{}_GP_log_c'.format(nn)]['Value']
+					# 	gp_list = [loga,logc]
 
+					gp = data['RV_{} GP'.format(nn)]
+					gp_pars = parameters['GP pars RV_{}'.format(nn)]
+					gp_list = []
+
+					for gpar in gp_pars:
+						gp_list.append(parameters[gpar]['Value'])
 
 
 
 					gp.set_parameter_vector(np.array(gp_list))
-					gp.compute(rv_times[idxs],ervs[idxs])
+					#gp.compute(rv_times[idxs],ervs[idxs])
+					gp.compute(gptimes,ervs[idxs])
 					lprob = gp.log_likelihood(res_rv)
 					log_prob += lprob#lnlike(flux_m,flux,sigma)
 
@@ -985,7 +1299,7 @@ def lnprob(positions):
 	avg_ccf = np.array([])
 	for nn in range(1,n_ls+1):
 		if data['Fit LS_{}'.format(nn)]:
-			shadow_data = data['LS_{}'.format(nn)]
+			shadow_data = data['LS_{}'.format(nn)]#.copy()
 
 			times = []
 			for key in shadow_data.keys():
@@ -1020,7 +1334,7 @@ def lnprob(positions):
 
 
 			## Hard coded -- modify
-			## currently assumes planet b and spectroscopic system 1
+			## currently assumes planet b and spectroscopic system nn
 			pl = 'b'
 			try:
 				t0n = parameters['Spec_{}:T0_{}'.format(nn,pl)]['Value']
@@ -1029,14 +1343,17 @@ def lnprob(positions):
 				pass
 
 			#P, T0 = parameters['P_{}'.format(pl)]['Value'], parameters['T0_{}'.format(pl)]['Value'] 
+
 			## Resolution of velocity grid
 			vel_res = data['Velocity_resolution_{}'.format(nn)]
-			vels = np.array([])			
 			## Range without a bump in the CCFs
 			no_bump = data['No_bump_{}'.format(nn)]
-			span = data['Velocity_range_{}'.format(nn)]
-			assert span > no_bump, print('\n ### \n The range of the velocity grid must be larger than the specified range with no bump in the CCF.\n Range of velocity grid is from +/-{} km/s, and the no bump region isin the interval m +/-{} km/s \n ### \n '.format(span,no_bump))
-			vels = np.arange(-span,span,vel_res)
+			#vels = np.array([])			
+			#span = data['Velocity_range_{}'.format(nn)]
+			#assert span > no_bump, print('\n ### \n The range of the velocity grid must be larger than the specified range with no bump in the CCF.\n Range of velocity grid is from +/-{} km/s, and the no bump region isin the interval m +/-{} km/s \n ### \n '.format(span,no_bump))
+			#vels = np.arange(-span,span,vel_res)
+
+			vels = data['Velocity_grid_{}'.format(nn)]
 
 			resol = data['Resolution_{}'.format(nn)]
 			start_grid = data['Start_grid_{}'.format(nn)]
@@ -1069,16 +1386,13 @@ def lnprob(positions):
 			## GP or not?
 			use_gp = data['GP LS_{}'.format(nn)]
 			if use_gp:
-				loga = parameters['LS_{}_GP_log_a'.format(nn)]['Value']
-				logc = parameters['LS_{}_GP_log_c'.format(nn)]['Value']
+
+				loga = parameters['LS_{}_GP_log_sigma'.format(nn)]['Value']
+				logc = parameters['LS_{}_GP_log_rho'.format(nn)]['Value']
+				#diag = np.exp(parameters['LS_{}_GP_log_diag'.format(nn)]['Value'])
 				gp = data['LS_{} GP'.format(nn)]
 				gp.set_parameter_vector(np.array([loga,logc]))
-
-
-				## Create average out-of-transit CCF
-				## Used to create shadow for in-transit CCFs
-				## Shift CCFs to star rest frame
-				## and detrend CCFs
+				
 				oot_sd = []
 				for ii, idx in enumerate(oots):
 					time = times[idx]
@@ -1092,52 +1406,199 @@ def lnprob(positions):
 					# 	avg_ccf = np.zeros(len(vels))
 					# 	oot_ccfs = np.zeros(shape=(len(vels),len(oots)))
 
+					#vels[:,idx] = vel
 					no_peak = (vel > no_bump) | (vel < -no_bump)
+					
 
 					ccf = shadow_data[time]['ccf'].copy()
-					
-					ccf -= np.median(ccf[no_peak])
-
+					poly_pars = np.polyfit(vel[no_peak],ccf[no_peak],1)
+					ccf -= vel*poly_pars[0] + poly_pars[1]
 
 					area = np.trapz(ccf,vel)
+
 					ccf /= abs(area)
+					oot_sd.append(np.std(ccf[no_peak]))
 
 					ccf_int = interpolate.interp1d(vel,ccf,kind='cubic',fill_value='extrapolate')
 					nccf = ccf_int(vels)
-					
-					no_peak = (vels > no_bump) | (vels < -no_bump)
-					oot_sd.append(np.std(nccf[no_peak]))
-						
 
 					oot_ccfs[:,ii] = nccf
 					avg_ccf += nccf
 
 				avg_ccf /= len(oots)
-				jitter = parameters['LSsigma_{}'.format(nn)]['Value']
-				jitter = np.exp(jitter)
+				#avg_vel /= len(oots)
 
-				unc = np.ones(len(vels))*np.sqrt((np.mean(oot_sd)**2 + jitter**2))
-				gp.compute(vels,unc)
 				model_int = interpolate.interp1d(vel_model,model_ccf,kind='cubic',fill_value='extrapolate')
-				newline = model_int(vels)		
-				mean, var = gp.predict(avg_ccf  - newline, vels, return_var=True)
-				avg_ccf -= mean
+				newline = model_int(vels)
+				sd = np.mean(oot_sd)
+				unc = np.ones(len(vels))*sd
 
+				#gp.compute(vels,unc)
+				#gp_mean, var = gp.predict(avg_ccf - newline, vels, return_var=True)
+				
+				#chi2scale_shadow = data['Chi2 LS_{}'.format(nn)]
+				#chi2scale_oot = data['Chi2 OOT_{}'.format(nn)]
+				#unc *= chi2scale_oot
+			
 				if fit_oot:
-						## Here we simply fit our average out-of-transit CCF
-						## to an out-of-transit model CCF
-						## IF we opted to do so
-						res_cff = avg_ccf - newline
+					## Here we simply fit our average out-of-transit CCF
+					## to an out-of-transit model CCF
+					## IF we opted to do so
 
-						lprob = gp.log_likelihood(res_cff)
+					chisq += chi2(newline,avg_ccf,unc)
+					log_prob += lnlike(newline,avg_ccf,unc)
+
+					n_dps += len(vel)
+
+				
+				if not only_oot:
+					#chi2scale_shadow = 5.0
+
+					## Again shift CCFs to star rest frame
+					## and detrend CCFs
+					## Compare to shadow model
+					jitter = 0
+					for ii, idx in enumerate(its):
+						#arr = data[time]
+						time = times[idx]
+						vel = shadow_data[time]['vel'].copy() - rv_m[idx]*1e-3
+						#vels[:,idx] = vel
+						no_peak = (vel > no_bump) | (vel < -no_bump)
+							
+						ccf = shadow_data[time]['ccf'].copy()
+						if 0:
+							ccf -= np.median(ccf[no_peak])
+						else:
+							poly_pars = np.polyfit(vel[no_peak],ccf[no_peak],1)
+							ccf -= vel*poly_pars[0] + poly_pars[1]
+						
+						area = np.trapz(ccf,vel)
+						ccf /= area
+						
+						
+
+						ccf *= darks[idx]/bright#blc[ii]		
+
+						ccf_int = interpolate.interp1d(vel,ccf,kind='cubic',fill_value='extrapolate')
+						nccf = ccf_int(vels)
+						
+
+						no_peak = (vels > no_bump) | (vels < -no_bump)
+						sd = np.std(nccf[no_peak])
+						if 1:			
+							unc = np.ones(len(vels))*np.sqrt(sd**2 + jitter**2)
+							#nccf -= mean
+						else:
+							unc = np.ones(len(vels))*sd
+							unc *= chi2scale_shadow
+
+						
+						#shadow = nccf
+						shadow = avg_ccf - nccf
+
+						#ff = interpolate.interp1d(vel_model,shadow_model[idx],kind='cubic',fill_value='extrapolate')
+						#ishadow = ff(vels)
+
+						model_to_obs = interpolate.interp1d(vel_model,model_ccf_transit[idx],kind='cubic',fill_value='extrapolate')
+						ishadow = newline - model_to_obs(vels)
+
+
+						# vv,ss = get_binned(vel,shadow)
+
+						# no_peak = (vv > 15) | (vv < -15)
+						# sd = np.std(ss[no_peak])
+						# poly_pars = np.polyfit(vv[no_peak],ss[no_peak],1)
+						# nvv,nss = get_binned(vel,ishadow)
+
+						# unc = np.ones(len(vv))*np.sqrt(sd**2 + jitter**2)
+
+						mean = shadow - ishadow
+				# 		res_cff = avg_ccf - newline
+
+				# 		lprob = gp.log_likelihood(res_cff)
+				# 		log_prob += lprob#lnlike(flux_m,flux,sigma)
+						gp.compute(vels,unc)
+						lprob = gp.log_likelihood(mean)
+
+						#chisq += chi2(shadow,ishadow,unc)
+						#log_prob += lnlike(shadow,ishadow,unc)
+
 						log_prob += lprob#lnlike(flux_m,flux,sigma)
 
 						chisq += -2*lprob - np.sum(np.log(2*np.pi*unc**2))#chi2(flux_m,flux,sigma)
+						
+						n_dps += len(shadow)
 
-						#chisq += chi2(newline,avg_ccf,unc)
-						#log_prob += lnlike(newline,avg_ccf,unc)
 
-						n_dps += len(vel)
+				# loga = parameters['LS_{}_GP_log_a'.format(nn)]['Value']
+				# logc = parameters['LS_{}_GP_log_c'.format(nn)]['Value']
+				# gp = data['LS_{} GP'.format(nn)]
+				# gp.set_parameter_vector(np.array([loga,logc]))
+
+
+				# ## Create average out-of-transit CCF
+				# ## Used to create shadow for in-transit CCFs
+				# ## Shift CCFs to star rest frame
+				# ## and detrend CCFs
+				# oot_sd = []
+				# for ii, idx in enumerate(oots):
+				# 	time = times[idx]
+				# 	vel = shadow_data[time]['vel'].copy() - rv_m[idx]*1e-3
+				# 	# if not ii:
+				# 	# 	## Interpolate to grid in stellar restframe
+				# 	# 	# vel_min, vel_max = min(vel), max(vel)
+				# 	# 	# span  = (vel_max - vel_min)
+				# 	# 	# vels = np.arange(vel_min+span/10,vel_max-span/10,vel_res)
+				# 	# 	vels = np.arange(-span,span,vel_res)
+				# 	# 	avg_ccf = np.zeros(len(vels))
+				# 	# 	oot_ccfs = np.zeros(shape=(len(vels),len(oots)))
+
+				# 	no_peak = (vel > no_bump) | (vel < -no_bump)
+
+				# 	ccf = shadow_data[time]['ccf'].copy()
+					
+				# 	ccf -= np.median(ccf[no_peak])
+
+
+				# 	area = np.trapz(ccf,vel)
+				# 	ccf /= abs(area)
+
+				# 	ccf_int = interpolate.interp1d(vel,ccf,kind='cubic',fill_value='extrapolate')
+				# 	nccf = ccf_int(vels)
+					
+				# 	no_peak = (vels > no_bump) | (vels < -no_bump)
+				# 	oot_sd.append(np.std(nccf[no_peak]))
+						
+
+				# 	oot_ccfs[:,ii] = nccf
+				# 	avg_ccf += nccf
+
+				# avg_ccf /= len(oots)
+				# jitter = parameters['LSsigma_{}'.format(nn)]['Value']
+				# jitter = np.exp(jitter)
+
+				# unc = np.ones(len(vels))*np.sqrt((np.mean(oot_sd)**2 + jitter**2))
+				# gp.compute(vels,unc)
+				# model_int = interpolate.interp1d(vel_model,model_ccf,kind='cubic',fill_value='extrapolate')
+				# newline = model_int(vels)		
+				# mean, var = gp.predict(avg_ccf  - newline, vels, return_var=True)
+				# avg_ccf -= mean
+
+				# if fit_oot:
+				# 		## Here we simply fit our average out-of-transit CCF
+				# 		## to an out-of-transit model CCF
+				# 		## IF we opted to do so
+				# 		res_cff = avg_ccf - newline
+
+				# 		lprob = gp.log_likelihood(res_cff)
+				# 		log_prob += lprob#lnlike(flux_m,flux,sigma)
+
+				# 		chisq += -2*lprob - np.sum(np.log(2*np.pi*unc**2))#chi2(flux_m,flux,sigma)
+
+				# 		#chisq += chi2(newline,avg_ccf,unc)
+				# 		#log_prob += lnlike(newline,avg_ccf,unc)
+
+				# 		n_dps += len(vel)
 
 
 			else:
@@ -1185,8 +1646,8 @@ def lnprob(positions):
 				sd = np.mean(oot_sd)
 				unc = np.ones(len(vels))*sd
 				chi2scale_shadow = data['Chi2 LS_{}'.format(nn)]
-				#chi2scale_oot = data['Chi2 OOT_{}'.format(nn)]
-				unc *= chi2scale_shadow
+				chi2scale_oot = data['Chi2 OOT_{}'.format(nn)]
+				unc *= chi2scale_oot
 			
 				if fit_oot:
 					## Here we simply fit our average out-of-transit CCF
@@ -1299,21 +1760,21 @@ def lnprob(positions):
 			rv_m += v0
 
 
+			idxs = [ii for ii in range(len(times))]
+			oots = data['idxs_{}'.format(nn)]
+
+			its = [ii for ii in idxs if ii not in oots]	
+			nvel = len(slope_data[times[0]]['vel'])
+			vels = np.zeros(shape=(nvel,len(times)))
+			oot_ccfs = np.zeros(shape=(nvel,len(oots)))
+			oot_sd = []
+
 			for pl in pls:
 				model_slope = localRV_model(times,n_planet=pl)				
 
 				darks = lc_model(times,n_planet=pl,n_phot=1)
 
-				idxs = [ii for ii in range(len(times))]
-				oots = data['idxs_{}'.format(nn)]
 
-				its = [ii for ii in idxs if ii not in oots]	
-
-
-				nvel = len(slope_data[times[0]]['vel'])
-				vels = np.zeros(shape=(nvel,len(times)))
-				oot_ccfs = np.zeros(shape=(nvel,len(oots)))
-				oot_sd = []
 				if not len(avg_ccf):
 					vel_res = data['Velocity_resolution_{}'.format(nn)]
 					vels = np.array([])
@@ -1494,7 +1955,7 @@ def mcmc(par,dat,maxdraws,nwalkers,
 		sample_filename='samples.h5',reset=True,burn=0.5,
 		plot_convergence=True,save_samples=False,
 		corner=True,chains=False,nproc=1,checkInput=True,
-		stop_converged=True,post_name='posteriors.npy',
+		check_convergence=True,post_name='posteriors.npy',
 		triangles=[],moves=None,**kwargs):
 	'''Markov Chain Monte Carlo.
 
@@ -1527,8 +1988,8 @@ def mcmc(par,dat,maxdraws,nwalkers,
 	:param nproc: Number of processors for multiprocessing. Default 1.
 	:type nproc: int
 
-	:param stop_converged: Whether to stop when the MCMC has converged following `emcee/Saving & monitoring progress <https://emcee.readthedocs.io/en/stable/tutorials/monitor/>`_. Default ``True``.
-	:type stop_converged: bool
+	:param check_convergence: Whether to check when the MCMC has converged following `emcee/Saving & monitoring progress <https://emcee.readthedocs.io/en/stable/tutorials/monitor/>`_. Default ``True``.
+	:type check_convergence: bool
 
 	:param post_name: Name of the "flat" samples, which is a ``numpy.recarray``. Default `posteriors.npy`.
 	:type post_name: str
@@ -1561,9 +2022,8 @@ def mcmc(par,dat,maxdraws,nwalkers,
 		backend = None
 	else:
 		backend = emcee.backends.HDFBackend(sample_filename)
-	if reset: 
-		backend = emcee.backends.HDFBackend(sample_filename)
-		backend.reset(nwalkers,ndim)
+		if reset: 
+			backend.reset(nwalkers,ndim)
 
 	if np.log10(maxdraws) > 5.3: kk = 20000
 	elif np.log10(maxdraws) > 5.0: kk = 10000
@@ -1594,7 +2054,7 @@ def mcmc(par,dat,maxdraws,nwalkers,
 		for sample in sampler.sample(coords,iterations=ndraws,progress=True):
 			## Only check convergence every kk steps
 			if sampler.iteration % kk: continue
-
+			elif not check_convergence: continue
 			## Compute the autocorrelation time so far
 			## Using tol=0 means that we'll always get an estimate even
 			## if it isn't trustworthy
@@ -1610,7 +2070,7 @@ def mcmc(par,dat,maxdraws,nwalkers,
 			
 			old_tau = tau
 	
-	res_df = check_convergence(parameters,data,
+	res_df = checkStatistics(parameters,data,
 		sampler=sampler,post_name=post_name,
 		plot_corner=corner,plot_chains=chains,per_burn=burn,
 		save_df=save_results,results_filename=results_filename,
@@ -1620,13 +2080,13 @@ def mcmc(par,dat,maxdraws,nwalkers,
 	## Converged if: 
 	## - chain is longer than 100 times the estimated autocorrelation time 
 	## - & this estimate changed by less than 1%.
-	if plot_convergence:
+	if plot_convergence & check_convergence:
 		plot_autocorr(autocorr,index,kk,**kwargs)
 	
 	return res_df
 
 
-def check_convergence(parameters_local,data_local,filename=None, 
+def checkStatistics(parameters_local,data_local,filename=None, 
 					sampler=None, post_name='posteriors.npy',
 					plot_chains=True, plot_corner=True,chain_ival=5,
 					save_df=True,results_filename='results.csv',
@@ -1859,7 +2319,8 @@ def check_convergence(parameters_local,data_local,filename=None,
 		# 		flat_samples[:,idx_lam] = flat_samples[:,idx_lam]%360
 
 
-		if ('a_Rs_{}'.format(pl) in fit_params) and ('inc_{}'.format(pl) in fit_params or 'cosi_{}'.format(pl) in fit_params):
+		#if ('a_Rs_{}'.format(pl) in fit_params) and ('inc_{}'.format(pl) in fit_params or 'cosi_{}'.format(pl) in fit_params):
+		if ('a_Rs_{}'.format(pl) in fit_params) or ('inc_{}'.format(pl) in fit_params) or ('cosi_{}'.format(pl) in fit_params):
 			req_pars = ['P_','Rp_Rs_','a_Rs_','inc_','e_','w_']
 
 			#for pl in pls:
@@ -1922,7 +2383,8 @@ def check_convergence(parameters_local,data_local,filename=None,
 		if ('RV{}_q_sum'.format(nn) in fit_params):
 			idx_qs = fit_params.index('RV{}_q_sum'.format(nn))
 			qs = flat_samples[:,idx_qs]
-			qd = parameters_local['RV{}_q1'.format(nn)]['Prior_vals'][0] - parameters_local['RV{}_q2'.format(nn)]['Prior_vals'][0]
+			#qd = parameters_local['RV{}_q1'.format(nn)]['Prior_vals'][0] - parameters_local['RV{}_q2'.format(nn)]['Prior_vals'][0]
+			qd = parameters_local['RV{}_q_diff'.format(nn)]['Prior_vals'][0]# - parameters_local['RV{}_q2'.format(nn)]['Prior_vals'][0]
 			q1 = 0.5*(qs + qd)
 			q2 = 0.5*(qs - qd)
 			flat_samples = np.concatenate(
@@ -1939,7 +2401,8 @@ def check_convergence(parameters_local,data_local,filename=None,
 			idx_qs = fit_params.index('LC{}_q_sum'.format(nn))
 			qs = flat_samples[:,idx_qs]
 			#qd = parameters_local['LC{}_q1'.format(nn)]['Value'] - parameters_local['LC{}_q2'.format(nn)]['Value']
-			qd = parameters_local['LC{}_q1'.format(nn)]['Prior_vals'][0] - parameters_local['LC{}_q2'.format(nn)]['Prior_vals'][0]
+			#qd = parameters_local['LC{}_q1'.format(nn)]['Prior_vals'][0] - parameters_local['LC{}_q2'.format(nn)]['Prior_vals'][0]
+			qd = parameters_local['LC{}_q_diff'.format(nn)]['Prior_vals'][0]# - parameters_local['LC{}_q_diff'.format(nn)]['Prior_vals'][0]
 			q1 = 0.5*(qs + qd)
 			q2 = 0.5*(qs - qd)
 			flat_samples = np.concatenate(
@@ -2133,50 +2596,268 @@ def residuals(params,parameters,data):
 			res = np.append(res,rv_res)
 	for nn in range(1,n_ls+1):
 		if data['Fit LS_{}'.format(nn)]:
-			time = data['LS_time_{}'.format(nn)]
-			vel_o = data['LS_vel_{}'.format(nn)]
-			shadow = data['LS_shadow_{}'.format(nn)]
-			unc = data['LS_sigma_{}'.format(nn)]
+			old = 0
+			newer = 0
+			if old:
+				time = data['LS_time_{}'.format(nn)]
+				vel_o = data['LS_vel_{}'.format(nn)]
+				shadow = data['LS_shadow_{}'.format(nn)]
+				unc = data['LS_sigma_{}'.format(nn)]
 
-			resol = data['Resolution_{}'.format(nn)]
-			start_grid = data['Start_grid_{}'.format(nn)]
-			ring_grid = data['Ring_grid_{}'.format(nn)]
-			vel_grid = data['Velocity_{}'.format(nn)]
-			mu = data['mu_{}'.format(nn)]
-			mu_grid = data['mu_grid_{}'.format(nn)]
-			mu_mean = data['mu_mean_{}'.format(nn)]			
-			vel_model, shadow_model, model_ccf = ls_model(
-				#parameters,time,start_grid,ring_grid,
-				time,start_grid,ring_grid,
-				vel_grid,mu,mu_grid,mu_mean,resol
-				)
+				resol = data['Resolution_{}'.format(nn)]
+				start_grid = data['Start_grid_{}'.format(nn)]
+				ring_grid = data['Ring_grid_{}'.format(nn)]
+				vel_grid = data['Velocity_{}'.format(nn)]
+				mu = data['mu_{}'.format(nn)]
+				mu_grid = data['mu_grid_{}'.format(nn)]
+				mu_mean = data['mu_mean_{}'.format(nn)]			
+				vel_model, shadow_model, model_ccf = ls_model(
+					#parameters,time,start_grid,ring_grid,
+					time,start_grid,ring_grid,
+					vel_grid,mu,mu_grid,mu_mean,resol
+					)
 
-			ll = len(time)
-			vel_m_arr = np.asarray([vel_model]*ll)
-			keep = (vel_m_arr[0,:] > min(vel_o[0])) & (vel_m_arr[0,:] < max(vel_o[0]))
-			vel_m_arr = vel_m_arr[:,keep]
-			shadow_model = shadow_model[:,keep]
-			
-			data_vec = np.array([])
-			model_vec = np.array([])
-			errs_vec = np.array([])
-			#cc = np.array([])
-			for ii in range(ll):
-				vo = vel_o[ii,:]
-				obs = shadow[ii,:]
-				vm = vel_m_arr[ii,:]
-				ff = interpolate.interp1d(vm,shadow_model[ii],kind='linear',fill_value='extrapolate')
-				ishadow = ff(vo)
+				ll = len(time)
+				vel_m_arr = np.asarray([vel_model]*ll)
+				keep = (vel_m_arr[0,:] > min(vel_o[0])) & (vel_m_arr[0,:] < max(vel_o[0]))
+				vel_m_arr = vel_m_arr[:,keep]
+				shadow_model = shadow_model[:,keep]
+				
+				data_vec = np.array([])
+				model_vec = np.array([])
+				errs_vec = np.array([])
+				#cc = np.array([])
+				for ii in range(ll):
+					vo = vel_o[ii,:]
+					obs = shadow[ii,:]
+					vm = vel_m_arr[ii,:]
+					ff = interpolate.interp1d(vm,shadow_model[ii],kind='linear',fill_value='extrapolate')
+					ishadow = ff(vo)
 
-				sig = np.mean(unc[ii,:])*np.ones(len(obs))
-				res = np.append(res,(obs - ishadow)/sig)
-				#cc = np.append(cc,(obs - ishadow)**2/sig**2)
-			#print(np.sum(cc/len(cc)))
+					sig = np.mean(unc[ii,:])*np.ones(len(obs))
+					res = np.append(res,(obs - ishadow)/sig)
+					#cc = np.append(cc,(obs - ishadow)**2/sig**2)
+				#print(np.sum(cc/len(cc)))
+			elif newer:
+				shadow_data = data['LS_{}'.format(nn)]
+				times = []
+				for key in shadow_data.keys():
+					try:
+						times.append(float(key))
+					except ValueError:
+						pass
+				times = np.asarray(times)
+				ss = np.argsort(times)
+				times = times[ss]
+
+				#nRVs = dynamics.get_RV(time,op)
+				v0 = parameters['RVsys_{}'.format(nn)]['Value']
+				rv_m = np.zeros(len(times))
+				for pl in pls:
+					p2, t02 = parameters['P_{}'.format(pl)]['Value'], parameters['T0_{}'.format(pl)]['Value'] 
+					rv_pl = rv_model(times,n_planet=pl,n_rv=nn,RM=False)
+					rv_m += rv_pl
+				rv_m += v0
+
+
+				idxs = [ii for ii in range(len(times))]
+				oots = data['idxs_{}'.format(nn)]
+
+				its = [ii for ii in idxs if ii not in oots]	
+
+				## Resolution of velocity grid
+				vel_res = data['Velocity_resolution_{}'.format(nn)]
+				vels = np.array([])			
+				## Range without a bump in the CCFs
+				no_bump = data['No_bump_{}'.format(nn)]
+				span = data['Velocity_range_{}'.format(nn)]
+				assert span > no_bump, print('\n ### \n The range of the velocity grid must be larger than the specified range with no bump in the CCF.\n Range of velocity grid is from +/-{} km/s, and the no bump region isin the interval m +/-{} km/s \n ### \n '.format(span,no_bump))
+				vels = np.arange(-span,span,vel_res)
+
+				resol = data['Resolution_{}'.format(nn)]
+				start_grid = data['Start_grid_{}'.format(nn)]
+				ring_grid = data['Ring_grid_{}'.format(nn)]
+				vel_grid = data['Velocity_{}'.format(nn)]
+				mu = data['mu_{}'.format(nn)]
+				mu_grid = data['mu_grid_{}'.format(nn)]
+				mu_mean = data['mu_mean_{}'.format(nn)]
+
+
+
+				vel_model, model_ccf_transit, model_ccf, darks, oot_lum, index_error = ls_model2(
+					times,start_grid,ring_grid,
+					vel_grid,mu,mu_grid,mu_mean,resol,vels,
+					n_rv=nn,
+					)
+				bright = np.sum(oot_lum)
+
+
+				## Create average out-of-transit CCF
+				## Used to create shadow for in-transit CCFs
+				## Shift CCFs to star rest frame
+				## and detrend CCFs
+				avg_ccf = np.zeros(len(vels))
+				oot_ccfs = np.zeros(shape=(len(vels),len(oots)))
+				oot_sd = []
+				for ii, idx in enumerate(oots):
+					time = times[idx]
+					vel = shadow_data[time]['vel'].copy() - rv_m[idx]*1e-3
+					no_peak = (vel > no_bump) | (vel < -no_bump)
+					
+
+					ccf = shadow_data[time]['ccf'].copy()
+					poly_pars = np.polyfit(vel[no_peak],ccf[no_peak],1)
+					ccf -= vel*poly_pars[0] + poly_pars[1]
+
+					area = np.trapz(ccf,vel)
+
+					ccf /= abs(area)
+					oot_sd.append(np.std(ccf[no_peak]))
+
+					ccf_int = interpolate.interp1d(vel,ccf,kind='cubic',fill_value='extrapolate')
+					nccf = ccf_int(vels)
+
+					oot_ccfs[:,ii] = nccf
+					avg_ccf += nccf
+
+				avg_ccf /= len(oots)
+				
+				model_int = interpolate.interp1d(vel_model,model_ccf,kind='cubic',fill_value='extrapolate')
+				newline = model_int(vels)
+				#sd = np.mean(oot_sd)
+				#unc = np.ones(len(vels))*sd
+				chi2scale_shadow = data['Chi2 LS_{}'.format(nn)]
+				#chi2scale_oot = data['Chi2 OOT_{}'.format(nn)]
+				#unc *= chi2scale_oot
+
+				for ii, idx in enumerate(its):
+					#arr = data[time]
+					time = times[idx]
+					vel = shadow_data[time]['vel'].copy() - rv_m[idx]*1e-3
+					#vels[:,idx] = vel
+					no_peak = (vel > no_bump) | (vel < -no_bump)
+						
+					ccf = shadow_data[time]['ccf'].copy()
+					poly_pars = np.polyfit(vel[no_peak],ccf[no_peak],1)
+					ccf -= vel*poly_pars[0] + poly_pars[1]
+					
+					area = np.trapz(ccf,vel)
+					ccf /= area
+					
+					
+
+					ccf *= darks[idx]/bright#blc[ii]		
+
+					ccf_int = interpolate.interp1d(vel,ccf,kind='cubic',fill_value='extrapolate')
+					nccf = ccf_int(vels)
+					
+
+					no_peak = (vels > no_bump) | (vels < -no_bump)
+					sd = np.std(nccf[no_peak])
+
+					unc = np.ones(len(vels))*sd
+					unc *= chi2scale_shadow
+
+					
+					#shadow = nccf
+					shadow = avg_ccf - nccf
+
+					#ff = interpolate.interp1d(vel_model,shadow_model[idx],kind='cubic',fill_value='extrapolate')
+					#ishadow = ff(vels)
+
+					model_to_obs = interpolate.interp1d(vel_model,model_ccf_transit[idx],kind='cubic',fill_value='extrapolate')
+					ishadow = newline - model_to_obs(vels)
+
+					#use = (vels > -13) & (vels < 13)
+
+					#sig = np.mean(unc[ii,:])*np.ones(len(obs))
+					res = np.append(res,(shadow - ishadow)/unc)
+					
+					# chisq += chi2(shadow,ishadow,unc)
+					# log_prob += lnlike(shadow,ishadow,unc)
+					
+					# n_dps += len(shadow)
+
+			else:
+
+				vels, obs, calc, unc, avg_ccf, model_ccf = lineshaper(nn)
+
+				for ii in range(obs.shape[1]):
+					res = np.append(res,(obs[:,ii] - calc[:,ii])/unc[:,ii])
+
+
+				#only_oot = data['Only_OOT_{}'.format(nn)]			
+				#fit_oot = data['OOT_{}'.format(nn)]	
+
 	return res
+
+			# shadow_data = data['LS_{}'.format(nn)]
+
+			# times = []
+			# for key in shadow_data.keys():
+			# 	try:
+			# 		times.append(float(key))
+			# 	except ValueError:
+			# 		pass
+			# times = np.asarray(times)
+			# ss = np.argsort(times)
+			# times = times[ss]
+
+
+			# #nRVs = dynamics.get_RV(time,op)
+			# v0 = parameters['RVsys_{}'.format(nn)]['Value']
+			# rv_m = np.zeros(len(times))
+			# for pl in pls:
+			# 	try:
+			# 		t0n = parameters['Spec_{}:T0_{}'.format(nn,pl)]['Value']
+			# 		parameters['T0_{}'.format(pl)]['Value'] = t0n				
+			# 	except KeyError:
+			# 		pass
+			# 	p2, t02 = parameters['P_{}'.format(pl)]['Value'], parameters['T0_{}'.format(pl)]['Value'] 
+			# 	rv_pl = rv_model(times,n_planet=pl,n_rv=nn,RM=False)
+			# 	rv_m += rv_pl
+			# rv_m += v0
+
+
+			# idxs = [ii for ii in range(len(times))]
+			# oots = data['idxs_{}'.format(nn)]
+
+			# its = [ii for ii in idxs if ii not in oots]	
+
+
+			# ## Hard coded -- modify
+			# ## currently assumes planet b and spectroscopic system nn
+			# pl = 'b'
+			# try:
+			# 	t0n = parameters['Spec_{}:T0_{}'.format(nn,pl)]['Value']
+			# 	parameters['T0_{}'.format(pl)]['Value'] = t0n			
+			# except KeyError:
+			# 	pass
+
+			# #P, T0 = parameters['P_{}'.format(pl)]['Value'], parameters['T0_{}'.format(pl)]['Value'] 
+
+			# ## Resolution of velocity grid
+			# vel_res = data['Velocity_resolution_{}'.format(nn)]
+			# vels = np.array([])			
+			# ## Range without a bump in the CCFs
+			# no_bump = data['No_bump_{}'.format(nn)]
+			# span = data['Velocity_range_{}'.format(nn)]
+			# assert span > no_bump, print('\n ### \n The range of the velocity grid must be larger than the specified range with no bump in the CCF.\n Range of velocity grid is from +/-{} km/s, and the no bump region isin the interval m +/-{} km/s \n ### \n '.format(span,no_bump))
+			# vels = np.arange(-span,span,vel_res)
+
+			# resol = data['Resolution_{}'.format(nn)]
+			# start_grid = data['Start_grid_{}'.format(nn)]
+			# ring_grid = data['Ring_grid_{}'.format(nn)]
+			# vel_grid = data['Velocity_{}'.format(nn)]
+			# mu = data['mu_{}'.format(nn)]
+			# mu_grid = data['mu_grid_{}'.format(nn)]
+			# mu_mean = data['mu_mean_{}'.format(nn)]			
+			# only_oot = data['Only_OOT_{}'.format(nn)]			
+			# fit_oot = data['OOT_{}'.format(nn)]	
 
 
 #def lmfitter(param_fname,data_fname,method='leastsq',eps=0.01,
-def lmfitter(parameters,data,method='nelder',eps=0.01,
+def lmfitter(parameters,data,method='differential_evolution',eps=0.01,
 		print_fit=True,convert_to_df=True):#,path_to_tracit='./'):
 	'''Fit data using ``lmfit``.
 
@@ -2191,12 +2872,13 @@ def lmfitter(parameters,data,method='nelder',eps=0.01,
 	pars.remove('Planets')
 	pars.remove('FPs')
 	pars.remove('ECs')
-	pars.remove('LinCombs')
+	pars.remove('LinCombs')	
+	for ii in range(1,data['RVs']+1): pars.remove('GP pars RV_{}'.format(ii))
+
 	params = lmfit.Parameters()
 	for par in pars:
 		val = parameters[par]['Value']
 		pri = parameters[par]['Prior_vals']
-		#print(pri[0])
 		if par in fit_pars:
 			lower, upper = pri[2],pri[3]
 			if np.isnan(lower): lower = -np.inf
@@ -2206,21 +2888,21 @@ def lmfitter(parameters,data,method='nelder',eps=0.01,
 			params.add(par,value=val,vary=False)
 	#return params
 	#print(params)
-	n_ls = data['LSs']
-	fit_line = False
-	for nn in range(1,n_ls+1):
-		if data['Fit LS_{}'.format(nn)]:
-			fit_line = True
-			resol = data['Resolution_{}'.format(nn)]
-			thick = data['Thickness_{}'.format(nn)]
-			start_grid, ring_grid, vel_grid, mu, mu_grid, mu_mean = ini_grid(resol,thick)
+	# n_ls = data['LSs']
+	# fit_line = False
+	# for nn in range(1,n_ls+1):
+	# 	if data['Fit LS_{}'.format(nn)]:
+	# 		fit_line = True
+	# 		resol = data['Resolution_{}'.format(nn)]
+	# 		thick = data['Thickness_{}'.format(nn)]
+	# 		start_grid, ring_grid, vel_grid, mu, mu_grid, mu_mean = ini_grid(resol,thick)
 
-			data['Start_grid_{}'.format(nn)] = start_grid
-			data['Ring_grid_{}'.format(nn)] = ring_grid
-			data['Velocity_{}'.format(nn)] = vel_grid
-			data['mu_{}'.format(nn)] = mu
-			data['mu_grid_{}'.format(nn)] = mu_grid
-			data['mu_mean_{}'.format(nn)] = mu_mean
+	# 		data['Start_grid_{}'.format(nn)] = start_grid
+	# 		data['Ring_grid_{}'.format(nn)] = ring_grid
+	# 		data['Velocity_{}'.format(nn)] = vel_grid
+	# 		data['mu_{}'.format(nn)] = mu
+	# 		data['mu_grid_{}'.format(nn)] = mu_grid
+	# 		data['mu_mean_{}'.format(nn)] = mu_mean
 
 	parameters['Planets'] = pls
 	if method == 'nelder':
