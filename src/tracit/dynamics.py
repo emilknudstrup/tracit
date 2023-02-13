@@ -538,7 +538,9 @@ def get_RM(cos_f,sin_f,ww,ecc,ar,inc,rp,c1,c2,lam,vsini,
 
     '''
     x, y = xy_pos(cos_f,sin_f,ecc,ww,ar,inc,lam)
-    
+    #print(x,y)
+    #print(cos_f,sin_f,ecc,ww,ar,inc,lam)
+
     try:
         nn = len(cos_f)
         ## Alternates x and y for Hiranos code
@@ -608,7 +610,7 @@ def get_RV(time, orbpars, RM=False, stelpars=None,mpath=None):
     cos_f, sin_f = true_anomaly(time,Tw,ecc,per)
     ## Radial velocity
     vr = K*(np.cos(w)*(ecc + cos_f) - np.sin(w)*sin_f)
-
+    #print(Tw)
     if RM:
         a = orbpars.a
         inc = orbpars.inc

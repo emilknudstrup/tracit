@@ -983,7 +983,15 @@ def lnprob(positions):
 		if ('cosi_{}'.format(pl) in pars):
 			cosi = parameters['cosi_{}'.format(pl)]['Value']
 			parameters['inc_{}'.format(pl)]['Value'] = np.arccos(cosi)*180./np.pi
-		
+
+			if ('b_{}'.format(pl) in constraints):
+				b = aR*cosi
+				#print(b,cosi)
+				#if b > 1.0:
+				#	return -np.inf, -np.inf
+
+
+
 		if ('T41_{}'.format(pl) in constraints):
 			pri_41 = parameters['T41_{}'.format(pl)]['Prior_vals']
 			pval_41, sigma_41 = pri_41[0], pri_41[1]
@@ -1074,6 +1082,9 @@ def lnprob(positions):
 			trend = data['Detrend LC_{}'.format(nn)]
 
 
+			lc_TTV = data['LC_{} TTVs'.format(nn)]
+
+
 			if (trend == 'poly') or (trend == True): in_transit = np.array([],dtype=np.int)
 
 			for pl in pls:
@@ -1083,28 +1094,90 @@ def lnprob(positions):
 				except KeyError:
 					pass
 
-				per, t0 = parameters['P_{}'.format(pl)]['Value'],parameters['T0_{}'.format(pl)]['Value']
+				pl_TTV = 0
+				if pl in parameters['TTVs']:
+					pl_TTV = 1
 
-				flux_pl = lc_model(time,n_planet=pl,n_phot=nn,
-							supersample_factor=ofactor,exp_time=exp)
-				if deltamag > 0.0:
-					dilution = 10**(-deltamag/2.5)
-					flux_pl = flux_pl/(1 + dilution) + dilution/(1+dilution)
 
-				flux_m -= (1 - flux_pl)
-
-				if (trend == 'poly') or (trend == True):
-					per, t0 = parameters['P_{}'.format(pl)]['Value'],parameters['T0_{}'.format(pl)]['Value']
-					ph = time2phase(time,per,t0)*per*24
+				if pl_TTV & lc_TTV:
+					
+					#if (trend == 'poly') or (trend == True):
+						#ph = time2phase(time,per,t0)*per*24
+					per = parameters['P_{}'.format(pl)]['Value']
 					aR = parameters['a_Rs_{}'.format(pl)]['Value']
 					rp = parameters['Rp_Rs_{}'.format(pl)]['Value']
 					inc = parameters['inc_{}'.format(pl)]['Value']
 					ecc = parameters['e_{}'.format(pl)]['Value']
 					ww = parameters['w_{}'.format(pl)]['Value']
 					dur = total_duration(per,rp,aR,inc*np.pi/180.,ecc,ww*np.pi/180.)*24
+
+					t0_storage = parameters['T0_{}'.format(pl)]['Value']
+					#flux_oc_pl = np.ones(len(time))
 					
-					indxs = np.where((ph < (dur/2 + 6)) & (ph > (-dur/2 - 6)))[0]
-					in_transit = np.append(in_transit,indxs)				
+					flux_pl = np.ones(len(time))
+
+					#flux_model = np.array([])#np.ones(len(times))
+
+					times = np.array([])#np.ones(len(times))
+
+					#ns, nus = data['LC_{}_n'.format(nn)] ## all ns and unique ns
+					ns, nus = data['LC_{}_{}_n'.format(pl,nn)]#data['LC_{}_n'.format(nn)] ## all ns and unique ns
+					for nu in nus:
+						ind = np.where(ns == nu)[0]
+						#times = time[ind]
+
+						t0n = parameters['T0_{}_{}'.format(pl,nu)]['Value']# + parameters['TTV_{}:T0_{}'.format(pl,nu)]['Value']
+						parameters['T0_{}'.format(pl)]['Value'] = t0n
+
+						#ph = time2phase(time[ind],per,t0n)*per*24						
+						ph = time2phase(time,per,t0n)*per*24						
+						#intransit = np.where((ph < dur + 3) & (ph > -dur - 3))[0]
+						indxs = np.where((ph < (dur/2 + 6)) & (ph > (-dur/2 - 6)))[0]
+						idx = np.intersect1d(ind,indxs)
+						if not len(idx): continue
+						flux_pl[idx] = lc_model(time[idx],n_planet=pl,n_phot=nn,
+												supersample_factor=ofactor,exp_time=exp)
+
+						if (trend == 'poly') or (trend == True):
+							in_transit = np.append(in_transit,idx)
+						# idx = np.intersect1d(ind,indxs)
+						# in_transit = np.append(in_transit,indxs)
+
+					parameters['T0_{}'.format(pl)]['Value'] = t0_storage
+
+					if deltamag > 0.0:
+						dilution = 10**(-deltamag/2.5)
+						flux_pl = flux_pl/(1 + dilution) + dilution/(1+dilution)
+					
+					flux_m -= (1 - flux_pl)
+
+
+					#pass
+
+
+				else:
+					per, t0 = parameters['P_{}'.format(pl)]['Value'],parameters['T0_{}'.format(pl)]['Value']
+
+					flux_pl = lc_model(time,n_planet=pl,n_phot=nn,
+								supersample_factor=ofactor,exp_time=exp)
+					if deltamag > 0.0:
+						dilution = 10**(-deltamag/2.5)
+						flux_pl = flux_pl/(1 + dilution) + dilution/(1+dilution)
+
+					flux_m -= (1 - flux_pl)
+
+					if (trend == 'poly') or (trend == True):
+						per, t0 = parameters['P_{}'.format(pl)]['Value'],parameters['T0_{}'.format(pl)]['Value']
+						ph = time2phase(time,per,t0)*per*24
+						aR = parameters['a_Rs_{}'.format(pl)]['Value']
+						rp = parameters['Rp_Rs_{}'.format(pl)]['Value']
+						inc = parameters['inc_{}'.format(pl)]['Value']
+						ecc = parameters['e_{}'.format(pl)]['Value']
+						ww = parameters['w_{}'.format(pl)]['Value']
+						dur = total_duration(per,rp,aR,inc*np.pi/180.,ecc,ww*np.pi/180.)*24
+						
+						indxs = np.where((ph < (dur/2 + 6)) & (ph > (-dur/2 - 6)))[0]
+						in_transit = np.append(in_transit,indxs)				
 
 
 			
@@ -1295,8 +1368,9 @@ def lnprob(positions):
 		else:
 			log_prob += lnlike(model_rvs,rvs,ervs)
 			chisq += chi2(model_rvs,rvs,ervs)
-
+	
 	avg_ccf = np.array([])
+
 	for nn in range(1,n_ls+1):
 		if data['Fit LS_{}'.format(nn)]:
 			shadow_data = data['LS_{}'.format(nn)]#.copy()
@@ -1385,14 +1459,16 @@ def lnprob(positions):
 			oot_ccfs = np.zeros(shape=(len(vels),len(oots)))
 			## GP or not?
 			use_gp = data['GP LS_{}'.format(nn)]
+
 			if use_gp:
 
 				loga = parameters['LS_{}_GP_log_sigma'.format(nn)]['Value']
 				logc = parameters['LS_{}_GP_log_rho'.format(nn)]['Value']
-				#diag = np.exp(parameters['LS_{}_GP_log_diag'.format(nn)]['Value'])
+				diag = np.exp(parameters['LS_{}_GP_log_diag'.format(nn)]['Value'])
 				gp = data['LS_{} GP'.format(nn)]
 				gp.set_parameter_vector(np.array([loga,logc]))
-				
+				#print(gp.get_parameter_vector())
+				#print(gp.kernel.term1.get_parameter_vector())
 				oot_sd = []
 				for ii, idx in enumerate(oots):
 					time = times[idx]
@@ -1433,10 +1509,14 @@ def lnprob(positions):
 				sd = np.mean(oot_sd)
 				unc = np.ones(len(vels))*sd
 
-				#gp.compute(vels,unc)
-				#gp_mean, var = gp.predict(avg_ccf - newline, vels, return_var=True)
-				
-				#chi2scale_shadow = data['Chi2 LS_{}'.format(nn)]
+				# gp.compute(vels,diag)
+				# #gp_mean, var = gp.predict(avg_ccf - newline, vels, return_var=True)
+				# mean = avg_ccf - newline
+				# lprob = gp.log_likelihood(mean)
+				# log_prob += lprob#lnlike(newline,avg_ccf,unc)
+				# chisq += -2*lprob - np.sum(np.log(2*np.pi*diag**2))#chi2(flux_m,flux,sigma)
+
+				chi2scale_shadow = data['Chi2 LS_{}'.format(nn)]
 				#chi2scale_oot = data['Chi2 OOT_{}'.format(nn)]
 				#unc *= chi2scale_oot
 			
@@ -1486,7 +1566,7 @@ def lnprob(positions):
 						no_peak = (vels > no_bump) | (vels < -no_bump)
 						sd = np.std(nccf[no_peak])
 						if 1:			
-							unc = np.ones(len(vels))*np.sqrt(sd**2 + jitter**2)
+							unc = np.ones(len(vels))*np.sqrt(sd**2 + diag**2)
 							#nccf -= mean
 						else:
 							unc = np.ones(len(vels))*sd
@@ -1517,7 +1597,7 @@ def lnprob(positions):
 
 				# 		lprob = gp.log_likelihood(res_cff)
 				# 		log_prob += lprob#lnlike(flux_m,flux,sigma)
-						gp.compute(vels,unc)
+						gp.compute(vels,diag)
 						lprob = gp.log_likelihood(mean)
 
 						#chisq += chi2(shadow,ishadow,unc)
@@ -1525,7 +1605,7 @@ def lnprob(positions):
 
 						log_prob += lprob#lnlike(flux_m,flux,sigma)
 
-						chisq += -2*lprob - np.sum(np.log(2*np.pi*unc**2))#chi2(flux_m,flux,sigma)
+						chisq += -2*lprob - np.sum(np.log(2*np.pi*diag**2))#chi2(flux_m,flux,sigma)
 						
 						n_dps += len(shadow)
 

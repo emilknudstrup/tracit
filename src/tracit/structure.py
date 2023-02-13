@@ -15,6 +15,7 @@ import h5py
 import celerite
 import pickle
 from .shady import grid, grid_ring
+from .dynamics import total_duration, time2phase
 
 def par_struct(n_phot=1,n_spec=1,n_planets=1,LD_law='quad',
 	fps=[],cons=[],LD_lincombs=[],updated_pars=None):
@@ -242,8 +243,77 @@ def par_struct(n_phot=1,n_spec=1,n_planets=1,LD_law='quad',
 	parameters['LinCombs'] = LD_lincombs
 	## Planets
 	parameters['Planets'] = pls
-
+	## TTVs
+	parameters['TTVs'] = []
+	
 	return parameters
+
+def setTTVs(parameters,data,lightcurves=[],pls=['b']):
+	## TTVs
+	#parameters['TTVs'] = []
+	#pls = parameters['Planets']
+	#n_phot = data['LCs']
+
+	parameters['TTVs'] = pls
+	for pl in pls:
+		#parameters['FPs'].remove('T0_{}'.format(pl))
+		t0 = parameters['T0_{}'.format(pl)]['Value']
+		per = parameters['P_{}'.format(pl)]['Value']
+
+		aR = parameters['a_Rs_{}'.format(pl)]['Value']
+		rp = parameters['Rp_Rs_{}'.format(pl)]['Value']
+		inc = parameters['inc_{}'.format(pl)]['Value']
+		ecc = parameters['e_{}'.format(pl)]['Value']
+		ww = parameters['w_{}'.format(pl)]['Value']
+		dur = total_duration(per,rp,aR,inc*np.pi/180.,ecc,ww*np.pi/180.)*24
+		if not np.isfinite(dur): continue
+
+		n_uniques = []
+		#for ii in range(1,n_phot+1):
+		for ii in lightcurves:
+			data['LC_{} TTVs'.format(ii)] = 1
+			fname = data['LC filename_{}'.format(ii)]
+			arr = np.loadtxt(fname)
+			time = arr[:,0]
+			ph = time2phase(time,per,t0)*per*24						
+			indxs = np.where((ph < (dur/2 + 6)) & (ph > (-dur/2 - 6)))[0]
+			
+			nn = np.array(np.round((time-t0)/per),dtype=int)
+			ns = np.unique(nn)
+			subn = []
+			for n in ns:
+				nidxs = np.where(nn == n)[0]
+				idx = np.intersect1d(indxs,nidxs)
+				if len(idx) > 0:
+					n_uniques.append(n)
+					subn.append(n)
+			
+			data['LC_{}_{}_n'.format(pl,ii)] = [nn,np.asarray(subn)]
+			#data['LC_{}_n'.format(ii)] = [nn,np.asarray(subn)]
+			#data['LC_{}'.format(ii)] = arr
+		n_uniques = np.unique(n_uniques)
+
+		#t0s = ['T0_b_{}'.format(int(n)) for n in n_uniques]
+		for n in n_uniques: 
+			lab = 'T0_{}_{}'.format(pl,n)
+			parameters['FPs'].append(lab)
+			parameters[lab] = {
+				'Name'         : 'Midtransit',
+				'Unit'         : 'BJD',
+				'Label'        : r'$T \rm _{} \ (BJD)$'.format('{0,'+pl+','+str(n)+'}'),
+				'Value'        : parameters['T0_{}'.format(pl)]['Value'],
+				'Prior_vals'   : parameters['T0_{}'.format(pl)]['Prior_vals'],
+				'Prior'        : 'uni',
+				'Distribution' : 'tgauss',
+				'Fix'          : False,
+				'Comment'      : 'none',
+			}
+			#mid = parameters['T0_b']
+			#parameters[lab] = ['Midtransit','BJD',r'$T \rm _{}_{} \ (BJD)$'.format('{0,'+pl+','+str(n)+'}'),2457000.,0.5,0.0,1e10],
+
+			#'T0_{}'.format(pl) : 
+			
+
 
 def check_fps(parameters):
 	'''Check fitting parameters.
@@ -501,6 +571,7 @@ def dat_struct(n_phot=1,n_rvs=1,n_ls=0,n_sl=0):
 		data['FW LC_{}'.format(ii)] = 1001
 		data['GP LC_{}'.format(ii)] = False#str2bool(df_phot['Gaussian Process'][ii])
 		data['GP type LC_{}'.format(ii)] = 'Matern32'
+		data['LC_{} TTVs'.format(ii)] = 0
 
 
 	data['RVs'] = n_rvs

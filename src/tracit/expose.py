@@ -18,8 +18,8 @@ Created on Tue Jun 29 16:30:38 2021
 # =============================================================================
 
 from .business import lc_model, rv_model, ls_model, ls_model2, localRV_model, get_binned, Gauss, RM_path, inv2Gauss
-#from .dynamics import *#time2phase, total_duration
-from .cdynamic import *#time2phase, total_duration
+from .dynamics import *#time2phase, total_duration
+#from .cdynamic import *#time2phase, total_duration
 
 # =============================================================================
 # external modules
@@ -78,94 +78,7 @@ def time2phase(time,per,T0):
 # 		'h' : 'C6',
 # 		'i' : 'C8'
 # 	}
-gamcep = 1
-if gamcep:
-	import glob
-	import sys
-	sys.path.append('/home/emil/Desktop/PhD/projects/gamCep_master/')
-	import ps_v02 as ps2
-	from lightkurve import TessLightCurve
-	import pandas as pd
-	path = '/home/emil/Desktop/PhD/exoplanets/'
-	sys.path.append(path)
-	import orbits
-	so = glob.glob('/home/emil/Desktop/PhD/projects/gamCep_master/gamCep/orbit/exo_dfm/trace/SONG_rv.txt')[0]
-	arr = np.loadtxt(so)
-	tt = arr[:,0]
-	rv = arr[:,1]
-	erv = arr[:,2]
 
-
-	def make_lc(tic, time, flux):
-		lc = TessLightCurve(
-			time = time,
-			flux = flux,
-			time_format = 'jd',
-			time_scale = 'tdb',
-			targetid = tic,
-			label = 'Star{}'.format(tic)
-			)
-		return lc
-
-
-	df = pd.read_csv('/home/emil/Desktop/PhD/projects/gamCep_master/gamCep/orbit/exo_dfm/trace/results.csv')
-	rvsys = float(df['RVsys_1'][1])
-
-	rv -= rvsys
-
-	pb = float(df['P_b'][1])
-	t0b = float(df['T0_b'][1])
-	Kb =  float(df['K_b'][1])
-	eccb = float(df['e_b'][1])
-	wb =  float(df['w_b'][1])
-
-	pc = float(df['P_c'][1])
-	t0c = float(df['T0_c'][1])
-	Kc =  float(df['K_c'][1])
-	eccc = float(df['e_c'][1])
-	wc =  float(df['w_c'][1])
-
-
-	#%%
-	op = orbits.OrbitalParams()
-	op.per = pb
-	op.T0 = t0b
-	op.ecc = eccb
-	op.w = wb
-	op.K = Kb
-	op.RVsys = 0.0#np.mean(rvs)#-50344.07855260793 - 3
-	# np.mean(rvs)#0.0
-	op.Tw = t0b
-
-	subb = orbits.get_RV(tt, op)
-
-
-
-	op = orbits.OrbitalParams()
-	op.per = pc
-	op.T0 = t0c
-	op.ecc = eccc
-	op.w = wc
-	op.K = Kc
-	op.RVsys = 0.0#np.mean(rvs)#-50344.07855260793 - 3
-	# np.mean(rvs)#0.0
-	op.Tw = t0c
-
-	subc = orbits.get_RV(tt, op)
-
-	tt -= min(tt)
-	
-	lcf = make_lc('gamCep',tt,rv)
-	psdf = ps2.powerspectrum(lcf,weights=erv)
-	frf, PSDf = psdf.powerspectrum()
-	PSDf *= 1e6
-
-	rv -= subb+subc
-
-	lc = make_lc('gamCep',tt,rv)
-	psd1 = ps2.powerspectrum(lc,weights=erv)
-	fr, PSD = psd1.powerspectrum()
-	PSD *= 1e6
 
 
 # =============================================================================
@@ -391,6 +304,7 @@ def plot_orbit(parameters,data,updated_pars=None,
 
 				if savefig: gp_fig.savefig(path+'rv_{}_GP.pdf'.format(nn))
 
+			#print(mnrv,rv)
 			print('## Spectroscopic system {}/{} ##:'.format(nn,label))
 			red_chi2 = np.sum((rv-drift-mnrv)**2/jitter_err**2)/(len(rv)-n_pars)
 			print('\nReduced chi-squared for the radial velocity curve is:\n\t {:.03f}'.format(red_chi2))
@@ -438,6 +352,7 @@ def plot_orbit(parameters,data,updated_pars=None,
 			K = parameters['K_{}'.format(pl)]['Value']
 			dur = total_duration(per,rp,aR,inc*np.pi/180.,ecc,ww*np.pi/180.)*24
 			if np.isfinite(dur): x1, x2 = -1*dur/2-1.0,dur/2+1.0
+			else: x1, x2 = -3.0,3.0
 
 
 
@@ -446,13 +361,12 @@ def plot_orbit(parameters,data,updated_pars=None,
 				RM = data['RM RV_{}'.format(nn)]
 				RMs.append(RM)
 			calc_RM = any(RMs)
-			if calc_RM and np.isfinite(dur):
+			if calc_RM:# and np.isfinite(dur):
 				figrm = plt.figure()
 				axrm = figrm.add_subplot(211)
 				axrm_oc = figrm.add_subplot(212)
 			elif K == 0.0:
 				continue
-
 
 			figpl = plt.figure()
 			axpl = figpl.add_subplot(211)
@@ -694,7 +608,7 @@ def plot_orbit(parameters,data,updated_pars=None,
 			if savefig: figpl.savefig(path+'rv_{}.pdf'.format(pl))
 
 
-			if calc_RM and np.isfinite(dur):
+			if calc_RM:# and np.isfinite(dur):
 
 				axrm.plot(model_pp[ss]*per*24,rv_m[ss]-rv_m_only[ss],linestyle='-',color='k',lw=1.5,zorder=6)
 				axrm.plot(model_pp[ss]*per*24,rv_m[ss]-rv_m_only[ss],linestyle='-',color='C7',lw=1.0,zorder=7)
@@ -716,7 +630,6 @@ def plot_orbit(parameters,data,updated_pars=None,
 				rmoc_miny = min(rmoc_minys)
 				axrm_oc.set_ylim(rmoc_miny,rmoc_maxy)
 				figrm.subplots_adjust(hspace=0.0)
-
 				if savefig: figrm.savefig(path+'rm_{}.pdf'.format(pl))
 
 
@@ -752,6 +665,8 @@ def plot_lightcurve(parameters,data,savefig=False,
 	:param n_pars: Number of fitting parameters to use for reduced chi-squared calculation. Default 0. If 0 they will be grabbed from **updated_pars**.
 	:type n_pars: int, optional
 
+	.. todo::
+		* The duration check is not working properly for high impact systems (no total duration)
 	'''
 
 	plt.rc('text',usetex=usetex)
@@ -805,48 +720,153 @@ def plot_lightcurve(parameters,data,savefig=False,
 			in_transit = np.array([],dtype=np.int)
 			in_transit_model = np.array([],dtype=np.int)
 
+			lc_TTV = data['LC_{} TTVs'.format(nn)]
+			fl_TTVmodel = {}
+			fl_TTVoc = {}
+			#print(pls)
+			#print(parameters['TTVs'])
 			for pl in pls:
-				try:
-					t0n = parameters['Phot_{}:T0_{}'.format(nn,pl)]['Value']
-				except KeyError:
-					pass
-
-
-				
-				flux_oc_pl = lc_model(time,n_planet=pl,n_phot=nn)
-
-				if deltamag > 0.0:
-					flux_oc_pl = flux_oc_pl/(1 + dilution) + dilution/(1+dilution)
-
-
-
-				flux_oc -= (1 - flux_oc_pl)
-
-				flux_model = lc_model(times,n_planet=pl,n_phot=nn)
-				if deltamag > 0.0:
-					flux_model = flux_model/(1 + dilution) + dilution/(1+dilution)
-				flux_m -= 1 - flux_model  
-				flux_m_pls[pl] = np.ones(len(flux_m))
-				flux_m_pls[pl] -= 1 - flux_model  
-
-				per, t0 = parameters['P_{}'.format(pl)]['Value'],parameters['T0_{}'.format(pl)]['Value']
-				ph = time2phase(time,per,t0)*per*24
-				ph_model = time2phase(times,per,t0)*per*24
-
+				per = parameters['P_{}'.format(pl)]['Value']
 				aR = parameters['a_Rs_{}'.format(pl)]['Value']
 				rp = parameters['Rp_Rs_{}'.format(pl)]['Value']
 				inc = parameters['inc_{}'.format(pl)]['Value']
 				ecc = parameters['e_{}'.format(pl)]['Value']
 				ww = parameters['w_{}'.format(pl)]['Value']
 				dur = total_duration(per,rp,aR,inc*np.pi/180.,ecc,ww*np.pi/180.)*24
+				if not np.isfinite(dur): continue
+				#print(dur,per,rp,aR,inc,ecc,ww)
+				try:
+					t0n = parameters['Phot_{}:T0_{}'.format(nn,pl)]['Value']
+				except KeyError:
+					pass
 				
-				indxs = np.where((ph < (dur/2 + 6)) & (ph > (-dur/2 - 6)))[0]
-				in_transit = np.append(in_transit,indxs)
+				pl_TTV = 0
+				if pl in parameters['TTVs']:
+					pl_TTV = 1
+
+				#print(pl_TTV,pl)
+				if pl_TTV & lc_TTV:
+					
+					fl_TTVmodel['LC_{} pl_{}'.format(nn,pl)] = {}#np.ones(len(time))
+					fl_TTVoc['LC_{} pl_{}'.format(nn,pl)] = {}#np.ones(len(time))
+
+					t0_storage = parameters['T0_{}'.format(pl)]['Value']
+					flux_oc_pl = np.ones(len(time))
+
+					flux_model = np.array([])#np.ones(len(times))
+
+					times = np.array([])#np.ones(len(times))
+
+					#ns, nus = data['LC_{}_n'.format(nn)] ## all ns and unique ns
+					ns, nus = data['LC_{}_{}_n'.format(pl,nn)]
+					for nu in nus:
+						ind = np.where(ns == nu)[0]
+						#times = time[ind]
+
+						t0n = parameters['T0_{}_{}'.format(pl,nu)]['Value']# + parameters['TTV_{}:T0_{}'.format(pl,nu)]['Value']
+						parameters['T0_{}'.format(pl)]['Value'] = t0n
+
+						#ph = time2phase(time[ind],per,t0n)*per*24						
+						ph = time2phase(time,per,t0n)*per*24						
+						#intransit = np.where((ph < dur + 3) & (ph > -dur - 3))[0]
+						indxs = np.where((ph < (dur/2 + 6)) & (ph > (-dur/2 - 6)))[0]
+						
+						#print(ns,nu)
+						#print(time[ind])
+						#print(ind,indxs)
+						idx = np.intersect1d(ind,indxs)
+						if not len(idx): continue
+						in_transit = np.append(in_transit,indxs)
+						#print(idx)
+
+						#t0_storage = parameters['T0_b_{}'.format(pl)]['Value']
+
+						flux_oc_pl[idx] = lc_model(time[idx],n_planet=pl,n_phot=nn)
+						# if deltamag > 0.0:
+						# 	flux_oc_pl[idx] = flux_oc_pl[idx]/(1 + dilution) + dilution/(1+dilution)
 
 
-				indxs_model = np.where((ph_model < (dur/2 + 6)) & (ph_model > (-dur/2 - 6)))[0]
-				in_transit_model = np.append(in_transit_model,indxs_model)
-				flux_m_trend = flux_m.copy()
+
+						n_times = np.linspace(min(time[idx])-3./24.,max(time[idx])+3./24.,1000)
+						#n_times = np.linspace(min(time[idx])+3/24.,max(time[idx])-3./24.,1000)
+						times = np.append(times,n_times)
+						#flux_model = np.append(flux_model,lc_model(n_times,n_planet=pl,n_phot=nn))
+						fl_model = lc_model(n_times,n_planet=pl,n_phot=nn)
+
+						if deltamag > 0.0:
+							flux_oc_pl[idx] = flux_oc_pl[idx]/(1 + dilution) + dilution/(1+dilution)
+							fl_model = fl_model/(1 + dilution) + dilution/(1+dilution)						
+						
+						fl_TTVoc['LC_{} pl_{}'.format(nn,pl)][nu] = flux_oc_pl[idx]
+						n_ph = time2phase(n_times,per,t0n)*per*24
+						ss = np.argsort(n_ph)
+
+						fl_TTVmodel['LC_{} pl_{}'.format(nn,pl)][nu] = (n_ph[ss],fl_model[ss])
+
+						flux_model = np.append(flux_model,fl_model)
+
+
+
+					# if deltamag > 0.0:
+					# 	flux_oc_pl = flux_oc_pl/(1 + dilution) + dilution/(1+dilution)
+					# 	flux_model = flux_model/(1 + dilution) + dilution/(1+dilution)
+					
+					flux_oc -= (1 - flux_oc_pl)
+					#print(pl)
+					#figd = plt.figure()
+					#axd = figd.add_subplot(111)
+					#axd.plot(time,flux_oc_pl,'.')
+					#plt.savefig('flux_oc_pl_{}_{}.png'.format(nn,pl))
+					## dubious
+					flux_m = flux_model
+					flux_m_pls[pl] = flux_model
+					
+					flux_m_trend = flux_m.copy()
+
+					parameters['T0_{}'.format(pl)]['Value'] = t0_storage
+
+					#ph = time2phase(time,per,t0)*per*24
+					#ph_model = time2phase(times,per,t0)*per*24
+
+					#pass
+
+
+				else:
+					flux_oc_pl = lc_model(time,n_planet=pl,n_phot=nn)
+
+					if deltamag > 0.0:
+						flux_oc_pl = flux_oc_pl/(1 + dilution) + dilution/(1+dilution)
+
+
+
+					flux_oc -= (1 - flux_oc_pl)
+
+					flux_model = lc_model(times,n_planet=pl,n_phot=nn)
+					if deltamag > 0.0:
+						flux_model = flux_model/(1 + dilution) + dilution/(1+dilution)
+					flux_m -= 1 - flux_model  
+					flux_m_pls[pl] = np.ones(len(flux_m))
+					flux_m_pls[pl] -= 1 - flux_model  
+
+					#per, t0 = parameters['P_{}'.format(pl)]['Value'],parameters['T0_{}'.format(pl)]['Value']
+					t0 = parameters['P_{}'.format(pl)]['Value']#,parameters['T0_{}'.format(pl)]['Value']
+					ph = time2phase(time,per,t0)*per*24
+					ph_model = time2phase(times,per,t0)*per*24
+
+					# aR = parameters['a_Rs_{}'.format(pl)]['Value']
+					# rp = parameters['Rp_Rs_{}'.format(pl)]['Value']
+					# inc = parameters['inc_{}'.format(pl)]['Value']
+					# ecc = parameters['e_{}'.format(pl)]['Value']
+					# ww = parameters['w_{}'.format(pl)]['Value']
+					# dur = total_duration(per,rp,aR,inc*np.pi/180.,ecc,ww*np.pi/180.)*24
+					
+					indxs = np.where((ph < (dur/2 + 6)) & (ph > (-dur/2 - 6)))[0]
+					in_transit = np.append(in_transit,indxs)
+
+
+					#indxs_model = np.where((ph_model < (dur/2 + 6)) & (ph_model > (-dur/2 - 6)))[0]
+					#in_transit_model = np.append(in_transit_model,indxs_model)
+					flux_m_trend = flux_m.copy()
 
 
 
@@ -960,7 +980,7 @@ def plot_lightcurve(parameters,data,savefig=False,
 				gp.set_parameter_vector(np.array(gp_list))
 				gp.compute(time,jitter_err)
 
-
+				ax_gp.plot(time,flux_oc,'k-',zorder=17)
 				res_flux = fl - flux_oc
 
 
@@ -1042,49 +1062,114 @@ def plot_lightcurve(parameters,data,savefig=False,
 				#full = dynamics.full_duration(per,rp,aR,inc*np.pi/180.,ecc,ww*np.pi/180.)
 				if np.isfinite(dur):
 					dur *= 24
-					figpl = plt.figure()
-					#if OC_lc:
-					figpl.title(r'$\rm Planet \ {}$'.format(pl))
-					axpl = figpl.add_subplot(211)
-					axocpl = figpl.add_subplot(212,sharex=axpl)
-
-					tt = time2phase(times,per,t0)*24*per#(time%per - t0%per)/per
-					ss = np.argsort(tt)
+					pl_TTV = 0
+					if pl in parameters['TTVs']:
+						pl_TTV = 1
 
 
-					axpl.plot(tt[ss],flux_m_pls[pl][ss],color='k',lw=2.0,zorder=7)
-					axpl.plot(tt[ss],flux_m_pls[pl][ss],color='C7',lw=1.0,zorder=8)
+					if pl_TTV & lc_TTV:
+						#ns, nus = data['LC_{}_n'.format(nn)] ## all ns and unique ns
+						ns, nus = data['LC_{}_{}_n'.format(pl,nn)]
+						for nu in nus:
+							ind = np.where(ns == nu)[0]
+							#times = time[ind]
+
+							t0n = parameters['T0_{}_{}'.format(pl,nu)]['Value']# + parameters['TTV_{}:T0_{}'.format(pl,nu)]['Value']
+							#parameters['T0_{}'.format(pl)]['Value'] = t0n
+							
+							ph = time2phase(time,per,t0n)*per*24						
+							#intransit = np.where((ph < dur + 3) & (ph > -dur - 3))[0]
+							indxs = np.where((ph < (dur/2 + 6)) & (ph > (-dur/2 - 6)))[0]
+
+							idx = np.intersect1d(ind,indxs)
+							if not len(idx): continue
+							in_transit = np.append(in_transit,indxs)
+
+							flo = fl_TTVoc['LC_{} pl_{}'.format(nn,pl)][nu]	
+
+							nt, nf = fl_TTVmodel['LC_{} pl_{}'.format(nn,pl)][nu]	
+
+							phn = time2phase(time[idx],per,t0n)*per*24
+
+							figttv = plt.figure()
+							axttv = figttv.add_subplot(211)
+							axttv_oc = figttv.add_subplot(212,sharex=axttv)
+							axttv.plot(nt,nf,color='k',lw=2.0,zorder=7)#,markersize=0.1,color='k') 
+							axttv.plot(nt,nf,color='C7',lw=1.0,zorder=8)#,markersize=0.1,color='k') 
+							
 
 
-					phase = time2phase(time,per,t0)*24*per
+							if errorbar:
+								axttv.errorbar(phn,fl[idx],yerr=jitter_err[idx],linestyle='none',marker='.',markersize=0.1,color='k')
+								axttv.errorbar(phn,fl[idx],yerr=fl_err[idx],linestyle='none',color='C{}'.format(nn-1))
+								
+								axttv_oc.errorbar(phn,fl[idx]-flo,yerr=jitter_err[idx],linestyle='none',marker='.',markersize=0.1,color='k')
+								axttv_oc.errorbar(phn,fl[idx]-flo,yerr=fl_err[idx],linestyle='none',color='C{}'.format(nn-1))
+
+							axttv.plot(phn,fl[idx],'.',markersize=6.0,color='k')
+							axttv.plot(phn,fl[idx],'.',markersize=4.0,color='C{}'.format(nn-1))
+							
+							axttv_oc.plot(phn,fl[idx]-flo,'.',markersize=6.0,color='k')
+							axttv_oc.plot(phn,fl[idx]-flo,'.',markersize=4.0,color='C{}'.format(nn-1))
+
+							axttv.set_xlim(-1*dur/2-2.5,dur/2+2.5)
+							axttv.set_ylabel(r'$\rm Relative \ Brightness$',fontsize=font)
+
+							axttv_oc.set_ylabel(r'$\rm Residuals$',fontsize=font)
+							axttv_oc.set_xlabel(r'$\rm Hours \ From \ Midtransit$',fontsize=font)
+
+							axttv_oc.axhline(0.0,linestyle='--',color='C7',zorder=-10)
+
+							figttv.subplots_adjust(hspace=0.0)
+							if savefig: plt.savefig(path+'lc_{}_pl_{}_transit_{}.pdf'.format(nn,pl,nu))
 
 
-					if errorbar:
-						axpl.errorbar(phase,fl,yerr=jitter_err,linestyle='none',marker='.',markersize=0.1,color='k')
-						axpl.errorbar(phase,fl,yerr=fl_err,linestyle='none',color='C{}'.format(nn-1))
+						#pass
+					else:
+						figpl = plt.figure()
+						#if OC_lc:
+						#figpl.title(r'$\rm Planet \ {}$'.format(pl))
+						axpl = figpl.add_subplot(211)
+						axocpl = figpl.add_subplot(212,sharex=axpl)
+						#axpl.title(r'$\rm Planet \ {}$'.format(pl))
 
-					axpl.plot(phase,fl,'.',markersize=6.0,color='k')
-					axpl.plot(phase,fl,'.',markersize=4.0,color='C{}'.format(nn-1))
-					
-
-					axpl.set_xlim(-1*dur/2-2.5,dur/2+2.5)
-					axpl.set_ylabel(r'$\rm Relative \ Brightness$',fontsize=font)
-
-					axocpl.axhline(0.0,linestyle='--',color='C7')
-					if errorbar:
-						axocpl.errorbar(phase,fl - flux_oc,yerr=jitter_err,linestyle='none',marker='.',markersize=0.1,color='k')
-						axocpl.errorbar(phase,fl - flux_oc,yerr=fl_err,linestyle='none',marker='.',markersize=0.1,color='C{}'.format(nn-1))
-					axocpl.plot(phase,fl - flux_oc,'.',markersize=6.0,color='k')
-					axocpl.plot(phase,fl - flux_oc,'.',markersize=4.0,color='C{}'.format(nn-1))
+						tt = time2phase(times,per,t0)*24*per#(time%per - t0%per)/per
+						ss = np.argsort(tt)
 
 
+						axpl.plot(tt[ss],flux_m_pls[pl][ss],color='k',lw=2.0,zorder=7)
+						axpl.plot(tt[ss],flux_m_pls[pl][ss],color='C7',lw=1.0,zorder=8)
 
 
-					axocpl.set_ylabel(r'$\rm Residuals$',fontsize=font)
-					axocpl.set_xlabel(r'$\rm Hours \ From \ Midtransit$',fontsize=font)
+						phase = time2phase(time,per,t0)*24*per
 
-					figpl.subplots_adjust(hspace=0.0)
-					if savefig: plt.savefig(path+'lc_{}_pl_{}.pdf'.format(nn,pl))
+
+						if errorbar:
+							axpl.errorbar(phase,fl,yerr=jitter_err,linestyle='none',marker='.',markersize=0.1,color='k')
+							axpl.errorbar(phase,fl,yerr=fl_err,linestyle='none',color='C{}'.format(nn-1))
+
+						axpl.plot(phase,fl,'.',markersize=6.0,color='k')
+						axpl.plot(phase,fl,'.',markersize=4.0,color='C{}'.format(nn-1))
+						
+
+						axpl.set_xlim(-1*dur/2-2.5,dur/2+2.5)
+						axpl.set_ylabel(r'$\rm Relative \ Brightness$',fontsize=font)
+
+						axocpl.axhline(0.0,linestyle='--',color='C7')
+						if errorbar:
+							axocpl.errorbar(phase,fl - flux_oc,yerr=jitter_err,linestyle='none',marker='.',markersize=0.1,color='k')
+							axocpl.errorbar(phase,fl - flux_oc,yerr=fl_err,linestyle='none',marker='.',markersize=0.1,color='C{}'.format(nn-1))
+						axocpl.plot(phase,fl - flux_oc,'.',markersize=6.0,color='k')
+						axocpl.plot(phase,fl - flux_oc,'.',markersize=4.0,color='C{}'.format(nn-1))
+
+
+
+
+						axocpl.set_ylabel(r'$\rm Residuals$',fontsize=font)
+						axocpl.set_xlabel(r'$\rm Hours \ From \ Midtransit$',fontsize=font)
+
+						figpl.subplots_adjust(hspace=0.0)
+						if savefig: plt.savefig(path+'lc_{}_pl_{}.pdf'.format(nn,pl))
 
 
 
@@ -1095,7 +1180,6 @@ def plot_lightcurve(parameters,data,savefig=False,
 			print('Number of data points: {}'.format(len(fl)))
 			print('Number of fitting parameters: {}'.format(n_pars))
 			print('#########################'.format(nn))
-
 
 
 			ax.plot(times,flux_m_trend+off,color='k',lw=2.0)
