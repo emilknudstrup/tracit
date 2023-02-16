@@ -131,3 +131,7 @@ dmypy.json
 # samples from emcee
 samples.h5
 posteriors.npy
+
+# temporarily discard cython files
+*.c
+*.pyx

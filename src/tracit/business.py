@@ -1177,6 +1177,29 @@ def lnprob(positions):
 					log_w0 = parameters['LC_{}_log_w0'.format(nn)]['Value']
 				
 					gp_list = [log_S0,log_Q,log_w0]
+				elif gp_type == 'mix':
+					log_Q = parameters['LC_{}_GP_log_Q'.format(nn)]['Value']
+					log_P = parameters['LC_{}_GP_log_P'.format(nn)]['Value']
+					dQ = parameters['LC_{}_GP_dQ'.format(nn)]['Value']
+					log_sig = parameters['LC_{}_GP_log_sig'.format(nn)]['Value']
+					f = parameters['LC_{}_GP_f'.format(nn)]['Value']
+
+
+					P = 10**log_P
+					Q0 = 10**log_Q
+					Q1 = 0.5 + Q0 + dQ
+					w1 = 4*np.pi*Q1/(np.sqrt(4*Q1**2-1)*P)
+					sig = 10**log_sig
+					S1 = sig**2/(w1*Q1*(1+f))
+
+					Q2 = 0.5 + Q0
+					w2 = 2*w1
+					S2 = f*sig**2/(w2*Q2*(1+f)) 
+
+
+
+					gp_list = [np.log(S1),np.log(Q1),np.log(w1),np.log(S2),np.log(Q2),np.log(w2)]
+
 				else:
 					loga = parameters['LC_{}_GP_log_a'.format(nn)]['Value']
 					logc = parameters['LC_{}_GP_log_c'.format(nn)]['Value']

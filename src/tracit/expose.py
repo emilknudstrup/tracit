@@ -10,7 +10,7 @@ Created on Tue Jun 29 16:30:38 2021
 
 	* Where should autocorr, chains, and corner be?
 
-	* GP in orbit plot -- should also be shonw/subtracted from other plots
+	* GP in orbit plot -- should also be shown/subtracted from other plots
 		
 """
 # =============================================================================
@@ -717,8 +717,8 @@ def plot_lightcurve(parameters,data,savefig=False,
 			flux_m_pls = {}
 			flux_oc = np.ones(len(time))
 
-			in_transit = np.array([],dtype=np.int)
-			in_transit_model = np.array([],dtype=np.int)
+			in_transit = np.array([],dtype=int)
+			in_transit_model = np.array([],dtype=int)
 
 			for pl in pls:
 				try:
@@ -868,6 +868,30 @@ def plot_lightcurve(parameters,data,savefig=False,
 					log_w0 = parameters['LC_{}_log_w0'.format(nn)]['Value']
 				
 					gp_list = [log_S0,log_Q,log_w0]
+				elif gp_type == 'mix':
+					log_Q = parameters['LC_{}_GP_log_Q'.format(nn)]['Value']
+					log_P = parameters['LC_{}_GP_log_P'.format(nn)]['Value']
+					dQ = parameters['LC_{}_GP_dQ'.format(nn)]['Value']
+					log_sig = parameters['LC_{}_GP_log_sig'.format(nn)]['Value']
+					f = parameters['LC_{}_GP_f'.format(nn)]['Value']
+
+
+					P = 10**log_P
+					Q0 = 10**log_Q
+					Q1 = 0.5 + Q0 + dQ
+					w1 = 4*np.pi*Q1/(np.sqrt(4*Q1**2-1)*P)
+					sig = 10**log_sig
+					S1 = sig**2/(w1*Q1*(1+f))
+
+					Q2 = 0.5 + Q0
+					w2 = 2*w1
+					S2 = f*sig**2/(w2*Q2*(1+f)) 
+
+
+
+					gp_list = [np.log(S1),np.log(Q1),np.log(w1),np.log(S2),np.log(Q2),np.log(w2)]
+
+
 				else:
 					loga = parameters['LC_{}_GP_log_a'.format(nn)]['Value']
 					logc = parameters['LC_{}_GP_log_c'.format(nn)]['Value']
@@ -959,8 +983,8 @@ def plot_lightcurve(parameters,data,savefig=False,
 					dur *= 24
 					figpl = plt.figure()
 					#if OC_lc:
-					figpl.title(r'$\rm Planet \ {}$'.format(pl))
 					axpl = figpl.add_subplot(211)
+					axpl.set_title(r'$\rm Planet \ {}$'.format(pl))
 					axocpl = figpl.add_subplot(212,sharex=axpl)
 
 					tt = time2phase(times,per,t0)*24*per#(time%per - t0%per)/per
@@ -3784,7 +3808,7 @@ def plot_rv_pgram(param_fname,data_fname,updated_pars=None,savefig=False,path=''
 
 		RMs = []
 		all_times, all_rvs, all_errs = np.array([]), np.array([]), np.array([])
-		idxs = np.array([],dtype=np.int)
+		idxs = np.array([],dtype=int)
 		all_rvs_signal_removed = np.array([])
 		ins_idxs = np.array([])
 
@@ -4653,7 +4677,7 @@ def plot_lc_pgram(param_fname,data_fname,updated_pars=None,savefig=False,
 # 				#oots = [ii for ii in range(len(times)-3,len(times))]
 # 				oots = data['idxs_{}'.format(nn)]
 
-	print('Number of spectra: {}'.format(len(idxs)))
+#	print('Number of spectra: {}'.format(len(idxs)))
 # 			print('Using indices {} as out-of-transit spectra'.format(oots))
 
 # 			its = [ii for ii in idxs if ii not in oots]	

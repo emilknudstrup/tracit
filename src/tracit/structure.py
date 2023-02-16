@@ -5,7 +5,7 @@
 .. todo::
 	* parameters, data only need to be made global within `business.mcmc/lmfitter` and `expose`, maybe set that in run_sys/run_bus.
 	* move updated_pars out of par_struct
-	* export kernel building -- probably easier, simpler to do it explicitly following ` celerite: Kernel building <https://celerite.readthedocs.io/en/stable/python/kernel/>`_
+	* export kernel building -- probably easier, simpler to do it explicitly following `celerite: Kernel building <https://celerite.readthedocs.io/en/stable/python/kernel/>`_
 
 
 """
@@ -148,6 +148,15 @@ def par_struct(n_phot=1,n_spec=1,n_planets=1,LD_law='quad',
 		star['LC_{}_GP_log_Q'.format(ii)] = ['GP log qaulity factor, photometer {}'.format(ii),' ',r'$\rm \log Q{}$'.format('_{LC,'+str(ii)+'}'),3.37,0.05,0.0,10.0]
 		star['LC_{}_GP_log_w0'.format(ii)] = ['GP log frequency, photometer {}'.format(ii),' ',r'$\rm \log \omega{} \ (days{})$'.format('_{0,LC,'+str(ii)+'}','^{-1}'),-0.329,0.05,-5.0,5.0]
 		
+		star['LC_{}_GP_log_P'.format(ii)] = ['GP log period, photometer {}'.format(ii),' ',r'$\rm \log P{} \ (days{})$'.format('_{LC,'+str(ii)+'}','^{-1}'),1.16,0.05,0.01,2.0]
+		star['LC_{}_GP_log_sig'.format(ii)] = ['GP log sigma, photometer {}'.format(ii),' ',r'$\rm \log \sigma{} $'.format('_{LC,'+str(ii)+'}'),0.15,0.05,0.0,5.0]
+		star['LC_{}_GP_dQ'.format(ii)] = ['GP log qaulity factor difference, photometer {}'.format(ii),' ',r'$\rm \delta Q{}$'.format('_{LC,'+str(ii)+'}'),3.37,0.05,0.0,10.0]
+		star['LC_{}_GP_f'.format(ii)] = ['GP log qaulity fractional amplitude, photometer {}'.format(ii),' ',r'$\rm f{}$'.format('_{LC,'+str(ii)+'}'),0.5,0.05,0.0,1.0]
+
+
+
+
+
 		label = 'LC'+str(ii)
 		set_LD(star,LD_law,label)
 
@@ -288,7 +297,7 @@ def check_fps(parameters):
 				fps.append('ecosw_{}'.format(pl))
 		if 'cosi_{}'.format(pl) in fps:
 			try:
-				fps.remove('i_{}'.format(pl))
+				fps.remove('inc_{}'.format(pl))
 			except ValueError:
 				pass
 
@@ -597,6 +606,9 @@ def ini_data(data):
 					kernel = celerite.terms.Matern32Term(log_sigma=-0.3, log_rho=-0.7)			
 				elif gp_type == 'SHO':
 					kernel = celerite.terms.SHOTerm(log_S0=-0.3, log_Q=-0.7,log_omega0=-0.139)			
+				elif gp_type == 'mix':
+					kernel = celerite.terms.SHOTerm(log_S0=-0.3, log_Q=-0.7,log_omega0=-0.139)
+					kernel += celerite.terms.SHOTerm(log_S0=-0.3, log_Q=-0.7,log_omega0=-0.139)			
 				gp = celerite.GP(kernel)
 				#gp.compute(arr[:,0],arr[:,2]) #probably redundant
 				data['LC_{} GP'.format(ii)] = gp
