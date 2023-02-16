@@ -717,8 +717,8 @@ def plot_lightcurve(parameters,data,savefig=False,
 			flux_m_pls = {}
 			flux_oc = np.ones(len(time))
 
-			in_transit = np.array([],dtype=np.int)
-			in_transit_model = np.array([],dtype=np.int)
+			in_transit = np.array([],dtype=int)
+			in_transit_model = np.array([],dtype=int)
 
 			lc_TTV = data['LC_{} TTVs'.format(nn)]
 			fl_TTVmodel = {}
@@ -3953,7 +3953,7 @@ def plot_rv_pgram(param_fname,data_fname,updated_pars=None,savefig=False,path=''
 
 		RMs = []
 		all_times, all_rvs, all_errs = np.array([]), np.array([]), np.array([])
-		idxs = np.array([],dtype=np.int)
+		idxs = np.array([],dtype=int)
 		all_rvs_signal_removed = np.array([])
 		ins_idxs = np.array([])
 
