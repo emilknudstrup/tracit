@@ -5,7 +5,7 @@ The Rossiter-McLaughlin effect
 
 The Rossiter-McLaughlin (RM) effect is a distortion of the stellar line shapes caused by a transiting body blocking part of the rotating stellar disk. This effect allows us to measure :math:`\lambda`, the sky projection of the stellar obliquity, :math:`\psi`.
 
-.. figure:: figures/rm_geo.pdf
+.. figure:: figures/rm_geo.png
 	:name: rm_geo
 
 	The angles between the stellar spin axis, the orbital axis of a planet, and the observer. 
