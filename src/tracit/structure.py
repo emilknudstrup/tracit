@@ -5,7 +5,7 @@
 .. todo::
 	* parameters, data only need to be made global within `business.mcmc/lmfitter` and `expose`, maybe set that in run_sys/run_bus.
 	* move updated_pars out of par_struct
-	* export kernel building -- probably easier, simpler to do it explicitly following ` celerite: Kernel building <https://celerite.readthedocs.io/en/stable/python/kernel/>`_
+	* export kernel building -- probably easier, simpler to do it explicitly following `celerite: Kernel building <https://celerite.readthedocs.io/en/stable/python/kernel/>`_
 
 
 """
@@ -142,6 +142,7 @@ def par_struct(n_phot=1,n_spec=1,n_planets=1,LD_law='quad',
 	for ii in range(1,n_phot+1):
 		star['LCblend_{}'.format(ii)] = ['Dilution (deltaMag=-2.5log(F2/F1)) photometer {}'.format(ii),' ',r'$\rm \delta M{}$'.format('_{LC,'+str(ii)+'}'),0.0,0.5,0.0,7.0]
 		star['LCsigma_{}'.format(ii)] = ['Log jitter photometer {}'.format(ii),' ',r'$\rm \log \sigma{}$'.format('_{LC,'+str(ii)+'}'),-30,0.05,-50,1.0]
+		star['LClogsigma_{}'.format(ii)] = ['Log jitter photometer {}'.format(ii),' ',r'$\rm \log \sigma{}$'.format('_{LC,'+str(ii)+'}'),-30,0.05,-50,1.0]
 		star['LC_{}_GP_log_a'.format(ii)] = ['GP log amplitude, photometer {}'.format(ii),' ',r'$\rm \log A{}$'.format('_{LC,'+str(ii)+'}'),-7,0.05,-20.0,5.0]
 		star['LC_{}_GP_log_c'.format(ii)] = ['GP log time scale, photometer {}'.format(ii),' ',r'$\rm \log \tau{} \ (days)$'.format('_{LC,'+str(ii)+'}'),-0.7,0.05,-5.0,5.0]
 		
@@ -149,6 +150,15 @@ def par_struct(n_phot=1,n_spec=1,n_planets=1,LD_law='quad',
 		star['LC_{}_GP_log_Q'.format(ii)] = ['GP log qaulity factor, photometer {}'.format(ii),' ',r'$\rm \log Q{}$'.format('_{LC,'+str(ii)+'}'),3.37,0.05,0.0,10.0]
 		star['LC_{}_GP_log_w0'.format(ii)] = ['GP log frequency, photometer {}'.format(ii),' ',r'$\rm \log \omega{} \ (days{})$'.format('_{0,LC,'+str(ii)+'}','^{-1}'),-0.329,0.05,-5.0,5.0]
 		
+		star['LC_{}_GP_log_P'.format(ii)] = ['GP log period, photometer {}'.format(ii),' ',r'$\rm \log P{} \ (days{})$'.format('_{LC,'+str(ii)+'}','^{-1}'),1.16,0.05,0.01,2.0]
+		star['LC_{}_GP_log_sig'.format(ii)] = ['GP log sigma, photometer {}'.format(ii),' ',r'$\rm \log \sigma{} $'.format('_{LC,'+str(ii)+'}'),0.15,0.05,0.0,5.0]
+		star['LC_{}_GP_log_dQ'.format(ii)] = ['GP log qaulity factor difference, photometer {}'.format(ii),' ',r'$\rm \delta Q{}$'.format('_{LC,'+str(ii)+'}'),3.37,0.05,0.0,10.0]
+		star['LC_{}_GP_f'.format(ii)] = ['GP log qaulity fractional amplitude, photometer {}'.format(ii),' ',r'$\rm f{}$'.format('_{LC,'+str(ii)+'}'),0.5,0.05,0.0,1.0]
+
+
+
+
+
 		label = 'LC'+str(ii)
 		set_LD(star,LD_law,label)
 
@@ -156,8 +166,13 @@ def par_struct(n_phot=1,n_spec=1,n_planets=1,LD_law='quad',
 	for ii in range(1,n_spec+1):
 		star['RVsys_{}'.format(ii)] = ['Systemic velocity instrument {}'.format(ii),'m/s',r'$\gamma_{} \ \rm (m/s)$'.format(ii),0.0,1.,-1e5,1e5]
 		star['RVsigma_{}'.format(ii)] = ['Jitter RV instrument {}'.format(ii),'m/s',r'$\rm \sigma{} \ (m/s)$'.format('_{RV,'+str(ii)+'}'),0.0,1.0,0.0,100.]
+		star['RVlogsigma_{}'.format(ii)] = ['Jitter RV instrument {}'.format(ii),'m/s',r'$\rm \sigma{} \ (m/s)$'.format('_{RV,'+str(ii)+'}'),-30,1.0,-40.0,10.0]
 		star['LSsigma_{}'.format(ii)] = ['Jitter LS instrument {}'.format(ii),' ',r'$\rm \log \sigma{}$'.format('_{LS,'+str(ii)+'}'),-30.0,1.0,-50.0,10]
-				
+
+		star['RV_{}_GP_log_a'.format(ii)] = ['GP log amplitude, RV instrument {}'.format(ii),' ',r'$\rm \log A{}$'.format('_{LC,'+str(ii)+'}'),-7,0.05,-20.0,5.0]
+		star['RV_{}_GP_log_c'.format(ii)] = ['GP log time scale, RV instrument {}'.format(ii),' ',r'$\rm \log \tau{} \ (days)$'.format('_{LC,'+str(ii)+'}'),-0.7,0.05,-5.0,5.0]
+
+
 		star['LS_{}_GP_log_sigma'.format(ii)] = ['GP log amplitude, lineshape {}'.format(ii),' ',r'$\rm \log A{}$'.format('_{LS,'+str(ii)+'}'),-6,0.05,-20.0,5.0]
 		star['LS_{}_GP_log_rho'.format(ii)] = ['GP log time scale, lineshape {}'.format(ii),' ',r'$\rm \log \tau{} \ (days)$'.format('_{LS,'+str(ii)+'}'),-0.7,0.05,-5.0,5.0]
 		star['LS_{}_GP_log_diag'.format(ii)] = ['GP log diagonal elements, lineshape {}'.format(ii),' ',r'$\rm \log \sigma{}$'.format('_{LS,'+str(ii)+'}'),-6,0.05,-20.0,20.0]
@@ -248,7 +263,7 @@ def par_struct(n_phot=1,n_spec=1,n_planets=1,LD_law='quad',
 	
 	return parameters
 
-def setTTVs(parameters,data,lightcurves=[],pls=['b']):
+def setTTVs(parameters,data,lightcurves=[],rvcurves=[],pls=['b']):
 	## TTVs
 	#parameters['TTVs'] = []
 	#pls = parameters['Planets']
@@ -270,16 +285,19 @@ def setTTVs(parameters,data,lightcurves=[],pls=['b']):
 
 		n_uniques = []
 		#for ii in range(1,n_phot+1):
+		#print(lightcurves)
 		for ii in lightcurves:
 			data['LC_{} TTVs'.format(ii)] = 1
 			fname = data['LC filename_{}'.format(ii)]
 			arr = np.loadtxt(fname)
+			#print('akjsdhkj',ii)
 			time = arr[:,0]
 			ph = time2phase(time,per,t0)*per*24						
 			indxs = np.where((ph < (dur/2 + 6)) & (ph > (-dur/2 - 6)))[0]
 			
 			nn = np.array(np.round((time-t0)/per),dtype=int)
 			ns = np.unique(nn)
+			#print(ns)
 			subn = []
 			for n in ns:
 				nidxs = np.where(nn == n)[0]
@@ -294,6 +312,27 @@ def setTTVs(parameters,data,lightcurves=[],pls=['b']):
 		n_uniques = np.unique(n_uniques)
 
 		#t0s = ['T0_b_{}'.format(int(n)) for n in n_uniques]
+		for ii in rvcurves:
+			data['RV_{} TTVs'.format(ii)] = 1
+			fname = data['RV filename_{}'.format(ii)]
+			arr = np.loadtxt(fname)
+			time = arr[:,0]
+			ph = time2phase(time,per,t0)*per*24						
+			indxs = np.where((ph < (dur/2 + 6)) & (ph > (-dur/2 - 6)))[0]
+			#print('akjsdhkj')
+			#print('akjsdhkj')
+			nn = np.array(np.round((time-t0)/per),dtype=int)
+			ns = np.unique(nn)
+			subn = []
+			for n in ns:
+				nidxs = np.where(nn == n)[0]
+				idx = np.intersect1d(indxs,nidxs)
+				if len(idx) > 0:
+					if n not in n_uniques: n_uniques = np.append(n_uniques,n)
+					subn.append(n)
+			
+			data['RV_{}_{}_n'.format(pl,ii)] = [nn,np.asarray(subn)]			
+
 		for n in n_uniques: 
 			lab = 'T0_{}_{}'.format(pl,n)
 			parameters['FPs'].append(lab)
@@ -312,7 +351,6 @@ def setTTVs(parameters,data,lightcurves=[],pls=['b']):
 			#parameters[lab] = ['Midtransit','BJD',r'$T \rm _{}_{} \ (BJD)$'.format('{0,'+pl+','+str(n)+'}'),2457000.,0.5,0.0,1e10],
 
 			#'T0_{}'.format(pl) : 
-			
 
 
 def check_fps(parameters):
@@ -328,7 +366,7 @@ def check_fps(parameters):
 	fps = parameters['FPs']
 	snowflake = np.unique(fps)
 	if len(fps) != len(snowflake):
-		print('Some fitting paramters entered twice (or more).\nRemoving...')
+		print('Some fitting paramaters entered twice (or more).\nRemoving...')
 		parameters['FPs'] = list(snowflake)
 
 	pls = parameters['Planets']
@@ -358,7 +396,7 @@ def check_fps(parameters):
 				fps.append('ecosw_{}'.format(pl))
 		if 'cosi_{}'.format(pl) in fps:
 			try:
-				fps.remove('i_{}'.format(pl))
+				fps.remove('inc_{}'.format(pl))
 			except ValueError:
 				pass
 
@@ -582,6 +620,7 @@ def dat_struct(n_phot=1,n_rvs=1,n_ls=0,n_sl=0):
 		data['RV filename_{}'.format(ii)] = 'rv.txt'#np.zeros(shape=(10,3))
 		data['GP RV_{}'.format(ii)] = False#str2bool(df_phot['Gaussian Process'][ii])
 		data['GP type RV_{}'.format(ii)] = 'Matern32'
+		data['RV_{} TTVs'.format(ii)] = 0
 
 	data['LSs'] = n_ls
 	for ii in range(1,n_ls+1):
@@ -668,8 +707,15 @@ def ini_data(data):
 					kernel = celerite.terms.Matern32Term(log_sigma=-0.3, log_rho=-0.7)			
 				elif gp_type == 'SHO':
 					kernel = celerite.terms.SHOTerm(log_S0=-0.3, log_Q=-0.7,log_omega0=-0.139)			
+				elif gp_type == 'mix':
+					kernel = celerite.terms.SHOTerm(log_S0=-0.3, log_Q=-0.7,log_omega0=-0.139)
+					kernel += celerite.terms.SHOTerm(log_S0=-0.3, log_Q=-0.7,log_omega0=-0.139)			
+				jitter = 1
+				if jitter:
+					kernel += celerite.terms.JitterTerm(log_sigma=-30)
 				gp = celerite.GP(kernel)
 				#gp.compute(arr[:,0],arr[:,2]) #probably redundant
+
 				data['LC_{} GP'.format(ii)] = gp
 		except KeyError:
 			pass
@@ -746,12 +792,13 @@ def ini_data(data):
 
 				# 	else:
 				# 		kernel += term
-
+				if jitter:
+					kernel += celerite.terms.JitterTerm(log_sigma=-30)
 				gp = celerite.GP(kernel)
+				data['RV_{} GP'.format(ii)] = gp
 				#gp = celerite2.GaussianProcess(kernel,mean=0.0)
 				#gp.compute(arr[:,0],arr[:,2]) #probably redundant
 
-				#data['RV_{} GP'.format(ii)] = gp
 		except KeyError:
 			pass
 

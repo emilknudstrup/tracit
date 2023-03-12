@@ -303,6 +303,8 @@ def rv_model(time,n_planet='b',n_rv=1,RM=False):
 			elif LD_law == 'uniform':
 				qs = []
 
+
+
 			calcRV = get_RV(time,Tw,per,ecc,omega,K,RVsys,a,inc,Rp,lam,vsini,zeta,conv_par,q1,q2,RM=RM)
 		else:
 			calcRV = get_RV(time,Tw,per,ecc,omega,K,RVsys,RM=RM)
@@ -325,7 +327,7 @@ def rv_model(time,n_planet='b',n_rv=1,RM=False):
 		RVsys = 0.0
 
 		T0 = parameters['T0'+pllabel]['Value']
-
+		
 	    ## With this you supply the mid-transit time 
 	    ## and then the time of periastron is calculated
 	    ## from S. R. Kane et al. (2009), PASP, 121, 886. DOI: 10.1086/648564
@@ -378,6 +380,8 @@ def rv_model(time,n_planet='b',n_rv=1,RM=False):
 			elif LD_law == 'uniform':
 				qs = []
 			orbpars.cs = qs
+
+
 
 			calcRV = get_RV(time,orbpars,RM=RM,stelpars=stelpars,mpath=mpath)
 		else:
@@ -1034,7 +1038,8 @@ def lnprob(positions):
 		for pl in pls:
 			aR = parameters['a_Rs_'+pl]['Value']
 			per = parameters['P_'+pl]['Value']
-			circ = 3*np.pi*aR**3/((per*24*3600)**2*constants.grav)
+			#circ = 3*np.pi*aR**3/((per*24*3600)**2*constants.grav)
+			circ = 3*np.pi*aR**3/((per*24*3600)**2*6.674e-8)
 
 			ecc = parameters['e_'+pl]['Value']
 			omega = parameters['w_'+pl]['Value']*np.pi/180.
@@ -1118,7 +1123,7 @@ def lnprob(positions):
 
 					#flux_model = np.array([])#np.ones(len(times))
 
-					times = np.array([])#np.ones(len(times))
+					#times = np.array([])#np.ones(len(times))
 
 					#ns, nus = data['LC_{}_n'.format(nn)] ## all ns and unique ns
 					ns, nus = data['LC_{}_{}_n'.format(pl,nn)]#data['LC_{}_n'.format(nn)] ## all ns and unique ns
@@ -1144,6 +1149,38 @@ def lnprob(positions):
 						# in_transit = np.append(in_transit,indxs)
 
 					parameters['T0_{}'.format(pl)]['Value'] = t0_storage
+
+					# ns, nus = data['LC_{}_{}_n'.format(pl,nn)]#data['LC_{}_n'.format(nn)] ## all ns and unique ns
+
+					# timeshift = np.array([])
+					# timeidxs = np.array([],dtype=int)
+					# for nu in nus:
+					# 	ind = np.where(ns == nu)[0]
+					# 	#times = time[ind]
+
+					# 	t0n = parameters['T0_{}_{}'.format(pl,nu)]['Value']# + parameters['TTV_{}:T0_{}'.format(pl,nu)]['Value']
+					# 	parameters['T0_{}'.format(pl)]['Value'] = t0n
+
+					# 	#ph = time2phase(time[ind],per,t0n)*per*24						
+					# 	ph = time2phase(time,per,t0n)*per*24						
+					# 	#intransit = np.where((ph < dur + 3) & (ph > -dur - 3))[0]
+					# 	indxs = np.where((ph < (dur/2 + 6)) & (ph > (-dur/2 - 6)))[0]
+					# 	idx = np.intersect1d(ind,indxs)
+					# 	if not len(idx): continue
+					# 	shift = t0n+nu*per
+					# 	dt = (t0_storage-shift)
+					# 	timeshift = np.append(timeshift,time[idx] - dt)
+					# 	timeidxs = np.append(timeidxs,idx)
+					# 	#flux_pl[idx] = lc_model(time[idx],n_planet=pl,n_phot=nn,
+					# 	#						supersample_factor=ofactor,exp_time=exp)
+
+					# 	if (trend == 'poly') or (trend == True):
+					# 		in_transit = np.append(in_transit,idx)
+					# 	# idx = np.intersect1d(ind,indxs)
+					# 	# in_transit = np.append(in_transit,indxs)
+					# #print(timeidxs)
+					# flux_pl[timeidxs] = lc_model(timeshift,n_planet=pl,n_phot=nn,
+					# 							supersample_factor=ofactor,exp_time=exp)
 
 					if deltamag > 0.0:
 						dilution = 10**(-deltamag/2.5)
@@ -1250,10 +1287,43 @@ def lnprob(positions):
 					log_w0 = parameters['LC_{}_log_w0'.format(nn)]['Value']
 				
 					gp_list = [log_S0,log_Q,log_w0]
+				elif gp_type == 'mix':
+					log_Q = parameters['LC_{}_GP_log_Q'.format(nn)]['Value']
+					log_P = parameters['LC_{}_GP_log_P'.format(nn)]['Value']
+					dQ = parameters['LC_{}_GP_log_dQ'.format(nn)]['Value']
+					log_sig = parameters['LC_{}_GP_log_sig'.format(nn)]['Value']
+					f = parameters['LC_{}_GP_f'.format(nn)]['Value']
+
+
+					P = np.exp(log_P)
+					Q0 = np.exp(log_Q)
+					Q1 = 0.5 + Q0 + np.exp(dQ)
+					w1 = 4*np.pi*Q1/(np.sqrt(4*np.power(Q1,2) - 1)*P)
+					sig = np.exp(log_sig)
+
+					fsig = np.power(sig,2)/(1+f)
+
+					S1 = fsig/(w1*Q1)
+					#S1 = sig**2/(w1*Q1*(1+f))
+
+					Q2 = 0.5 + Q0
+					w2 = 2*w1
+					#S2 = f*sig**2/(w2*Q2*(1+f)) 
+					S2 = f*fsig/(w2*Q2) 
+
+
+
+					gp_list = [np.log(S1),np.log(Q1),np.log(w1),np.log(S2),np.log(Q2),np.log(w2)]
+
 				else:
 					loga = parameters['LC_{}_GP_log_a'.format(nn)]['Value']
 					logc = parameters['LC_{}_GP_log_c'.format(nn)]['Value']
 					gp_list = [loga,logc]
+				
+				jitter = 1
+				if jitter:
+					gp_list.append(parameters['LClogsigma_{}'.format(nn)]['Value'])
+
 
 				gp.set_parameter_vector(np.array(gp_list))
 				gp.compute(time,sigma)
@@ -1271,6 +1341,43 @@ def lnprob(positions):
 	rv_gps = []
 	rv_idxs = np.array([])
 	for nn in range(1,n_rv+1):
+		# if data['Fit RV_{}'.format(nn)]:
+		# 	add_drift = True
+		# 	arr = data['RV_{}'.format(nn)]
+		# 	time, rv, rv_err = arr[:,0].copy(), arr[:,1].copy(), arr[:,2].copy()
+			
+		# 	fix = parameters['RVsys_{}'.format(nn)]['Fix']
+		# 	if fix != False:
+		# 		v0 = parameters[fix]['Value']
+		# 	else:
+		# 		v0 = parameters['RVsys_{}'.format(nn)]['Value']
+		# 	rv -= v0
+
+		# 	log_jitter = parameters['RVsigma_{}'.format(nn)]['Value']
+		# 	jitter = log_jitter
+		# 	sigma = np.sqrt(rv_err**2 + jitter**2)
+		# 	#chi2scale = data['Chi2 RV_{}'.format(nn)]
+
+		# 	rv_times, rvs, ervs = np.append(rv_times,time), np.append(rvs,rv), np.append(ervs,sigma)  
+			
+		# 	calc_RM = data['RM RV_{}'.format(nn)]
+			
+		# 	rv_m = np.zeros(len(rv))
+		# 	for pl in pls:
+		# 		try:
+		# 			t0n = parameters['Spec_{}:T0_{}'.format(nn,pl)]['Value']
+		# 			parameters['T0_{}'.format(pl)]['Value'] = t0n				
+		# 		except KeyError:
+		# 			pass
+		# 		per, t0 = parameters['P_{}'.format(pl)]['Value'],parameters['T0_{}'.format(pl)]['Value']
+		# 		rv_pl = rv_model(time,n_planet=pl,n_rv=nn,RM=calc_RM)
+		# 		rv_m += rv_pl
+		# 	model_rvs = np.append(model_rvs,rv_m)
+		# 	n_dps += len(rvs)
+
+		# 	rv_gps.append(data['GP RV_{}'.format(nn)])
+		# 	rv_idxs = np.append(rv_idxs,np.ones(len(time))*nn)
+
 		if data['Fit RV_{}'.format(nn)]:
 			add_drift = True
 			arr = data['RV_{}'.format(nn)]
@@ -1293,15 +1400,32 @@ def lnprob(positions):
 			calc_RM = data['RM RV_{}'.format(nn)]
 			
 			rv_m = np.zeros(len(rv))
+			rv_TTV = data['RV_{} TTVs'.format(nn)]
 			for pl in pls:
 				try:
 					t0n = parameters['Spec_{}:T0_{}'.format(nn,pl)]['Value']
 					parameters['T0_{}'.format(pl)]['Value'] = t0n				
 				except KeyError:
 					pass
-				per, t0 = parameters['P_{}'.format(pl)]['Value'],parameters['T0_{}'.format(pl)]['Value']
+				per, t0_storage = parameters['P_{}'.format(pl)]['Value'],parameters['T0_{}'.format(pl)]['Value']
+
+				pl_TTV = 0
+				if pl in parameters['TTVs']:
+					pl_TTV = 1
+
+				if pl_TTV & rv_TTV:
+					ns, nus = data['RV_{}_{}_n'.format(pl,nn)]#data['LC_{}_n'.format(nn)] ## all ns and unique ns
+					
+					## HARDCODED FIX THIS
+					## Will only work for 1 epoch
+					for nu in nus:
+						t0n = parameters['T0_{}_{}'.format(pl,nu)]['Value']# + parameters['TTV_{}:T0_{}'.format(pl,nu)]['Value']
+						parameters['T0_{}'.format(pl)]['Value'] = t0n
+				
 				rv_pl = rv_model(time,n_planet=pl,n_rv=nn,RM=calc_RM)
 				rv_m += rv_pl
+				parameters['T0_{}'.format(pl)]['Value'] = t0_storage
+
 			model_rvs = np.append(model_rvs,rv_m)
 			n_dps += len(rvs)
 
@@ -1321,46 +1445,46 @@ def lnprob(positions):
 			for nn in range(1,n_rv+1): 
 				idxs = rv_idxs == nn
 				if data['GP RV_{}'.format(nn)]:
-					gptimes = rv_times[idxs].copy()*24*3600
+					#gptimes = rv_times[idxs].copy()*24*3600
 					gp = data['RV_{} GP'.format(nn)]
 
 					res_rv = rvs[idxs] - model_rvs[idxs]
 
-					# gp_type = data['GP type RV_{}'.format(nn)]
-					# if gp_type == 'SHO':
-					# 	log_S0 = parameters['RV_{}_log_S0'.format(nn)]['Value']
-					# 	log_Q = parameters['RV_{}_log_Q'.format(nn)]['Value']
-					# 	log_w0 = parameters['RV_{}_log_w0'.format(nn)]['Value']
+					gp_type = data['GP type RV_{}'.format(nn)]
+					if gp_type == 'SHO':
+						log_S0 = parameters['RV_{}_log_S0'.format(nn)]['Value']
+						log_Q = parameters['RV_{}_log_Q'.format(nn)]['Value']
+						log_w0 = parameters['RV_{}_log_w0'.format(nn)]['Value']
 					
-					# 	gp_list = [log_S0,log_Q,log_w0]
+						gp_list = [log_S0,log_Q,log_w0]
 
-					# elif gp_type == 'logSHO':
-					# 	log_S0 = parameters['RV_{}_GP_log_S0'.format(nn)]['Value']
-					# 	log_Q = parameters['RV_{}_GP_log_Q'.format(nn)]['Value']
-					# 	log_w0 = parameters['RV_{}_GP_log_w0'.format(nn)]['Value']
+					elif gp_type == 'logSHO':
+						log_S0 = parameters['RV_{}_GP_log_S0'.format(nn)]['Value']
+						log_Q = parameters['RV_{}_GP_log_Q'.format(nn)]['Value']
+						log_w0 = parameters['RV_{}_GP_log_w0'.format(nn)]['Value']
 					
-					# 	gp_list = [log_S0,log_Q,log_w0]
-					
-					# else:
-					# 	loga = parameters['RV_{}_GP_log_a'.format(nn)]['Value']
-					# 	logc = parameters['RV_{}_GP_log_c'.format(nn)]['Value']
-					# 	gp_list = [loga,logc]
+						gp_list = [log_S0,log_Q,log_w0]
+					else:
+						loga = parameters['RV_{}_GP_log_a'.format(nn)]['Value']
+						logc = parameters['RV_{}_GP_log_c'.format(nn)]['Value']
+						gp_list = [loga,logc]
 
-					gp = data['RV_{} GP'.format(nn)]
-					gp_pars = parameters['GP pars RV_{}'.format(nn)]
-					gp_list = []
+					jitter = 1
+					if jitter:
+						gp_list.append(parameters['RVlogsigma_{}'.format(nn)]['Value'])
 
-					for gpar in gp_pars:
-						gp_list.append(parameters[gpar]['Value'])
+					# gp = data['RV_{} GP'.format(nn)]
+					# gp_pars = parameters['GP pars RV_{}'.format(nn)]
+					# gp_list = []
 
-
+					# for gpar in gp_pars:
+					# 	gp_list.append(parameters[gpar]['Value'])
 
 					gp.set_parameter_vector(np.array(gp_list))
-					#gp.compute(rv_times[idxs],ervs[idxs])
-					gp.compute(gptimes,ervs[idxs])
+					gp.compute(rv_times[idxs],ervs[idxs])
+					#gp.compute(gptimes,ervs[idxs])
 					lprob = gp.log_likelihood(res_rv)
 					log_prob += lprob#lnlike(flux_m,flux,sigma)
-
 					chisq += -2*lprob - np.sum(np.log(2*np.pi*ervs[idxs]**2))#chi2(flux_m,flux,sigma)
 				else:
 					log_prob += lnlike(model_rvs[idxs],rvs[idxs],ervs[idxs])

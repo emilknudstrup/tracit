@@ -12,3 +12,4 @@ statsmodels
 astropy
 tqdm
 Cython
+corner
