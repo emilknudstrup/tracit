@@ -1404,6 +1404,11 @@ def plot_lightcurve(parameters,data,savefig=False,
 					loga = parameters['LC_{}_GP_log_a'.format(nn)]['Value']
 					logc = parameters['LC_{}_GP_log_c'.format(nn)]['Value']
 					gp_list = [loga,logc]
+				
+				jitter = 1
+				if jitter:
+					gp_list.append(parameters['LClogsigma_{}'.format(nn)]['Value'])	
+
 				gp.set_parameter_vector(np.array(gp_list))
 				gp.compute(time,jitter_err)
 

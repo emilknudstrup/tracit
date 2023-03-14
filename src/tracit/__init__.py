@@ -1,6 +1,6 @@
 __all__ = ['business','expose','structure','priors','support']
 
-__version__ = '0.1.21'
+__version__ = '0.1.22'
 __author__ = 'Emil Knudstrup'
 
 from .business import *
