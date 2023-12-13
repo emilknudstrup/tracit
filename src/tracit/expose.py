@@ -225,6 +225,8 @@ def plot_orbit(parameters,data,updated_pars=None,
 				gp = data['RV_{} GP'.format(nn)]
 				gp.set_parameter_vector(np.array(gp_list))
 				gp.compute(time,rv_err)
+				#print(gp.get_parameter_vector())
+				#print(gp.get_parameter_vector())
 
 				#gp = data['RV_{} GP'.format(nn)]
 				#gp_pars = parameters['GP pars RV_{}'.format(nn)]
@@ -319,7 +321,7 @@ def plot_orbit(parameters,data,updated_pars=None,
 
 				# ax_gp.errorbar(gptime-min(gptime),res_rv,yerr=jitter_err,marker='o',markersize=bms,color='k',linestyle='none',zorder=4)
 				# ax_gp.errorbar(gptime-min(gptime),res_rv,yerr=rv_err,marker='o',markersize=fms,color='C{}'.format(nn-1),linestyle='none',zorder=5,label=r'$\rm {}$'.format(label))
-				-min(time)
+				#-min(time)
 				# t_poor = np.linspace(0.0,max(gptime)-min(gptime),500)
 				# mup, varp = gp.predict(res_rv, t_poor, return_var=True)
 				# ax_gp.plot(t_poor,mup+off,color='k',lw=2.0,zorder=7,alpha=0.2)
@@ -434,7 +436,7 @@ def plot_orbit(parameters,data,updated_pars=None,
 		ax.legend(bbox_to_anchor=(0, 1.2, 1, 0),ncol=n_rv)
 		axoc.set_xlim(ax.get_xlim())
 		fig.subplots_adjust(hspace=0.0)
-		if savefig: fig.savefig(path+'rv_unphased.pdf')
+		if savefig: fig.savefig(path+'rv_unphased.pdf',bbox_inches='tight')
 
 		rv_TTV = data['RV_{} TTVs'.format(nn)]
 		for pl in pls:
@@ -1008,7 +1010,7 @@ def plot_orbit(parameters,data,updated_pars=None,
 				axpl.legend(bbox_to_anchor=(0, 1.2, 1, 0),ncol=n_rv)
 				axpl_oc.set_xlim(axpl.get_xlim())
 				figpl.subplots_adjust(hspace=0.0)
-				if savefig: figpl.savefig(path+'rv_{}.pdf'.format(pl))
+				if savefig: figpl.savefig(path+'rv_{}.pdf'.format(pl),bbox_inches='tight')
 
 
 				if calc_RM and np.isfinite(dur):
@@ -1033,7 +1035,7 @@ def plot_orbit(parameters,data,updated_pars=None,
 					rmoc_miny = min(rmoc_minys)
 					axrm_oc.set_ylim(rmoc_miny,rmoc_maxy)
 					figrm.subplots_adjust(hspace=0.0)
-					if savefig: figrm.savefig(path+'rm_{}.pdf'.format(pl))
+					if savefig: figrm.savefig(path+'rm_{}.pdf'.format(pl),bbox_inches='tight')
 
 
 # =============================================================================
@@ -1108,8 +1110,9 @@ def plot_lightcurve(parameters,data,savefig=False,
 			arr = data['LC_{}'.format(nn)]
 			label = data['LC_label_{}'.format(nn)]
 			time, fl, fl_err = arr[:,0].copy(), arr[:,1].copy(), arr[:,2].copy()
-
-
+			ofactor = data['OF LC_{}'.format(nn)]
+			exp = data['Exp. LC_{}'.format(nn)]
+			
 			log_jitter = parameters['LCsigma_{}'.format(nn)]['Value']
 			jitter_err = np.sqrt(fl_err**2 + np.exp(log_jitter)**2)
 
@@ -1147,7 +1150,6 @@ def plot_lightcurve(parameters,data,savefig=False,
 				if pl in parameters['TTVs']:
 					pl_TTV = 1
 
-				#print(pl_TTV,pl)
 				if pl_TTV & lc_TTV:
 					
 					fl_TTVmodel['LC_{} pl_{}'.format(nn,pl)] = {}#np.ones(len(time))
@@ -1184,7 +1186,8 @@ def plot_lightcurve(parameters,data,savefig=False,
 
 						#t0_storage = parameters['T0_b_{}'.format(pl)]['Value']
 
-						flux_oc_pl[idx] = lc_model(time[idx],n_planet=pl,n_phot=nn)
+						flux_oc_pl[idx] = lc_model(time[idx],n_planet=pl,n_phot=nn,
+												supersample_factor=ofactor,exp_time=exp)
 						# if deltamag > 0.0:
 						# 	flux_oc_pl[idx] = flux_oc_pl[idx]/(1 + dilution) + dilution/(1+dilution)
 
@@ -1194,7 +1197,8 @@ def plot_lightcurve(parameters,data,savefig=False,
 						#n_times = np.linspace(min(time[idx])+3/24.,max(time[idx])-3./24.,1000)
 						times = np.append(times,n_times)
 						#flux_model = np.append(flux_model,lc_model(n_times,n_planet=pl,n_phot=nn))
-						fl_model = lc_model(n_times,n_planet=pl,n_phot=nn)
+						fl_model = lc_model(n_times,n_planet=pl,n_phot=nn,
+												supersample_factor=ofactor,exp_time=exp)
 
 						if deltamag > 0.0:
 							flux_oc_pl[idx] = flux_oc_pl[idx]/(1 + dilution) + dilution/(1+dilution)
@@ -1235,18 +1239,29 @@ def plot_lightcurve(parameters,data,savefig=False,
 
 
 				else:
-					flux_oc_pl = lc_model(time,n_planet=pl,n_phot=nn)
+					# aR = parameters['a_Rs_{}'.format(pl)]['Value']
+					# rp = parameters['Rp_Rs_{}'.format(pl)]['Value']
+					# inc = parameters['inc_{}'.format(pl)]['Value']
+					# ecc = parameters['e_{}'.format(pl)]['Value']
+					# ww = parameters['w_{}'.format(pl)]['Value']
+					# print(per,rp,aR,inc,ecc,ww)
+					#q1, q2 = parameters['LC1_q1']['Value'], parameters['LC1_q2']['Value']
+					#print(q1,q2)
+					flux_oc_pl = lc_model(time,n_planet=pl,n_phot=nn,
+												supersample_factor=ofactor,exp_time=exp)
 
 					if deltamag > 0.0:
 						flux_oc_pl = flux_oc_pl/(1 + dilution) + dilution/(1+dilution)
 
 
-
 					flux_oc -= (1 - flux_oc_pl)
-
-					flux_model = lc_model(times,n_planet=pl,n_phot=nn)
+					#return flux_oc
+					flux_model = lc_model(times,n_planet=pl,n_phot=nn,
+												supersample_factor=ofactor,exp_time=exp)
 					if deltamag > 0.0:
 						flux_model = flux_model/(1 + dilution) + dilution/(1+dilution)
+					
+
 					flux_m -= 1 - flux_model  
 					flux_m_pls[pl] = np.ones(len(flux_m))
 					flux_m_pls[pl] -= 1 - flux_model  
@@ -1263,6 +1278,7 @@ def plot_lightcurve(parameters,data,savefig=False,
 					# ww = parameters['w_{}'.format(pl)]['Value']
 					# dur = total_duration(per,rp,aR,inc*np.pi/180.,ecc,ww*np.pi/180.)*24
 					#print(pl,t0,per)
+					#print(dur)
 					indxs = np.where((ph < (dur/2 + 6)) & (ph > (-dur/2 - 6)))[0]
 					in_transit = np.append(in_transit,indxs)
 
@@ -1277,27 +1293,25 @@ def plot_lightcurve(parameters,data,savefig=False,
 
 			trend = data['Detrend LC_{}'.format(nn)]
 			plot_gp = data['GP LC_{}'.format(nn)]
-			if (trend == 'poly') or (trend == True) or (trend == 'savitsky') or plot_gp:
+			if (trend == 'poly') or (trend == True) or (trend == 'savitzky') or plot_gp:
 				ax.plot(time,fl+off,marker='.',markersize=6.0,color='C7',linestyle='none',alpha=0.5,label=r'$\rm {} \ w/o \ detrending$'.format(label))
 			if (trend == 'poly') or (trend == True):
 				tr_fig = plt.figure(figsize=(12,6))
 				ax_tr = tr_fig.add_subplot(111)
 
 				deg_w = data['Poly LC_{}'.format(nn)]
-				in_transit.sort()
-				in_transit = np.unique(in_transit)
-				
-				dgaps = np.where(np.diff(time[in_transit]) > 1)[0]
-				start = 0
+
+				ns = data['LC_{}_n'.format(nn)]
+				gaps = data['LC_{}_gaps'.format(nn)]
 				temp_fl = fl - flux_oc + 1
-				for dgap in dgaps:
-						
-					idxs = in_transit[start:int(dgap+1)]
+				start = 0
+				for gap in gaps:
+					idxs = ns[start:int(gap+1)]
 					t = time[idxs]
 					tfl = temp_fl[idxs]
 
-					ax_tr.plot(time[start:int(dgap+1)],fl[start:int(dgap+1)],marker='.',markersize=6.0,color='k',linestyle='none')
-					ax_tr.plot(time[start:int(dgap+1)],fl[start:int(dgap+1)],marker='.',markersize=4.0,color='C{}'.format(nn-1),linestyle='none')
+					ax_tr.plot(time[start:int(gap+1)],fl[start:int(gap+1)],marker='.',markersize=6.0,color='k',linestyle='none')
+					ax_tr.plot(time[start:int(gap+1)],fl[start:int(gap+1)],marker='.',markersize=4.0,color='C{}'.format(nn-1),linestyle='none')
 
 					poly_pars = np.polyfit(t,tfl,deg_w)
 					slope = np.zeros(len(t))
@@ -1308,9 +1322,9 @@ def plot_lightcurve(parameters,data,savefig=False,
 					fl[idxs] /= slope
 					
 
-					start = int(dgap + 1)
+					start = int(gap + 1)
 
-				idxs = in_transit[start:]
+				idxs = ns[start:]
 				ax_tr.plot(time[start:],fl[start:],marker='.',markersize=6.0,color='k',linestyle='none')
 				ax_tr.plot(time[start:],fl[start:],marker='.',markersize=4.0,color='C{}'.format(nn-1),linestyle='none')
 
@@ -1327,7 +1341,54 @@ def plot_lightcurve(parameters,data,savefig=False,
 				ax_tr.set_xlabel(r'$\rm Time \ (BJD)$',fontsize=font)
 				if savefig: tr_fig.savefig(path+'lc_{}_Polynomial-deg{}.pdf'.format(nn,deg_w))
 
-			elif (trend == 'savitsky'):
+				# tr_fig = plt.figure(figsize=(12,6))
+				# ax_tr = tr_fig.add_subplot(111)
+
+				# deg_w = data['Poly LC_{}'.format(nn)]
+				# in_transit.sort()
+				# in_transit = np.unique(in_transit)
+				
+				# dgaps = np.where(np.diff(time[in_transit]) > 1)[0]
+				# start = 0
+				# temp_fl = fl - flux_oc + 1
+				# for dgap in dgaps:
+						
+				# 	idxs = in_transit[start:int(dgap+1)]
+				# 	t = time[idxs]
+				# 	tfl = temp_fl[idxs]
+
+				# 	ax_tr.plot(time[start:int(dgap+1)],fl[start:int(dgap+1)],marker='.',markersize=6.0,color='k',linestyle='none')
+				# 	ax_tr.plot(time[start:int(dgap+1)],fl[start:int(dgap+1)],marker='.',markersize=4.0,color='C{}'.format(nn-1),linestyle='none')
+
+				# 	poly_pars = np.polyfit(t,tfl,deg_w)
+				# 	slope = np.zeros(len(t))
+				# 	for dd, pp in enumerate(poly_pars):
+				# 		slope += pp*t**(deg_w-dd)
+				# 	ax_tr.plot(t,slope,'-',color='k',lw=2.0,zorder=7)
+				# 	ax_tr.plot(t,slope,'-',color='w',lw=1.0,zorder=7)
+				# 	fl[idxs] /= slope
+					
+
+				# 	start = int(dgap + 1)
+
+				# idxs = in_transit[start:]
+				# ax_tr.plot(time[start:],fl[start:],marker='.',markersize=6.0,color='k',linestyle='none')
+				# ax_tr.plot(time[start:],fl[start:],marker='.',markersize=4.0,color='C{}'.format(nn-1),linestyle='none')
+
+				# t = time[idxs]
+				# tfl = temp_fl[idxs]
+				# poly_pars = np.polyfit(t,tfl,deg_w)
+				# slope = np.zeros(len(t))
+				# for dd, pp in enumerate(poly_pars):
+				# 	slope += pp*t**(deg_w-dd)
+				# fl[idxs] /= slope
+				# ax_tr.plot(t,slope,'-',color='k',lw=2.0,zorder=7)
+				# ax_tr.plot(t,slope,'-',color='w',lw=1.0,zorder=7)
+				# ax_tr.set_ylabel(r'$\rm Relative \ Brightness$',fontsize=font)
+				# ax_tr.set_xlabel(r'$\rm Time \ (BJD)$',fontsize=font)
+				# if savefig: tr_fig.savefig(path+'lc_{}_Polynomial-deg{}.pdf'.format(nn,deg_w))
+
+			elif (trend == 'savitzky'):
 				sg_fig = plt.figure(figsize=(12,6))
 				ax_sg = sg_fig.add_subplot(111)
 
@@ -1361,7 +1422,7 @@ def plot_lightcurve(parameters,data,savefig=False,
 				ax_sg.set_ylabel(r'$\rm Relative \ Brightness$',fontsize=font)
 				ax_sg.set_xlabel(r'$\rm Time \ (BJD)$',fontsize=font)
 
-				if savefig: sg_fig.savefig(path+'lc_{}_Savitsky-Golay.pdf'.format(nn))
+				if savefig: sg_fig.savefig(path+'lc_{}_Savitzky-Golay.pdf'.format(nn))
 
 				fl /= sav_arr
 
@@ -1493,6 +1554,7 @@ def plot_lightcurve(parameters,data,savefig=False,
 				ecc = parameters['e_{}'.format(pl)]['Value']
 				ww = parameters['w_{}'.format(pl)]['Value']
 				#dur = duration(per,rp,aR,inc)
+				#print(per,rp,aR,inc)
 				dur = total_duration(per,rp,aR,inc*np.pi/180.,ecc,ww*np.pi/180.)
 				#full = dynamics.full_duration(per,rp,aR,inc*np.pi/180.,ecc,ww*np.pi/180.)
 				if np.isfinite(dur):
@@ -1571,7 +1633,7 @@ def plot_lightcurve(parameters,data,savefig=False,
 						tt = time2phase(times,per,t0)*24*per#(time%per - t0%per)/per
 						ss = np.argsort(tt)
 
-
+						#print(flux_m_pls)
 						axpl.plot(tt[ss],flux_m_pls[pl][ss],color='k',lw=2.0,zorder=7)
 						axpl.plot(tt[ss],flux_m_pls[pl][ss],color='C7',lw=1.0,zorder=8)
 
@@ -1588,8 +1650,8 @@ def plot_lightcurve(parameters,data,savefig=False,
 						
 						xlim = dur/2+2.5
 						within = (phase < xlim) & (phase > -xlim)
-						ymax = np.max(fl[within])
-						ymin = np.min(fl[within])
+						ymax = np.max(fl[within]+np.median(fl_err[within]))
+						ymin = np.min(fl[within]-np.median(fl_err[within]))
 
 						axpl.set_xlim(-1*xlim,xlim)
 						axpl.set_ylim(ymin,ymax)
@@ -1604,8 +1666,8 @@ def plot_lightcurve(parameters,data,savefig=False,
 
 
 
-						ymaxoc = np.max(fl[within] - flux_oc[within])
-						yminoc = np.min(fl[within] - flux_oc[within])
+						ymaxoc = np.max(fl[within] - flux_oc[within]+np.median(fl_err[within]))
+						yminoc = np.min(fl[within] - flux_oc[within]-np.median(fl_err[within]))
 						axocpl.set_ylim(yminoc,ymaxoc)
 						axocpl.set_ylabel(r'$\rm Residuals$',fontsize=font)
 						axocpl.set_xlabel(r'$\rm Hours \ From \ Midtransit$',fontsize=font)
@@ -1635,7 +1697,7 @@ def plot_lightcurve(parameters,data,savefig=False,
 		ax.set_ylabel(r'$\rm Relative \ Brightness$',fontsize=font)
 		ax.set_xlabel(r'$\rm Time \ (BJD)$',fontsize=font)
 
-		if savefig: fig.savefig(path+'lc_unphased.pdf')
+		if savefig: fig.savefig(path+'lc_unphased.pdf',bbox_inches='tight')
 
 # =============================================================================
 # Shadow plot
@@ -1643,7 +1705,7 @@ def plot_lightcurve(parameters,data,savefig=False,
 
 def create_shadow(phase,vel,shadow,exp_phase,per,
 	savefig=False,fname='shadow',zmin=None,zmax=None,
-	xlims=[],contour=False,vsini=None,cmap='bone_r',
+	xlims=[],contour=False,ncont=3,vsini=None,cmap='bone_r',
 	ax=None,colorbar=True,cbar_pos='right',vsini_zero=True,
 	font=12,tickfontsize=10,diff_cmap=None,its=[],usetex=False,**kwargs):
 	'''Shadow plot.
@@ -1705,7 +1767,7 @@ def create_shadow(phase,vel,shadow,exp_phase,per,
 	
 	if contour:
 		XX, YY = np.meshgrid(vel[0,:],phase*per*24)	
-		ax.contour(XX,YY,shadow,1,colors='k')
+		ax.contour(XX,YY,shadow,ncont,colors='w')
 	ax.set_xlabel(r'$\rm Velocity \ (km/s)$',fontsize=font)
 	ax.set_ylabel(r'$\rm Hours \ from \ midtransit$',fontsize=font)
 	if colorbar:
@@ -2186,14 +2248,25 @@ def plot_shadow(parameters,data,n_pars=0,#oots=None,
 
 			else:
 				oot_sd_b = []
+				#cut = data['LS floor_{}'.format(nn)] 
+				use_min = 0
 				for ii, idx in enumerate(oots):
 					time = times[idx]
 					vel = shadow_data[time]['vel'].copy() - rv_m[idx]*1e-3
-
+					keep = (vel > -span) & (vel < span)
+					vel = vel[keep]
 					ccf = shadow_data[time]['ccf'].copy()
-
+					ccf = ccf[keep]
+					# if use_min:
+					# 	ccf -= np.min(ccf)
+					# elif cut:
+					# 	right = np.argmin(vel-cut)
+					# 	left = np.argmin(vel+cut)
+					# 	off = np.mean([ccf[left],ccf[right]])
+					# 	ccf -= off
+					# else:
 					no_peak = (vel > no_bump) | (vel < -no_bump)
-					
+				
 					poly_pars = np.polyfit(vel[no_peak],ccf[no_peak],1)
 					ccf -= (poly_pars[0]*vel + poly_pars[1])
 
@@ -2219,9 +2292,22 @@ def plot_shadow(parameters,data,n_pars=0,#oots=None,
 				for idx in range(len(times)):
 					time = times[idx]
 					vel = shadow_data[time]['vel'].copy() - rv_m[idx]*1e-3
+					keep = (vel > -span) & (vel < span)
+					vel = vel[keep]
 
 					ccf = shadow_data[time]['ccf'].copy()
-
+					ccf = ccf[keep]
+					# if use_min:
+					# 	#print(np.min(ccf))
+					# 	ccf -= np.min(ccf)
+					# 	#print('Using min')
+					# 	#print(np.min(ccf))
+					# elif cut:
+					# 	right = np.argmin(vel-cut)
+					# 	left = np.argmin(vel+cut)
+					# 	off = np.mean([ccf[left],ccf[right]])
+					# 	ccf -= off
+					# else:
 
 					no_peak = (vel > no_bump) | (vel < -no_bump)
 
@@ -2229,7 +2315,6 @@ def plot_shadow(parameters,data,n_pars=0,#oots=None,
 					ccf -= (poly_pars[0]*vel + poly_pars[1])
 
 					area = np.trapz(ccf,vel)
-
 					ccf /= area
 					
 
@@ -2608,13 +2693,27 @@ def plot_oot_ccf_gp(parameters,data,updated_pars=None,n_pars=0,chi2_scale=1.0,#o
 			# ax2.errorbar(vels,avg_ccf-newline-mu,yerr=np.mean(oot_sd),linestyle='none',color='k')
 			# #ax2.plot(vels,avg_ccf-newline-mu,color='k')
 
-			loga = parameters['LS_{}_GP_log_sigma'.format(nn)]['Value']
-			logc = parameters['LS_{}_GP_log_rho'.format(nn)]['Value']
-			gp = data['LS_{} GP'.format(nn)]
-			gp.set_parameter_vector(np.array([loga,logc]))
+			gp_pars = []
+			gp_type = data['GP type LS_{}'.format(nn)]
+			if gp_type == 'Matern32':
+				loga = parameters['LS_{}_GP_log_sigma'.format(nn)]['Value']
+				logc = parameters['LS_{}_GP_log_rho'.format(nn)]['Value']
+			elif gp_type == 'Real':
+				loga = parameters['LS_{}_GP_log_a'.format(nn)]['Value']
+				logc = parameters['LS_{}_GP_log_c'.format(nn)]['Value']
+			
+			gp_pars = [loga,logc]
 
-			jitter = parameters['LSsigma_{}'.format(nn)]['Value']
-			jitter = np.exp(jitter)
+			jitt = 1
+			if jitt:
+				jitter = parameters['LSsigma_{}'.format(nn)]['Value']
+				jitter = np.exp(jitter)
+				gp_pars.append(jitter)
+
+			gp = data['LS_{} GP'.format(nn)]
+			#print(gp_pars)
+			gp.set_parameter_vector(np.array(gp_pars))
+
 
 			# model_int = interpolate.interp1d(vel_model,model_ccf,kind='cubic',fill_value='extrapolate')
 			# newline = model_int(vels)
@@ -2668,11 +2767,11 @@ def plot_oot_ccf_gp(parameters,data,updated_pars=None,n_pars=0,chi2_scale=1.0,#o
 
 				ccf = shadow_data[time]['ccf'].copy()
 				poly_pars = np.polyfit(vel[no_peak],ccf[no_peak],1)
-				ccf -= vel*poly_pars[0] + poly_pars[1]
+				# ccf -= vel*poly_pars[0] + poly_pars[1]
 
-				area = np.trapz(ccf,vel)
+				# area = np.trapz(ccf,vel)
 
-				ccf /= abs(area)
+				# ccf /= abs(area)
 				oot_sd.append(np.std(ccf[no_peak]))
 
 
@@ -2692,16 +2791,21 @@ def plot_oot_ccf_gp(parameters,data,updated_pars=None,n_pars=0,chi2_scale=1.0,#o
 			newline = model_int(vels)
 			sd = np.mean(oot_sd)
 			unc = np.ones(len(vels))*sd
-			gp.compute(vels,unc)
+			gp.compute(vels)
 			gp_mean, var = gp.predict(avg_ccf  - newline, vels, return_var=True)
-
+			
+			
+			area = np.trapz(avg_ccf-gp_mean,vels)
+			avg_ccf /= area
 
 
 			lab = r'$\rm Obs.\ avg. \ CCF \ w/ \ GP$'
 
 		else:
 			oot_sd = []
-
+			from scipy.special import voigt_profile
+			from scipy.stats import cauchy
+			from scipy.signal import convolve
 			for ii, idx in enumerate(oots):
 				time = times[idx]
 				vel = shadow_data[time]['vel'].copy() - rv_m[idx]*1e-3
@@ -2729,6 +2833,7 @@ def plot_oot_ccf_gp(parameters,data,updated_pars=None,n_pars=0,chi2_scale=1.0,#o
 
 			avg_ccf /= len(oots)
 
+
 			jitter = parameters['LSsigma_{}'.format(nn)]['Value']
 			jitter = np.exp(jitter)
 
@@ -2739,8 +2844,20 @@ def plot_oot_ccf_gp(parameters,data,updated_pars=None,n_pars=0,chi2_scale=1.0,#o
 			chi2scale_oot = data['Chi2 OOT_{}'.format(nn)]
 			unc *= chi2scale_oot
 			gp_mean = np.zeros(len(vels))
-			lab = r'$\rm Obs.\ avg. \ CCF$'
+			sigma, gamma = 1.5, 6.0
+			#sigma, gamma = 0.0, 6.0
+			def cauchy(x, gamma):
+				return gamma/(np.pi * (np.square(x)+gamma**2))
+			#gp_mean = voigt_profile(vels, sigma, gamma)
+			#gp_mean = cauchy.pdf(vels, loc=0.0, scale=0.1)
+			gp_mean = cauchy(vels,4.9)
+			convolved = vel_res * convolve(newline, gp_mean, mode="same")
+			convolved = np.append(convolved,convolved[0])
+			convolved = convolved[1:]
+			#convolved = convolve(gp_mean, newline, mode="same")
 
+			lab = r'$\rm Obs.\ avg. \ CCF$'
+			jitt = 0
 
 
 
@@ -2756,16 +2873,30 @@ def plot_oot_ccf_gp(parameters,data,updated_pars=None,n_pars=0,chi2_scale=1.0,#o
 		ax1_ccf = figccf.add_subplot(211)
 		ax2_ccf = figccf.add_subplot(212)
 
-		ax1_ccf.plot(vels,avg_ccf - gp_mean,'-',color='k',label=lab,lw=5.0,zorder=0)
+		ax1_ccf.plot(vels,avg_ccf,'-',color='k',label=lab,lw=5.0,zorder=0)
+		#ax1_ccf.plot(vels,avg_ccf - gp_mean,'-',color='k',label=lab,lw=5.0,zorder=0)
+		ax1_ccf.plot(vels,gp_mean,'-',color='r',label=r'$\rm GP$',lw=2.0,zorder=5)
+		xx = 0.5*(vels[1:] + vels[:-1])
+		ax1_ccf.plot(xx,convolved[1:],'-',color='C6',label=r'$\rm *$',lw=2.0,zorder=5)
+		ax1_ccf.plot(vels,convolved,'-',color='C5',label=r'$\rm *2$',lw=2.0,zorder=5)
+		ax2_ccf.plot(vels,avg_ccf-convolved,'-',color='C5',lw=2.0,zorder=5)
 		ax1_ccf.plot(vels,newline,'--',color='C7',label=r'$\rm Model \ CCF$',lw=2.0)
+		#ax1_ccf.plot(vels,newline+gp_mean,'--',color='y',label=r'$\rm Model + GP$',lw=2.0)
+		if jitt:
+			jterm = gp.kernel.terms[1]
+			#print(jterm.jitter)
+			ax2_ccf.errorbar(vels,avg_ccf - newline - gp_mean,yerr=np.log(jterm.jitter)*np.ones_like(vels))
 		ax2_ccf.plot(vels,avg_ccf - newline - gp_mean,color='k',linestyle='-',lw=5.0,zorder=0)#,mfc='C7')
 		out = (vels < -no_bump) | (no_bump < vels)
 		#print(gp_mean)
 		#ax2_ccf.errorbar(vels[out],avg_ccf[out]  - newline[out],yerr=unc[out],color='k',marker='.',mfc='k',linestyle='none',ecolor='k')
 		#ax2_ccf.errorbar(vels[out],avg_ccf[out]  - newline[out],yerr=np.ones(len(vels))[out]*np.mean(oot_sd),color='k',marker='.',mfc='C7',linestyle='none',ecolor='k')
 		for ii, idx in enumerate(oots):
-			ax1_ccf.plot(vels,oot_ccfs[:,ii] - gp_mean,zorder=0,label=r'$\rm OOT\ idx.\ {}$'.format(idx),lw=1.0)
-			ax2_ccf.plot(vels,oot_ccfs[:,ii] - newline - gp_mean,zorder=0,lw=1.0)
+			#ax1_ccf.plot(vels,oot_ccfs[:,ii] - gp_mean,zorder=0,label=r'$\rm OOT\ idx.\ {}$'.format(idx),lw=1.0)
+			#ax2_ccf.plot(vels,oot_ccfs[:,ii] - newline - gp_mean,zorder=0,lw=1.0)
+			#area = np.trapz(oot_ccfs[:,ii] - gp_mean,vels)
+			ax1_ccf.plot(vels,oot_ccfs[:,ii]/area,zorder=0,label=r'$\rm OOT\ idx.\ {}$'.format(idx),lw=1.0)
+			ax2_ccf.plot(vels,oot_ccfs[:,ii]/area - newline - gp_mean,zorder=0,lw=1.0)
 
 
 		#ax2_ccf.errorbar(vv[out],cc[out]-ncc[out],yerr=unc_b[out],color='k',marker='o',mfc='C3',ecolor='C3',linestyle='none')
@@ -3119,7 +3250,7 @@ def plot_oot_ccf(parameters,data,updated_pars=None,oots=None,n_pars=0,chi2_scale
 		label = data['LS_label_{}'.format(nn)]
 
 		shadow_data = data['LS_{}'.format(nn)]
-		#chi2scale = data['Chi2 OOT_{}'.format(nn)]
+		chi2scale = data['Chi2 OOT_{}'.format(nn)]
 
 		times = []
 		for key in shadow_data.keys():
@@ -3190,12 +3321,14 @@ def plot_oot_ccf(parameters,data,updated_pars=None,oots=None,n_pars=0,chi2_scale
 		for ii, idx in enumerate(oots):
 			time = times[idx]
 			vel = shadow_data[time]['vel'].copy() - rv_m[idx]*1e-3
-
+			keep = (vel > -span) & (vel < span)
+			vel = vel[keep]
 
 			#vels[:,idx] = vel
 			no_peak = (vel > no_bump) | (vel < -no_bump)
 
 			ccf = shadow_data[time]['ccf'].copy()
+			ccf = ccf[keep]
 			poly_pars = np.polyfit(vel[no_peak],ccf[no_peak],1)
 
 			ccf -= vel*poly_pars[0] + poly_pars[1]
@@ -3250,7 +3383,7 @@ def plot_oot_ccf(parameters,data,updated_pars=None,oots=None,n_pars=0,chi2_scale
 		vn,ncc = get_binned(vels,newline)
 		unc_b = np.ones(len(vv))*np.sqrt((np.mean(oot_sd_b)**2 + jitter**2))
 		unc = np.ones(len(vels))*np.sqrt((np.mean(oot_sd_b)**2 + jitter**2))
-		#unc_b *= chi2scale
+		unc_b *= chi2scale
 		red_chi2 = np.sum((cc-ncc)**2/unc_b**2)/(len(cc)-n_pars)
 		print('## Spectroscopic system {}/{} ##:'.format(nn,label))
 		print('\nReduced chi-squared for the oot CCF is:\n\t {:.03f}'.format(red_chi2))
@@ -3345,11 +3478,16 @@ def plot_oot_ccf(parameters,data,updated_pars=None,oots=None,n_pars=0,chi2_scale
 			for ii, idx in enumerate(its):
 				time = times[idx]
 				vel = shadow_data[time]['vel'].copy() - rv_m[idx]*1e-3
+
+				keep = (vel > -span) & (vel < span)
+				vel = vel[keep]
+				
 				#vels[:,idx] = vel
 				no_peak = (vel > no_bump) | (vel < -no_bump)
-				
 
 				ccf = shadow_data[time]['ccf'].copy()
+				ccf = ccf[keep]
+
 				poly_pars = np.polyfit(vel[no_peak],ccf[no_peak],1)
 
 				ccf -= vel*poly_pars[0] + poly_pars[1]
@@ -3883,7 +4021,7 @@ def plot_slope(parameters,data,
 				vel = slope_data[time]['vel'] - rv_m[idx]*1e-3
 				no_peak = (vel > no_bump) | (vel < -no_bump)
 
-				cos_f, sin_f = true_anomaly(time, Tw, ecc, per, ww)
+				cos_f, sin_f = true_anomaly(time, Tw, ecc, per)
 				xx, yy = xy_pos(cos_f,sin_f,ecc,ww,ar,inc,lam)
 
 				xs = np.append(xs,xx)
@@ -3915,6 +4053,14 @@ def plot_slope(parameters,data,
 				rv = gau_par[1]
 				std = perr[1]
 
+				# loc = xx*vsini
+				# midx = np.argmin(np.abs(vels - loc))
+				# pars = np.polyfit(vels[midx-3:midx+4],shadow[midx-3:midx+4],2)
+
+				# ## The maximum of the parabola
+				# rv = -pars[1]/(2*pars[0])
+				# ## The curvature is taking as the error.
+				# std = np.sqrt(2/pars[0])
 
 				rvs = np.append(rvs,rv)
 				errs = np.append(errs,std)
@@ -3968,11 +4114,12 @@ def plot_slope(parameters,data,
 
 
 			if get_vp:
-				arr = np.zeros(shape=(len(rv_scale),3))
+				arr = np.zeros(shape=(len(rv_scale),4))
 				ss = np.argsort(pp)
 				arr[:,0] = times[its][ss]
-				arr[:,1] = rv_scale[ss]
+				arr[:,1] = rv_scale[ss]*vsini
 				arr[:,2] = erv_scale[ss]
+				arr[:,3] = slope[ss]
 				return arr
 
 			fig = plt.figure()
@@ -4006,7 +4153,6 @@ def plot_slope(parameters,data,
 			ax2.errorbar(pp,rv_scale-slope,yerr=erv_scale,marker='o',markersize=6.0,color='k',linestyle='none',zorder=4)
 			ax2.errorbar(pp,rv_scale-slope,yerr=erv_scale,marker='o',markersize=4.0,color='C{}'.format(nn-1),linestyle='none',zorder=5)
 			ax2.axhline(0.0,color='C7',zorder=-1,linestyle='--')
-
 			slopes['RV_'+str(nn)]['pl_'+pl] = [pp,rv_scale,erv_scale,slope,xs,ys]
 
 			plt.subplots_adjust(wspace=0.0,hspace=0.0)

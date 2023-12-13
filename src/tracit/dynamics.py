@@ -16,7 +16,7 @@ import subprocess
 import itertools
 ## path to this script
 import os
-
+import kepler
 
 def time2phase(time,per,T0):
 	'''Convert time to phase.
@@ -297,7 +297,7 @@ def get_LDcoeff(stelpars,cat='TESS'):
 # =============================================================================
 # Keplerian motion 
 # =============================================================================
-def solve_keplers_eq(mean_anomaly, ecc, tolerance=1.e-5):
+def solve_keplers_eq(mean_anomaly, ecc, tolerance=1.e-5,exo=True):
 	'''Solves Kepler's equation.
 
 	Function that solves Kepler's equation:
@@ -305,7 +305,8 @@ def solve_keplers_eq(mean_anomaly, ecc, tolerance=1.e-5):
 	
 	where :math:`M` is the mean anomaly and :math:`E` the eccentric anomaly.
 
-	This is done following the Newton-Raphson method as described in :cite:t:`Murray2010`.
+	This was done following the Newton-Raphson method as described in :cite:t:`Murray2010`,
+	but it now uses the `kepler <https://pypi.org/project/kepler.py/>`_ module extracted from the `exoplanet <https://docs.exoplanet.codes/en/latest/>`_ package.
 
 	:param mean_anomaly: The mean anomaly.
 	:type mean_anomaly: array
@@ -313,6 +314,8 @@ def solve_keplers_eq(mean_anomaly, ecc, tolerance=1.e-5):
 	:type ecc: float
 	:param tolerance: The tolerance for convergene. Defaults to 1.e-5.
 	:type tolerance: float, optional
+	:param exo: Whether to use the `kepler` module or not. Defaults to ``True``.
+	:type exo: bool, optional
 
 	:return: The new eccentric anomaly.
 	:rtype: array 
@@ -322,20 +325,23 @@ def solve_keplers_eq(mean_anomaly, ecc, tolerance=1.e-5):
 	## Circular orbit
 	if ecc == 0: return mean_anomaly 
 
-	new_ecc_anomaly = mean_anomaly
-	converged = False
+	if exo:
+		new_ecc_anomaly = kepler.solve(mean_anomaly, ecc)
+	else:
+		new_ecc_anomaly = mean_anomaly
+		converged = False
 
-	for ii in range(300):
-		old_ecc_anomaly = new_ecc_anomaly
+		for ii in range(300):
+			old_ecc_anomaly = new_ecc_anomaly
 
-		new_ecc_anomaly = old_ecc_anomaly - (old_ecc_anomaly - ecc*np.sin(old_ecc_anomaly) - mean_anomaly)/(1.0 - ecc*np.cos(old_ecc_anomaly))
+			new_ecc_anomaly = old_ecc_anomaly - (old_ecc_anomaly - ecc*np.sin(old_ecc_anomaly) - mean_anomaly)/(1.0 - ecc*np.cos(old_ecc_anomaly))
 
-		if np.max(np.abs(new_ecc_anomaly - old_ecc_anomaly)/old_ecc_anomaly) < tolerance:
-			converged = True
-			break
+			if np.max(np.abs(new_ecc_anomaly - old_ecc_anomaly)/old_ecc_anomaly) < tolerance:
+				converged = True
+				break
 
-	if not converged:
-		print('Calculation of the eccentric anomaly did not converge!')
+		if not converged:
+			print('Calculation of the eccentric anomaly did not converge!')
 
 	return new_ecc_anomaly
 
@@ -514,16 +520,16 @@ def get_RM(cos_f,sin_f,ww,ecc,ar,inc,rp,c1,c2,lam,vsini,
 
 	:param vsini: Projected stellar rotation in km/s.
 	:type vsini: float
-  
+
 	:param xi: Micro-turbulence in km/s. Defaults to 3.
 	:type xi: float, optional
-   
+
 	:param zeta: Macro-turbulence in km/s. Defaults to 1.0.
 	:type zeta: float, optional
-  
+
 	:param gamma: Coefficient of differential rotation. Defaults to 1.
 	:type gamma: float, optional
-  
+
 	:param alpha:  in km/s. Defaults to 0.
 	:type alpha: float, optional
 

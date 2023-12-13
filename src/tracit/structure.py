@@ -136,7 +136,7 @@ def par_struct(n_phot=1,n_spec=1,n_planets=1,LD_law='quad',
 			LD_pars[label+'_q1'] = ['No coefficients','uniform']
 		elif LD_law == 'nonlinear':
 			for ii in range(1,5):
-				LD_pars[label+'_q{}'.format(ii)] = ['LD coeff {}'.format(ii),'nonlinear',r'$q_2 \ \rm {}$'.format(label,ii)]
+				LD_pars[label+'_q{}'.format(ii)] = ['LD coeff {}'.format(ii),'nonlinear',r'$q_2 \ \rm {}$'.format(label,ii),0.4,0.1,0.0,1.0]
 
 	#add_lc_pars = {}
 	for ii in range(1,n_phot+1):
@@ -169,16 +169,19 @@ def par_struct(n_phot=1,n_spec=1,n_planets=1,LD_law='quad',
 		star['RVlogsigma_{}'.format(ii)] = ['Jitter RV instrument {}'.format(ii),'m/s',r'$\rm \sigma{} \ (m/s)$'.format('_{RV,'+str(ii)+'}'),-30,1.0,-40.0,10.0]
 		star['LSsigma_{}'.format(ii)] = ['Jitter LS instrument {}'.format(ii),' ',r'$\rm \log \sigma{}$'.format('_{LS,'+str(ii)+'}'),-30.0,1.0,-50.0,10]
 
-		star['RV_{}_GP_log_a'.format(ii)] = ['GP log amplitude, RV instrument {}'.format(ii),' ',r'$\rm \log A{}$'.format('_{LC,'+str(ii)+'}'),-7,0.05,-20.0,5.0]
-		star['RV_{}_GP_log_c'.format(ii)] = ['GP log time scale, RV instrument {}'.format(ii),' ',r'$\rm \log \tau{} \ (days)$'.format('_{LC,'+str(ii)+'}'),-0.7,0.05,-5.0,5.0]
+		star['RV_{}_GP_log_a'.format(ii)] = ['GP log amplitude, RV instrument {}'.format(ii),' ',r'$\rm \log A{}$'.format('_{RV,'+str(ii)+'}'),-7,0.05,-20.0,5.0]
+		star['RV_{}_GP_log_c'.format(ii)] = ['GP log time scale, RV instrument {}'.format(ii),' ',r'$\rm \log \tau{} \ (days)$'.format('_{RV,'+str(ii)+'}'),-0.7,0.05,-5.0,5.0]
 
 
-		star['LS_{}_GP_log_sigma'.format(ii)] = ['GP log amplitude, lineshape {}'.format(ii),' ',r'$\rm \log A{}$'.format('_{LS,'+str(ii)+'}'),-6,0.05,-20.0,5.0]
 		star['LS_{}_GP_log_rho'.format(ii)] = ['GP log time scale, lineshape {}'.format(ii),' ',r'$\rm \log \tau{} \ (days)$'.format('_{LS,'+str(ii)+'}'),-0.7,0.05,-5.0,5.0]
 		star['LS_{}_GP_log_diag'.format(ii)] = ['GP log diagonal elements, lineshape {}'.format(ii),' ',r'$\rm \log \sigma{}$'.format('_{LS,'+str(ii)+'}'),-6,0.05,-20.0,20.0]
+		star['LS_{}_GP_log_a'.format(ii)] = ['GP log amplitude, lineshape {}'.format(ii),' ',r'$\rm \log A{}$'.format('_{LS,'+str(ii)+'}'),-7,0.05,-10.0,5.0]
+		star['LS_{}_GP_log_c'.format(ii)] = ['GP log time scale, lineshape {}'.format(ii),' ',r'$\rm \log \tau{} \ (days)$'.format('_{LS,'+str(ii)+'}'),-0.7,0.05,-5.0,5.0]
+		star['LS_{}_GP_log_sigma'.format(ii)] = ['GP log amplitude, lineshape {}'.format(ii),' ',r'$\rm \log A{}$'.format('_{LS,'+str(ii)+'}'),-6,0.05,-15.0,-3.0]
 		
 
-		parameters['GP pars RV_{}'.format(ii)] = []
+		#parameters['GP pars RV_{}'.format(ii)] = []
+		
 		# for nn in range(1,n_kernels+1):
 		# 	star['RV_{}_GP_log_a_{}'.format(ii,nn)] = ['GP log amplitude, RV {}'.format(ii),' ',r'$\rm \log a{}$'.format('_{RV,'+str(ii)+'}'),-7,0.05,-20.0,5.0]
 		# 	star['RV_{}_GP_log_c_{}'.format(ii,nn)] = ['GP log exponent, RV {}'.format(ii),' ',r'$\rm \log c{}$'.format('_{RV,'+str(ii)+'}'),-0.7,0.05,-5.0,5.0]
@@ -352,6 +355,71 @@ def setTTVs(parameters,data,lightcurves=[],rvcurves=[],pls=['b']):
 
 			#'T0_{}'.format(pl) : 
 
+
+def setTransits(parameters,data,lightcurves=[],pls=['b'],durations=[7]):
+	## TTVs
+	#parameters['TTVs'] = []
+	#pls = parameters['Planets']
+	#n_phot = data['LCs']
+
+	parameters['TTVs'] = pls
+
+		#n_uniques = []
+		#for ii in range(1,n_phot+1):
+		#print(lightcurves)
+	import matplotlib.pyplot as plt
+	for ii in lightcurves:
+		#data['LC_{} TTVs'.format(ii)] = 1
+		
+		fname = data['LC filename_{}'.format(ii)]
+		arr = np.loadtxt(fname)
+		time = arr[:,0]
+
+		idxs = np.array([],dtype=int)
+		#fig = plt.figure()
+		#ax = fig.add_subplot(111)
+		#ax.plot(time,arr[:,1],'ko')
+		for jj, pl in enumerate(pls):
+			#parameters['FPs'].remove('T0_{}'.format(pl))
+			t0 = parameters['T0_{}'.format(pl)]['Value']
+			per = parameters['P_{}'.format(pl)]['Value']
+
+			aR = parameters['a_Rs_{}'.format(pl)]['Value']
+			rp = parameters['Rp_Rs_{}'.format(pl)]['Value']
+			inc = parameters['inc_{}'.format(pl)]['Value']
+			ecc = parameters['e_{}'.format(pl)]['Value']
+			ww = parameters['w_{}'.format(pl)]['Value']
+			dur = total_duration(per,rp,aR,inc*np.pi/180.,ecc,ww*np.pi/180.)*24
+			if not np.isfinite(dur): 
+				dur = durations[jj]
+				print('Duration for {} is not finite (given parameters). Setting to {} hr.'.format(pl,dur))
+				#continue
+			#print('akjsdhkj',ii)
+			ph = time2phase(time,per,t0)*per*24						
+			indxs = np.where((ph < (dur/2 + 6)) & (ph > (-dur/2 - 6)))[0]
+			
+			nn = np.array(np.round((time-t0)/per),dtype=int)
+			ns = np.unique(nn)
+			#print(ns)
+			subn = []
+			for n in ns:
+				nidxs = np.where(nn == n)[0]
+				idx = np.intersect1d(indxs,nidxs)
+				if len(idx) > 0:
+					#n_uniques.append(n)
+					#subn.append(n)
+					idxs = np.append(idxs,idx)
+					#ax.plot(time[idx],arr[idx,1],'.')	
+		#print(idxs)
+		data['LC_{}_n'.format(ii)] = np.unique(idxs)
+		data['LC_{}_gaps'.format(ii)] = np.where(np.diff(np.unique(idxs)) > 1)[0]
+
+			
+			#data['LC_{}_{}_n'.format(pl,ii)] = [nn,np.asarray(subn)]
+			#data['LC_{}_n'.format(ii)] = [nn,np.asarray(subn)]
+			#data['LC_{}'.format(ii)] = arr
+		#n_uniques = np.unique(n_uniques)
+		#data['LC_{}_n'.format(ii)] = [nn,np.asarray(subn)]
 
 def check_fps(parameters):
 	'''Check fitting parameters.
@@ -605,7 +673,7 @@ def dat_struct(n_phot=1,n_rvs=1,n_ls=0,n_sl=0):
 		data['OF LC_{}'.format(ii)] = 1 #Oversample factor
 		data['Exp. LC_{}'.format(ii)] = 2/(24*60) #Exposure time (min.)
 		data['Detrend LC_{}'.format(ii)] = False
-		data['Poly LC_{}'.format(ii)] = 2
+		data['Poly LC_{}'.format(ii)] = 1
 		data['FW LC_{}'.format(ii)] = 1001
 		data['GP LC_{}'.format(ii)] = False#str2bool(df_phot['Gaussian Process'][ii])
 		data['GP type LC_{}'.format(ii)] = 'Matern32'
@@ -621,6 +689,7 @@ def dat_struct(n_phot=1,n_rvs=1,n_ls=0,n_sl=0):
 		data['GP RV_{}'.format(ii)] = False#str2bool(df_phot['Gaussian Process'][ii])
 		data['GP type RV_{}'.format(ii)] = 'Matern32'
 		data['RV_{} TTVs'.format(ii)] = 0
+		data['PSF_{}'.format(ii)] = 1.1 # Point spread function of PSF | FWHM=c/R, sigma=FWHM/(2sqrt(2ln2))) | default PSF=1.1km/s -- R=115,000 (HARPS/HARPS-N)
 
 	data['LSs'] = n_ls
 	for ii in range(1,n_ls+1):
@@ -633,7 +702,7 @@ def dat_struct(n_phot=1,n_rvs=1,n_ls=0,n_sl=0):
 
 		data['Resolution_{}'.format(ii)] = 100 # Disc resolution
 		data['Thickness_{}'.format(ii)] = 20 # Ring thickness
-		data['PSF_{}'.format(ii)] = 1.1 # Point spread function of PSF | FWHM=c/R, sigma=FWHM/(2ln2) | default PSF=1.1km/s -- R=115,000 (HARPS/HARPS-N)
+		data['PSF_{}'.format(ii)] = 1.1 # Point spread function of PSF | FWHM=c/R, sigma=FWHM/(2sqrt(2ln2))) | default PSF=1.1km/s -- R=115,000 (HARPS/HARPS-N)
 		data['Velocity_resolution_{}'.format(ii)] = 0.25 # Resolution of grid in velocity space in km/s
 		data['Velocity_range_{}'.format(ii)] = 15 # Range of velocity grid in km/s
 		data['No_bump_{}'.format(ii)] = 15 # Flat part of CCF (i.e., no bump) in km/s
@@ -654,6 +723,7 @@ def dat_struct(n_phot=1,n_rvs=1,n_ls=0,n_sl=0):
 		data['Chi2 SL_{}'.format(ii)] = 1.0#float(df_spec['SL chi2 scaling'][ii])		
 		data['Velocity_resolution_{}'.format(ii)] = 0.25 # Resolution of grid in velocity space in km/s
 		data['No_bump_{}'.format(ii)] = 15 # Flat part of CCF (i.e., no bump) in km/s
+		data['PSF_{}'.format(ii)] = 1.1 # Point spread function of PSF | FWHM=c/R, sigma=FWHM/(2sqrt(2ln2))) | default PSF=1.1km/s -- R=115,000 (HARPS/HARPS-N)
 
 
 	return data
@@ -792,8 +862,9 @@ def ini_data(data):
 
 				# 	else:
 				# 		kernel += term
+				jitter = 1
 				if jitter:
-					kernel += celerite.terms.JitterTerm(log_sigma=-30)
+					kernel += celerite.terms.JitterTerm(log_sigma=-10)
 				gp = celerite.GP(kernel)
 				data['RV_{} GP'.format(ii)] = gp
 				#gp = celerite2.GaussianProcess(kernel,mean=0.0)
@@ -829,6 +900,9 @@ def ini_data(data):
 					kernel = celerite.terms.RealTerm(log_a=0.5, log_c=0.1)
 				else:
 					kernel = celerite.terms.Matern32Term(log_sigma=-0.3, log_rho=-0.7)			
+				jitter = 1
+				if jitter:
+					kernel += celerite.terms.JitterTerm(log_sigma=-10)
 				gp = celerite.GP(kernel)
 				#gp.compute(arr[:,0],arr[:,2]) #probably redundant
 				data['LS_{} GP'.format(ii)] = gp
@@ -961,8 +1035,8 @@ def get_expTime(data,setexp=False):
 	n_phot = data['LCs']
 	for ii in range(1,n_phot+1):
 		arr = data['LC_{}'.format(ii)]
-		exp = np.median(np.diff(arr[:,0]))*24*60
-		print('Exsposure time for LC_{} is {:0.3f} min.'.format(ii,exp))
+		exp = np.median(np.diff(arr[:,0]))
+		print('Exsposure time for LC_{} is {:0.3f} min.'.format(ii,exp*24*60))
 		if setexp: data['Exp. LC_{}'.format(ii)] = exp
 	
 	# n_rvs = data['RVs']
