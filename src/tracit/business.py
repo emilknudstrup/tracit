@@ -37,7 +37,7 @@ if cyfy:
 	from .cshady import absline_star, absline
 else:
 	from .dynamics import *
-	from .shady import absline_star, absline
+	from .shady import absline_star, absline, grid, grid_coordinates
 
 from .support import plot_autocorr, create_chains, create_corner, hpd, significantFormat
 from .structure import check_fps

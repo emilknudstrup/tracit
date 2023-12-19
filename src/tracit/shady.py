@@ -28,23 +28,23 @@ def grid_coordinates(Rs,xoff=0.,yoff=0.):
 	Calculate the coordinates of the stellar grid, from -Rs to +Rs.
 
 	:param Rs: Stellar radius in number of pixels.
-	:type Rs: int 
-	
+	:type Rs: int
+
 	:param xoff: Offset in x-direction. Default is 0.
-	:type xoff: float, optional 
-	
+	:type xoff: float, optional
+
 	:param yoff: Offset in y-direction. Default is 0.
-	:type yoff: float, optional 
-	
+	:type yoff: float, optional
+
 	:return: grid coordinates, indices of coordinates, distance from limb
 	:rtype: (array, array, array)
-	
+
 	'''
 	xx, yy = np.arange(-Rs+xoff,Rs+1+xoff),np.arange(-Rs+yoff,Rs+1+yoff)
 	coord = np.array(np.meshgrid(xx,yy)).T.reshape(-1,2)
 	#rr = np.sqrt(np.sum(coord**2,axis=1))
 	rr = np.sqrt(np.add.reduce(coord**2,axis=1))
-	
+
 	dd = np.arange(0,2*Rs+1,1)
 	cidxs = [tuple(cc) for cc in np.array(np.meshgrid(dd,dd)).T.reshape(-1,2)] # Indices for coordinates
 	return coord, cidxs, rr
@@ -53,13 +53,13 @@ def grid(Rs,xoff=0,yoff=0):
 	'''Initial grid of the star.
 
 	:param Rs: Stellar radius in number of pixels.
-	:type Rs: int 
-	
+	:type Rs: int
+
 	:param xoff: Offset in x-direction. Default 0.
-	:type xoff: float, optional 
-	
+	:type xoff: float, optional
+
 	:param yoff: Offset in y-direction. Default 0.
-	:type yoff: float, optional 
+	:type yoff: float, optional
 
 	:return: initial stellar grid, velocity grid, normalized radial coordinate.
 	:rtype: (array, array, array)
@@ -82,22 +82,22 @@ def grid(Rs,xoff=0,yoff=0):
 def grid_ring(Rs,thick,xoff=0.,yoff=0.):
 	'''Initial grid of star in rings of :math:`\mu`.
 
-	Initial grid of star in rings of aprrox same :math:`\mu = \cos(\\theta)`, 
+	Initial grid of star in rings of aprrox same :math:`\mu = \cos(\\theta)`,
 	where :math:`\\theta` is the angle between a line through the center of the star and the limb.
 
 	Useful for macroturbulence calculations.
-	
+
 	:param Rs: Stellar radius in number of pixels.
-	:type Rs: int 
-	
+	:type Rs: int
+
 	:param thick: Thickness of rings.
 	:type thick: int
-	
+
 	:param xoff: Potential offset in x-direction. Default 0.
-	:type xoff: float, optional 
-	
+	:type xoff: float, optional
+
 	:param yoff: Potential offset in y-direction. Default 0.
-	:type yoff: float, optional 
+	:type yoff: float, optional
 
 	:return: pixels within stellar disk, velocity grid, radial :math:`\mu` values, approx :math:`\mu` in each ring
 	:rtype: (array, array, array, array)
@@ -105,10 +105,10 @@ def grid_ring(Rs,thick,xoff=0.,yoff=0.):
 	'''
 	assert Rs/thick > 2.0, print('The stellar radius must be at least twice the size of the rings.')
 	coord, cidxs, rr = grid_coordinates(Rs,xoff=xoff,yoff=yoff)
-	
+
 	## Empty, quadratic array with dimensions diameter*diameter
 	start_grid = np.zeros((2*Rs+1,2*Rs+1))
-	vel = start_grid.copy()	
+	vel = start_grid.copy()
 
 	## Divide star into rings
 	rings = np.arange(0,Rs+1,thick)
@@ -159,7 +159,7 @@ def spot(time,radius,ring_LD,lum,
 	x_off, y_off = np.rint(xnorm), np.rint(ynorm)
 
 	x_sp, y_sp = abs(x_off)-rp, abs(y_off)-rp
-	
+
 	rescape_spot = np.reshape(spot_grid,np.size(spot_grid))
 	nn = len(xx)
 	line_conv = np.empty(shape=(nn,lum.shape[0],lum.shape[1]))
@@ -198,10 +198,10 @@ def transit_ring(vel,vel_ext,ring_LD,mu_grid,mu_mean,lum,
 
 	:param mu_mean: Approximate :math:`\mu` in each ring.
 	:type mu_mean: array
-	
+
 	:param lum: Limb-darkened grid.
 	:type lum: array
-	
+
 	:param vsini: Projected stellar rotation in km/s.
 	:type vsini: float
 
@@ -262,7 +262,7 @@ def transit_ring(vel,vel_ext,ring_LD,mu_grid,mu_mean,lum,
 
 	xn = np.empty(shape=(nn,len(vel_ext)))
 	line_conv = np.empty(shape=(nn,len(ring_LD),len(vel_ext)))
-	
+
 
 	rescape_pl = np.reshape(pl_grid,np.size(pl_grid))
 	dark = np.zeros(nn)
@@ -274,23 +274,23 @@ def transit_ring(vel,vel_ext,ring_LD,mu_grid,mu_mean,lum,
 		## Only do calculation if planet is "touching" stellar disk
 		it_lum = lum.copy()
 		if (x_pl[kk] < radius) and (y_pl[kk] < radius):
-			
+
 			x_pos = int(x_off[kk] + radius)
 			y_pos = int(y_off[kk] + radius)
 
 			pl_coord, pl_coord_arr, pl_coord_idx = grid_coordinates(rp,x_pos,y_pos)
-			
+
 			pl_zip = [(pl_coord[ii,0],pl_coord[ii,1]) for ii in range(pl_coord.shape[0])]
 			coord_pl = [i for (i,v) in zip(pl_zip,rescape_pl) if v==1. and i[0] >= 0 and i[1] >= 0 and i[0] < ring_LD[0].shape[0] and i[1] < ring_LD[0].shape[0]]
 
 			try:
 				ring_planet[:,np.asarray(coord_pl)[:,0],np.asarray(coord_pl)[:,1]] = ring_LD[:,np.asarray(coord_pl)[:,0],np.asarray(coord_pl)[:,1]]
 				it_lum[np.asarray(coord_pl)[:,0],np.asarray(coord_pl)[:,1]] = 0
-			## Makes sure that when a planet is about to disappear 
+			## Makes sure that when a planet is about to disappear
 			## it does not appear on the other side.
 			except IndexError:
 				## mu values at planet position in mu_grid
-				mu_pl = np.asarray([sum_mu_grid[i] for (i,v) in zip(pl_zip,rescape_pl) if v==1. and i[0]<mu_size and i[1]<mu_size]) 
+				mu_pl = np.asarray([sum_mu_grid[i] for (i,v) in zip(pl_zip,rescape_pl) if v==1. and i[0]<mu_size and i[1]<mu_size])
 				for ii in range(len(ring_LD)):
 					for jj in range(len(mu_pl)):
 						try:
@@ -306,7 +306,7 @@ def transit_ring(vel,vel_ext,ring_LD,mu_grid,mu_mean,lum,
 		else:
 			xn[kk,:] = vel_ext
 			line_conv[kk,:,:] = np.zeros(shape=(len(ring_LD),len(vel_ext)))
-		
+
 		dark[kk] = np.sum(it_lum)
 	return xn, line_conv, dark, index_error#planet_rings
 
@@ -327,10 +327,10 @@ def transit_ring(vel,vel_ext,ring_LD,mu_grid,mu_mean,lum,
 # 	:param mu_mean: Approximate :math:`\mu` in each ring.
 # 	:type mu_mean: array
 
-# 	:param zeta: Macro-turbulence in km/s. 
+# 	:param zeta: Macro-turbulence in km/s.
 # 	:type zeta: float
 
-# 	:return: velocity grid as 1D array, macro-turbulence 
+# 	:return: velocity grid as 1D array, macro-turbulence
 # 	:rtype: (array, array)
 
 # 	'''
@@ -347,7 +347,7 @@ def transit_ring(vel,vel_ext,ring_LD,mu_grid,mu_mean,lum,
 # 		y = np.sin(np.arccos(mu))
 # 		tan = np.exp(-1*np.power(vel_1d/(zeta*y),2))/y
 # 		tan[np.isnan(tan)] = 0.
-		
+
 # 		mac[ii] = A*(rad + tan)/(np.sqrt(np.pi)*zeta)
 
 # 	return vel_1d, mac
@@ -378,10 +378,10 @@ def transit_ring(vel,vel_ext,ring_LD,mu_grid,mu_mean,lum,
 # 	## x-axis for the gaussian. The steps are the same as vel, but the borders go further out.
 # 	x = np.arange(-sigma*xi,sigma*xi+sep,sep)
 
-	
+
 # 	## Gaussian function for microturbuelence
 # 	## make Gaussian with new velocity vector as x-axis
-# 	gau = np.exp(-1*np.power(x/xi,2))/(xi*np.sqrt(np.pi))#gauss(x,xi) 
+# 	gau = np.exp(-1*np.power(x/xi,2))/(xi*np.sqrt(np.pi))#gauss(x,xi)
 # 	gau /= np.add.reduce(gau)
 
 # 	length = len(lum[0])+len(gau)-1
@@ -410,10 +410,10 @@ def convolve(vel,ring_LD,mu_mean,xi,zeta,vels,sigma=3.):
 	:param mu_mean: Approximate :math:`\mu` in each ring.
 	:type mu_mean: array
 
-	:param xi: Micro-turbulence in km/s. 
+	:param xi: Micro-turbulence in km/s.
 	:type xi: float
 
-	:param zeta: Macro-turbulence in km/s. 
+	:param zeta: Macro-turbulence in km/s.
 	:type zeta: float
 
 	:param sigma: Number of sigmas we go out on our x-axis to get the borders of the Gaussian. Default 3.
@@ -431,13 +431,13 @@ def convolve(vel,ring_LD,mu_mean,xi,zeta,vels,sigma=3.):
 	## 1D-velocity (same for each ring)
 	vel_1d = vel[:,0]
 	sep = (vel_1d[-1]-vel_1d[0])/(len(vel_1d)-1)
-		
+
 	# ## x-axis for the gaussian. The steps are the same as vel, but the borders go further out.
 	# x = np.arange(-sigma*xi,sigma*xi+sep,sep)
-	
+
 	## Gaussian function for microturbuelence
 	## make Gaussian with new velocity vector as x-axis
-	gau = np.exp(-1*np.power(vels/xi,2))/(xi*np.sqrt(np.pi))#gauss(x,xi) 
+	gau = np.exp(-1*np.power(vels/xi,2))/(xi*np.sqrt(np.pi))#gauss(x,xi)
 	gau /= np.add.reduce(gau)
 
 	length = len(ring_LD[0])+len(gau)-1
@@ -450,7 +450,7 @@ def convolve(vel,ring_LD,mu_mean,xi,zeta,vels,sigma=3.):
 
 	## Calculate macroturbulence of rings
 	A = 0.5 #area of curve covered by radial and tangential
-	mac = np.zeros(shape=(len(mu_mean),len(vel_1d)))	
+	mac = np.zeros(shape=(len(mu_mean),len(vel_1d)))
 
 	for ii, mu in enumerate(mu_mean):
 		rad = np.exp(-1*np.power(vel_1d/(zeta*mu),2))/mu
@@ -461,9 +461,9 @@ def convolve(vel,ring_LD,mu_mean,xi,zeta,vels,sigma=3.):
 		mac[ii] = A*(rad + tan)/(np.sqrt(np.pi)*zeta)
 
 
-	
+
 	## Convolve each ring of LD+microturbulence and macroturbulence
-	lc_len = mac[0].shape[0] + micro_profile[0].shape[0] - 1 
+	lc_len = mac[0].shape[0] + micro_profile[0].shape[0] - 1
 	xn = np.linspace(-lc_len*sep/2.,lc_len*sep/2.,num=lc_len,endpoint=False)
 
 	line_conv = np.zeros(shape=(len(ring_LD),lc_len))
@@ -481,18 +481,18 @@ def convolve(vel,ring_LD,mu_mean,xi,zeta,vels,sigma=3.):
 # 	Function that calculates the limb darkening at each position of the stellar grid.
 
 # 	:param gridini: Grid of positions on the stellar disk.
-# 	:type gridini: array 
+# 	:type gridini: array
 
 # 	:param mu: Normalized radial coordinates. See :py:func:`grid_ring` for the definition of :math:`\mu`.
 # 	:type mu: array
-	
+
 # 	:param cs: Limb darkening coefficients. Default ``[]``.
 # 	:type cs: list, optional
 
 # 	:param	LD_law: limb darkening law. Default ``'quad'``. See :py:class:`dynamics.StellarParams`.
-# 	:type LD_law: str, optional 
-	
-# 	:return: Limb-darkened surface. 
+# 	:type LD_law: str, optional
+
+# 	:return: Limb-darkened surface.
 # 	:rtype: array
 # 	'''
 
@@ -506,20 +506,20 @@ def convolve(vel,ring_LD,mu_mean,xi,zeta,vels,sigma=3.):
 # 		law = 1
 
 # 	lum = gridini*law
-# 	return lum 
+# 	return lum
 
 def absline_star(gridini,vel,ring_grid,
 	mu,mu_mean,vsini,xi,zeta,vels,
 	cs=[0.3,0.2],LD_law='quad'):
 	'''The shape of the absorption line.
-	
+
 	Function that calculates the line shape as a function of velocity (km/s).
-	
+
 	:param gridini: Grid of positions on the stellar disk.
 	:type gridini: array
 
 	:param mu: Normalized radial coordinate.
-	:type mu: array	
+	:type mu: array
 
 	:param mu_mean: Approximate :math:`\mu` in each ring.
 	:type mu_mean: array
@@ -528,7 +528,7 @@ def absline_star(gridini,vel,ring_grid,
 	:type cs: list, optional
 
 	:param	LD_law: limb darkening law. Default ``'quad'``. See :py:class:`dynamics.StellarParams`.
-	:type LD_law: str, optional 	
+	:type LD_law: str, optional
 
 
 
@@ -546,7 +546,7 @@ def absline_star(gridini,vel,ring_grid,
 	lum = gridini*law
 
 	#Makes the limb-darkened (LD) stellar grid into rings
-	ring_LD = np.zeros(len(ring_grid))
+	# ring_LD = np.zeros(len(ring_grid))
 	ring_LD = ring_grid*lum
 
 	vel_1d_ext, line_conv = convolve(rot_profile,ring_LD,mu_mean,xi,zeta,vels)
@@ -571,8 +571,8 @@ def absline(gridini,vel,ring_grid,
 
 	:param mu_mean: Approximate :math:`\mu` in each ring.
 	:type mu_mean: array
-	
-	:param gridini: The initial stellar grid.	
+
+	:param gridini: The initial stellar grid.
 	:type gridini: array
 
 	'''
@@ -594,7 +594,7 @@ def absline(gridini,vel,ring_grid,
 	ring_LD = np.zeros(len(ring_grid))
 	ring_LD = ring_grid*lum
 	vel_1d_ext, line_conv = convolve(rot_profile,ring_LD,mu_mean,xi,zeta,vels)
-	
+
 	nn = len(times)
 
 	vel_1d_ext_pl, line_conv_pl, planet_rings, index_error = transit_ring(vel,vel_1d_ext,ring_LD,mu_grid,mu_mean,lum,
@@ -603,7 +603,7 @@ def absline(gridini,vel,ring_grid,
 
 
 	line_conv_total = np.empty(shape=(nn,len(vel_1d_ext)))
-	for ii in range(nn): 
+	for ii in range(nn):
 		line_conv_total[ii,:] = np.add.reduce(line_conv-line_conv_pl[ii,:,:],axis=0)
 
 	return vel_1d_ext, line_conv, line_conv_total, planet_rings, lum, index_error
