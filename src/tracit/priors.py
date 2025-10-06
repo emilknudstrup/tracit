@@ -80,7 +80,7 @@ def gauss_prior_dis(mu,sigma):
 
 
 def jeff_prior_dis(val,xmin,xmax):
-	if r <= 0.0:
+	if val <= 0.0:
 		return 0.0
 	else:
 		if xmin == 0:
@@ -204,7 +204,9 @@ def jeff_prior(val, xmin, xmax):
 	else:
 		return 1/(val*np.log(xmax/xmin))
 
-def beta_prior(val,alphas=[1.12,0.1],betas=[3.09,0.3]):
+# def beta_prior(val,alphas=[1.12,0.1],betas=[3.09,0.3]):
+# def beta_prior(val,alphas=[0.867,0.044],betas=[3.03,0.17]):
+def beta_prior(val,alphas=[0.867,0.000044],betas=[3.03,0.00017]):
 	'''Beta prior.
 
 	From `scipy.stats.beta <https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.beta.html>`_.
@@ -213,6 +215,8 @@ def beta_prior(val,alphas=[1.12,0.1],betas=[3.09,0.3]):
 		f (x;a,b) = \\frac{\Gamma (a + b) x^{a-1} (1-x)^{b-1}}{\Gamma (a) \Gamma (b)} \, , \ \mathrm{for} \ 0 \leq x \leq 1, \  a > 0, b > 0 \, ,
 	
 	where :math:`\Gamma` is the gamma function (`scipy.stats.gamma <https://docs.scipy.org/doc/scipy/reference/generated/scipy.special.gamma.html#scipy.special.gamma>`_)
+
+	Values from `Kipping (2013) <https://ui.adsabs.harvard.edu/abs/2013MNRAS.434L..51K/abstract>`_.
 
 	:param val: :math:`x`.
 	:type val: float
@@ -232,3 +236,114 @@ def beta_prior(val,alphas=[1.12,0.1],betas=[3.09,0.3]):
 
 	dist = ss.beta(alpha,beta)
 	return dist.pdf(val)
+
+
+def crayleigh(x, sigma):
+	'''
+	Calculate the cumulative distribution function (CDF) of the Rayleigh distribution.
+	
+	.. math::
+		F(x; \sigma) = 1 - \exp \\left (-\\frac{x^2}{2\sigma^2} \\right) \, .
+	
+	:param x: :math:`x`.
+	:type x: float
+	
+	:param sigma: :math:`\sigma`.
+	:type sigma: float
+	
+	:returns: :math:`F(x)`
+	:rtype: float
+
+	'''
+	return 1 - np.exp(-x**2 / (2*sigma**2))
+
+def cexponential(x, lam):
+	'''
+	Calculate the cumulative distribution function (CDF) of the Exponential distribution.
+
+	.. math::
+		F(x; \lambda) = 1 - \exp \\left (-\lambda x \\right) \, .
+	
+	:param x: :math:`x`.
+	:type x: float
+	:param lam: :math:`\lambda`.
+	:type lam: float
+	:returns: :math:`F(x)`
+	:rtype: float
+	
+	'''
+	return 1 - np.exp(-x*lam)
+
+def rayexp_cdf(x, sigma=0.11, lam=3.32, alpha=0.68):
+	'''Calculate the Rayleigh+Exponential CDF.
+
+	Values from the work of `Stevenson et al. (2025) <https://ui.adsabs.harvard.edu/abs/2025MNRAS.tmp..487S/abstract>`_.
+
+	.. math::
+		CDF(x) = \alpha \\frac{F_{Exponential}(x; \sigma)}{F_{Rayleigh}(1; \sigma)} + (1 - \alpha) \\frac{F_{Rayleigh}(x; \lambda)}{F_{Rayleigh}(1; \lambda)} 
+	
+	:param x: :math:`x`.
+	:type x: float
+	
+	:param sigma: :math:`\sigma`. Default ``0.11``.
+	:type sigma: float
+	
+	:param lam: :math:`\lambda`. Default ``3.32``.
+	:type lam: float
+	
+	:param alpha: Mixing parameter. Default ``0.68``.
+	:type alpha: float
+	
+	:returns: :math:`CDF(x)`
+	:rtype: float
+
+	'''
+	ray = crayleigh(x, sigma)
+	exp = cexponential(x, lam)
+	ray_1 = crayleigh(1, sigma)
+	exp_1 = cexponential(1, lam)
+
+	# Normalize the CDF
+	ray = ray / ray_1
+	exp = exp / exp_1
+	# Calculate the PDF
+	cdf = alpha * exp + (1 - alpha) * ray
+	return cdf
+
+def rayexp_prior(x, sigma=0.11, lam=3.32, alpha=0.68,hstep=1e-5):
+	'''Calculate the Rayleigh+Exponential PDF.
+
+	.. math::
+		CDF(x) = \alpha \\frac{F_{Exponential}(x; \sigma)}{F_{Rayleigh}(1; \sigma)} + (1 - \alpha) \\frac{F_{Rayleigh}(x; \lambda)}{F_{Rayleigh}(1; \lambda)} \, ,
+		PDF(x) = \\frac{d}{dx}CDF(x) \, .
+	
+	:param x: :math:`x`.
+	:type x: float
+	
+	:param sigma: :math:`\sigma`.
+	:type sigma: float
+	
+	:param lam: :math:`\lambda`.
+	:type lam: float
+	
+	:param alpha: Mixing parameter.
+	:type alpha: float
+
+	:param hstep: Step size for numerical differentiation. Default ``1e-5``.
+	:type hstep: float
+	
+	:returns: :math:`PDF(x)`
+	:rtype: float
+
+	'''
+
+
+	# Calculate the CDF at x+hstep and x-hstep
+	x_plus_h = x + hstep
+	x_minus_h = x - hstep
+	# Calculate the CDF at x+hstep and x-hstep
+	cdf_plus_h = rayexp_cdf(x_plus_h, sigma, lam, alpha)
+	cdf_minus_h = rayexp_cdf(x_minus_h, sigma, lam, alpha)
+	# Numerical differentiation to get PDF
+	pdf = (cdf_plus_h - cdf_minus_h) / (2 * hstep)
+	return pdf

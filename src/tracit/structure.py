@@ -69,7 +69,9 @@ def par_struct(n_phot=1,n_spec=1,n_planets=1,LD_law='quad',
 	default = ['uni','tgauss','false','none']
 	for ii, pl in enumerate(pls):
 		pars = {'P_{}'.format(pl) : 
-			['Period','days',r'$P \rm _{} \  (days)$'.format(pl),4.8,0.5,0.0,1e4],	
+			['Period','days',r'$P \rm _{} \  (days)$'.format(pl),4.8,0.5,0.0,1e4],
+			'lnP_{}'.format(pl) :	
+			['lnPeriod','ln(days)',r'$\log P \rm _{} \  (days)$'.format(pl),7.5,0.05,2,12],	
 			'T0_{}'.format(pl) : 
 			['Midtransit','BJD',r'$T \rm _{} \ (BJD)$'.format('{0,'+pl+'}'),2457000.,0.5,0.0,1e10],
 			'e_{}'.format(pl) : 
@@ -153,6 +155,10 @@ def par_struct(n_phot=1,n_spec=1,n_planets=1,LD_law='quad',
 		star['LC_{}_GP_dQ'.format(ii)] = ['GP log qaulity factor difference, photometer {}'.format(ii),' ',r'$\rm \delta Q{}$'.format('_{LC,'+str(ii)+'}'),3.37,0.05,0.0,10.0]
 		star['LC_{}_GP_f'.format(ii)] = ['GP log qaulity fractional amplitude, photometer {}'.format(ii),' ',r'$\rm f{}$'.format('_{LC,'+str(ii)+'}'),0.5,0.05,0.0,1.0]
 
+		star['LC_{}_c_1'.format(ii)] = ['Detrend coefficient 1, photometer {}'.format(ii),' ',r'$c{}$'.format('_{1,LC'+str(ii)+'}'),0.0,0.05,-1.0,1.0]
+		star['LC_{}_c_2'.format(ii)] = ['Detrend coefficient 2, photometer {}'.format(ii),' ',r'$c{}$'.format('_{2,LC'+str(ii)+'}'),0.0,0.05,-1.0,1.0]
+		star['LC_{}_c_3'.format(ii)] = ['Detrend coefficient 3, photometer {}'.format(ii),' ',r'$c{}$'.format('_{3,LC'+str(ii)+'}'),0.0,0.05,-1.0,1.0]
+		star['LC_{}_c_4'.format(ii)] = ['Detrend coefficient 4, photometer {}'.format(ii),' ',r'$c{}$'.format('_{4,LC'+str(ii)+'}'),0.0,0.05,-1.0,1.0]
 
 
 
@@ -164,6 +170,7 @@ def par_struct(n_phot=1,n_spec=1,n_planets=1,LD_law='quad',
 	for ii in range(1,n_spec+1):
 		star['RVsys_{}'.format(ii)] = ['Systemic velocity instrument {}'.format(ii),'m/s',r'$\gamma_{} \ \rm (m/s)$'.format(ii),0.0,1.,-1e5,1e5]
 		star['RVsigma_{}'.format(ii)] = ['Jitter RV instrument {}'.format(ii),'m/s',r'$\rm \sigma{} \ (m/s)$'.format('_{RV,'+str(ii)+'}'),0.0,1.0,0.0,100.]
+		star['logRVsigma_{}'.format(ii)] = ['log10 Jitter RV instrument {}'.format(ii),'log10(m/s)',r'$\rm \log \sigma{} \ (m/s)$'.format('_{RV,'+str(ii)+'}'),-9.0,0.05,-10.0,5.0]
 		star['LSsigma_{}'.format(ii)] = ['Jitter LS instrument {}'.format(ii),' ',r'$\rm \log \sigma{}$'.format('_{LS,'+str(ii)+'}'),-30.0,1.0,-50.0,10]
 				
 		star['LS_{}_GP_log_sigma'.format(ii)] = ['GP log amplitude, lineshape {}'.format(ii),' ',r'$\rm \log A{}$'.format('_{LS,'+str(ii)+'}'),-6,0.05,-20.0,5.0]
@@ -266,6 +273,9 @@ def check_fps(parameters):
 
 	fps = parameters['FPs']
 	snowflake = np.unique(fps)
+	if not len(fps):
+		print('No fitting parameters entered.\nExiting...')
+		exit
 	if len(fps) != len(snowflake):
 		print('Some fitting paramters entered twice (or more).\nRemoving...')
 		parameters['FPs'] = list(snowflake)
@@ -506,6 +516,7 @@ def dat_struct(n_phot=1,n_rvs=1,n_ls=0,n_sl=0):
 		data['OF LC_{}'.format(ii)] = 1 #Oversample factor
 		data['Exp. LC_{}'.format(ii)] = 2/(24*60) #Exposure time (min.)
 		data['Detrend LC_{}'.format(ii)] = False
+		data['n_trend LC_{}'.format(ii)] = 0
 		data['Poly LC_{}'.format(ii)] = 2
 		data['FW LC_{}'.format(ii)] = 1001
 		data['GP LC_{}'.format(ii)] = False#str2bool(df_phot['Gaussian Process'][ii])

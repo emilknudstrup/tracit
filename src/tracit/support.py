@@ -9,7 +9,9 @@ Created on Sat Oct  5 21:47:00 2019
 import math
 import numpy as np
 import matplotlib.pyplot as plt
-from .priors import tgauss_prior, gauss_prior, flat_prior, tgauss_prior_dis, flat_prior_dis
+import inspect
+import scipy.stats as ss
+from .priors import tgauss_prior, gauss_prior, beta_prior, rayexp_cdf, flat_prior, tgauss_prior_dis, flat_prior_dis, jeff_prior
 
 def hpd(data, lev) :
 	""" The Highest Posterior Density.
@@ -258,6 +260,23 @@ def create_corner(samples,labels=None,truths=None,savefig=True,fname='corner',
 					ys = np.array([tgauss_prior(x, mu, sigma, a, b) for x in xs])
 				elif prior == 'gauss':
 					ys = np.array([gauss_prior(x, mu, sigma) for x in xs])
+				elif prior == 'beta':
+					xs = np.linspace(0.01,1,1000)
+					alpha = inspect.getfullargspec(beta_prior)[3][0][0]
+					beta = inspect.getfullargspec(beta_prior)[3][1][0]
+					dist = ss.beta(alpha,beta)
+					ys = dist.pdf(xs)
+				elif prior == 'rayexp':
+					xs = np.linspace(0, 1, 1000)
+					sigma = inspect.getfullargspec(rayexp_cdf)[3][0]
+					lam = inspect.getfullargspec(rayexp_cdf)[3][1]
+					alpha = inspect.getfullargspec(rayexp_cdf)[3][2]
+					cdf = rayexp_cdf(xs, sigma, lam, alpha)
+					ys = np.gradient(cdf, xs)  # Numerical differentiation to get PDF
+				elif prior == 'jeff':
+					xs = np.linspace(a, b, 1000)
+					ys = np.array([jeff_prior(x, a, b) for x in xs])
+
 				ax.plot(xs,0.9*ymax*ys/np.max(ys),color='C3')
 
 

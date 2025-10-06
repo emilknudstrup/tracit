@@ -16,7 +16,9 @@ import subprocess
 import itertools
 ## path to this script
 import os
-
+import platform
+import scipy.optimize as so
+import kepler
 
 def time2phase(time,per,T0):
 	'''Convert time to phase.
@@ -231,15 +233,21 @@ def get_LDcoeff(stelpars,cat='TESS'):
 			'V' :'J/A+A/552/A16/',
 			'B' :'J/A+A/552/A16/'}
 	if cat == 'TESS':
-		LDs = {'lin' : 'table24', 'quad' : 'table25', 'sqrt' : 'table26',
-			  'log' : 'table27', 'nl' : 'table28', 'small' : 'table28'}
-		LDs['vals'] = {'Teff' : [3500,250,50000], 'logg' : [0.0,0.5,5.0], 
-					   'MeH' : [-5.0,0.5,1.0]}
+		LDs = {
+				'lin' : 'table24', 'quad' : 'table25', 'sqrt' : 'table26',
+				'log' : 'table27', 'nl' : 'table28', 'small' : 'table28'
+				}
+		LDs['vals'] = {
+					'Teff' : [3500,250,50000], 'logg' : [0.0,0.5,5.0], 
+					'MeH' : [-5.0,0.5,1.0]
+					}
 		tab = 'J/A+A/600/A30/'
 	else:
 		LDs = {'quad' : 'limb1-4', 'sqrt' : 'limb1-4', 'log' : 'limb1-4'}
-		LDs['vals'] = {'Teff' : [5000,200,10000], 'logg' : [0.0,0.5,5.5], 
-					   'MeH' : [-5.0,0.5,1.0]}
+		LDs['vals'] = {
+					'Teff' : [5000,200,10000], 'logg' : [0.0,0.5,5.5], 
+					'MeH' : [-5.0,0.5,1.0]
+					}
 		tab = 'J/A+A/552/A16/'
 
 
@@ -256,26 +264,26 @@ def get_LDcoeff(stelpars,cat='TESS'):
 			MeH = vals[minimum]
 
 	catalog = Vizier.query_constraints(catalog=tab+'{}'.format(LDs[LD]),
-									   Teff='{:d}'.format(Teff), 
-									   logg='{:0.1f}'.format(logg),
-									   Z='{:0.1f}'.format(MeH), xi=xi)
-									   #Filt=cat)
-	
+										Teff='{:d}'.format(Teff), 
+										logg='{:0.1f}'.format(logg),
+										Z='{:0.1f}'.format(MeH), xi=xi)
+										#Filt=cat)
+
 	try:
-	  cols = catalog[0][:][0].colnames
+		cols = catalog[0][:][0].colnames
 	except IndexError:
-	  print('\nWARNING! No LD coefficients found for star with')
-	  print('Teff = {} K, logg = {} cm/s^2, [Fe/H] = {}\n'.format(Teff,logg,MeH))
-	  stelpars = StellarParams()
-	  print('Using Teff = {} K, logg = {} cm/s^2, [Fe/H] = {}'
+		print('\nWARNING! No LD coefficients found for star with')
+		print('Teff = {} K, logg = {} cm/s^2, [Fe/H] = {}\n'.format(Teff,logg,MeH))
+		stelpars = StellarParams()
+		print('Using Teff = {} K, logg = {} cm/s^2, [Fe/H] = {}'
 			.format(stelpars.Teff,stelpars.logg,stelpars.MeH))
-	  print('(Solar-like values)')
-	  catalog = Vizier.query_constraints(catalog=tab+'{}'.format(LDs[LD]),
-										 Teff='{}'.format(stelpars.Teff), 
-										 logg='{}'.format(stelpars.logg),
-										 Z='{}'.format(stelpars.MeH), 
-										 xi='{}'.format(stelpars.xi))
-	  cols = catalog[0][:][0].colnames
+		print('(Solar-like values)')
+		catalog = Vizier.query_constraints(catalog=tab+'{}'.format(LDs[LD]),
+											Teff='{}'.format(stelpars.Teff), 
+											logg='{}'.format(stelpars.logg),
+											Z='{}'.format(stelpars.MeH), 
+											xi='{}'.format(stelpars.xi))
+		cols = catalog[0][:][0].colnames
 	
 	coeffs = []
 	if cat == 'TESS':
@@ -297,7 +305,7 @@ def get_LDcoeff(stelpars,cat='TESS'):
 # =============================================================================
 # Keplerian motion 
 # =============================================================================
-def solve_keplers_eq(mean_anomaly, ecc, tolerance=1.e-5):
+def solve_keplers_eq(mean_anomaly, ecc, tolerance=1.e-5, iter_max=300, sci=True):
 	'''Solves Kepler's equation.
 
 	Function that solves Kepler's equation:
@@ -325,14 +333,26 @@ def solve_keplers_eq(mean_anomaly, ecc, tolerance=1.e-5):
 	new_ecc_anomaly = mean_anomaly
 	converged = False
 
-	for ii in range(300):
-		old_ecc_anomaly = new_ecc_anomaly
 
-		new_ecc_anomaly = old_ecc_anomaly - (old_ecc_anomaly - ecc*np.sin(old_ecc_anomaly) - mean_anomaly)/(1.0 - ecc*np.cos(old_ecc_anomaly))
+	## Elliptical orbit
+	if sci:
+		gE = lambda E: E - ecc*np.sin(E) - mean_anomaly
+		gpE = lambda E: 1.0 - ecc*np.cos(E)
+		gppE = lambda E: ecc*np.sin(E)
+		new_ecc_anomaly, r, _ = so.newton(gE, mean_anomaly, fprime=gpE, fprime2=gppE, tol=tolerance, maxiter=iter_max, full_output=True)
+		converged = all(r)
+	else:
+		# new_ecc_anomaly = mean_anomaly
+		# converged = False
+		for ii in range(iter_max):
+			old_ecc_anomaly = new_ecc_anomaly
 
-		if np.max(np.abs(new_ecc_anomaly - old_ecc_anomaly)/old_ecc_anomaly) < tolerance:
-			converged = True
-			break
+			new_ecc_anomaly = old_ecc_anomaly - (old_ecc_anomaly - ecc*np.sin(old_ecc_anomaly) - mean_anomaly)/(1.0 - ecc*np.cos(old_ecc_anomaly))
+
+			if np.max(np.abs(new_ecc_anomaly - old_ecc_anomaly)/old_ecc_anomaly) < tolerance:
+				converged = True
+				break
+
 
 	if not converged:
 		print('Calculation of the eccentric anomaly did not converge!')
@@ -478,8 +498,8 @@ def xy_pos(cos_f,sin_f,ecc,ww,ar,inc,lam):
 # =============================================================================
 # Rossiter-McLaughlin effect 
 # =============================================================================
-def get_RM(cos_f,sin_f,ww,ecc,ar,inc,rp,c1,c2,lam,vsini,
-	xi=3.,gamma=1.,zeta=1.0,alpha=0.,cos_is=0.0,
+def get_RM_linux(cos_f,sin_f,ww,ecc,ar,inc,rp,c1,c2,lam,vsini,
+	xi=3.,gamma=0.,zeta=1.0,alpha=0.,cos_is=0.0,
 	mpath='.'):
 	'''The Rossiter-McLaughlin effect
 
@@ -514,21 +534,21 @@ def get_RM(cos_f,sin_f,ww,ecc,ar,inc,rp,c1,c2,lam,vsini,
 
 	:param vsini: Projected stellar rotation in km/s.
 	:type vsini: float
-  
+
 	:param xi: Micro-turbulence in km/s. Defaults to 3.
 	:type xi: float, optional
-   
+
 	:param zeta: Macro-turbulence in km/s. Defaults to 1.0.
 	:type zeta: float, optional
-  
-	:param gamma: Coefficient of differential rotation. Defaults to 1.
+
+	:param gamma: Lorentzian dispersion of spectral lines in km/s. Defaults to 1.
 	:type gamma: float, optional
-  
-	:param alpha:  in km/s. Defaults to 0.
+
+	:param alpha: Coefficient of differential rotation. Defaults to 0.
 	:type alpha: float, optional
 
 	:param cos_is: Cosine of stellar inclination. Defaults to 0.
-	:type alpha: float, optional
+	:type cos_is: float, optional
 
 	:param mpath: Path to the code by [3]. Defaults to './'.
 	:type mpath: str, optional
@@ -562,12 +582,46 @@ def get_RM(cos_f,sin_f,ww,ecc,ar,inc,rp,c1,c2,lam,vsini,
 	
 	return RM
 
+def get_RM(times,ecc,omega,vsini,lam,c1,c2,T0,ar,b,rp,per,K=0,gamma=0,mpath='.'):
+
+	ecos = np.sqrt(ecc)*np.cos(omega)
+	esin = np.sqrt(ecc)*np.sin(omega)
+	nt = len(times)
+
+
+	pars = [K,ecos,esin,vsini*1e3,lam,c1,c2,gamma,T0,ar,b,rp,per,nt]
+
+	run_input = [mpath+'/return_RM']
+	for par in pars: run_input.append(str(par))
+	for time in times: run_input.append(str(time))
+
+	RM = subprocess.check_output(run_input)
+	RM = RM.decode()
+	RM = [float(k) for k in RM.split()[2::3]]
+	
+	return RM
+
+
+
+#   par[1] = atof(argv[1]); //K in m/s
+#   par[2] = atof(argv[2]); //sqrt(e)cos\omega
+#   par[3] = atof(argv[3]); //sqrt(e)sin\omega
+#   par[4] = atof(argv[4]); //vsini in !!m/s!!
+#   par[5] = atof(argv[5]); //lambda in deg
+#   par[6] = atof(argv[6]); //u1 for the quadratic limb-darkening law
+#   par[7] = atof(argv[7]); //u2 for the quadratic limb-darkening law
+#   par[8] = atof(argv[8]); //gamma (RV offset) in m/s
+#   par[10] = atof(argv[9]); //Tc (transit center) in BJD
+#   par[11] = atof(argv[10]); //a/Rs (scale semi-major axis)
+#   par[12] = atof(argv[11]); //b (transit impact parameter)
+#   par[13] = atof(argv[12]); //Rp/Rs
+#   par[16] = atof(argv[13]); //Period (day)
 
 # =============================================================================
 # Radial velocity curve 
 # =============================================================================
 
-def get_RV(time, orbpars, RM=False, stelpars=None,mpath=None):
+def get_RV(time, orbpars, RM=False, stelpars=None,mpath=None,use_kepler=True):
 	'''The radial velocity curve
 
 	Function that returns the radial velocity curve of the orbit following :cite:t:`Murray2010`.
@@ -587,6 +641,9 @@ def get_RV(time, orbpars, RM=False, stelpars=None,mpath=None):
 
 	:param mpath: Path to the code by :cite:t:`Hirano2011`. Defaults to ``None`` in which case ``os.path.dirname(__file__)``.
 	:type mpath: str, optional
+
+	:param use_kepler: Whether to use `kepler.py <https://github.com/dfm/kepler.py>`_. to calculate the true anomaly. Defaults to ``True``.
+	:type use_kepler: bool, optional
 	
 	:return: Radial velocity curve.
 	:rtype: array
@@ -604,16 +661,26 @@ def get_RV(time, orbpars, RM=False, stelpars=None,mpath=None):
 	w = np.deg2rad(w)
 
 	## Get cosine and sine of the true anomaly
-	#cos_f, sin_f = true_anomaly(time,Tw,ecc,per,w)
-	cos_f, sin_f = true_anomaly(time,Tw,ecc,per)
+	if use_kepler:
+		n = 2.0*np.pi/per
+		## Mean anomaly
+		mean_anomaly = n*(time-Tw)
+		## Eccentric anomaly
+		_, cos_f, sin_f = kepler.kepler(mean_anomaly, ecc)
+	else:
+		#cos_f, sin_f = true_anomaly(time,Tw,ecc,per,w)
+		cos_f, sin_f = true_anomaly(time,Tw,ecc,per)
 	## Radial velocity
 	vr = K*(np.cos(w)*(ecc + cos_f) - np.sin(w)*sin_f)
 
 	if RM:
+		is_linux = platform.system() == "Linux"
+
 		a = orbpars.a
 		inc = orbpars.inc
 		## Convert angle from degree to radians
 		inc = np.deg2rad(inc)
+		b = a*np.cos(inc)
 
 		Rp = orbpars.Rp
 		sep = proj_dist(cos_f,sin_f,w,inc,a,ecc)
@@ -626,7 +693,6 @@ def get_RV(time, orbpars, RM=False, stelpars=None,mpath=None):
 		#beta = 3
 		## The all important obliquity
 		lam = orbpars.lam
-		lam = np.deg2rad(lam)
 
 		## LD coefficients
 		c1, c2 = orbpars.cs
@@ -647,11 +713,23 @@ def get_RV(time, orbpars, RM=False, stelpars=None,mpath=None):
 			pass 
 		elif len(idxs) == 1:
 			cos_f, sin_f = np.array(cos_f[idx]), np.array(sin_f[idx])
-			RMs = get_RM(cos_f,sin_f,w,ecc,a,inc,Rp,c1,c2,lam,vsini,xi=xi,zeta=zeta,mpath=mpath)
+			# time = np.array(time[idx])
+			if is_linux:
+				RMs = get_RM_linux(cos_f,sin_f,w,ecc,a,inc,Rp,c1,c2,np.deg2rad(lam),vsini,xi=xi,zeta=zeta,mpath=mpath)
+			else:
+				RMs = get_RM([time[idx]],ecc,w,vsini,lam,c1,c2,Tw,a,b,Rp,per,K=0,gamma=0,mpath=mpath)
 			idx = idxs[0]
 			vr[idx] = vr[idx] + RMs
 		else:
-			RMs = get_RM(cos_f,sin_f,w,ecc,a,inc,Rp,c1,c2,lam,vsini,xi=xi,zeta=zeta,mpath=mpath)
+			if is_linux:
+				RMs = get_RM_linux(cos_f,sin_f,w,ecc,a,inc,Rp,c1,c2,np.deg2rad(lam),vsini,xi=xi,zeta=zeta,mpath=mpath)
+			else:
+
+				# print('Not linux')
+				# get_RM(times,ecc,omega,vsini,lam,c1,c2,T0,ar,b,rp,per,K=0,gamma=0,mpath='.')
+				# print(ecc,w,vsini,lam,c1,c2,Tw,a,b,Rp,per)
+				RMs = get_RM(time,ecc,w,vsini,lam,c1,c2,Tw,a,b,Rp,per,K=0,gamma=0,mpath=mpath)
+
 			for idx in idxs: vr[idx] = vr[idx] + RMs[idx]
 
 	return vr + RVsys

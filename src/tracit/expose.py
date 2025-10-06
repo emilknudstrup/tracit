@@ -143,6 +143,7 @@ def plot_orbit(parameters,data,updated_pars=None,
 
 	if n_rv >= 1:
 		aa = [parameters['a{}'.format(ii)]['Value'] for ii in range(1,3)]
+
 		fig = plt.figure(figsize=(12,6))
 		ax = fig.add_subplot(211)
 		axoc = fig.add_subplot(212)
@@ -166,6 +167,11 @@ def plot_orbit(parameters,data,updated_pars=None,
 			time, rv, rv_err = arr[:,0].copy(), arr[:,1].copy(), arr[:,2].copy()
 			v0 = parameters['RVsys_{}'.format(nn)]['Value']
 			rv -= v0
+			log_jitter = parameters['logRVsigma_{}'.format(nn)]['Value']
+			if log_jitter > -2:
+				parameters['RVsigma_{}'.format(nn)]['Value'] = np.exp(log_jitter)
+				# parameters['RVsigma_{}'.format(nn)]['Value'] = 10**log_jitter
+
 			jitter = parameters['RVsigma_{}'.format(nn)]['Value']
 			jitter_err = np.sqrt(rv_err**2 + jitter**2)
 			
@@ -326,7 +332,7 @@ def plot_orbit(parameters,data,updated_pars=None,
 			tt = unp_m[ival[0]:ival[1]]
 			for pl in pls: 
 				rv_m_unp[ival[0]:ival[1]] += rv_model(tt,n_planet=pl,n_rv=nn,RM=calc_RM)
-				rv_m_unp[ival[0]:ival[1]] += aa[1]*(tt-zp)**2 + aa[0]*(tt-zp)
+			rv_m_unp[ival[0]:ival[1]] += aa[1]*(tt-zp)**2 + aa[0]*(tt-zp)
 
 		ax.errorbar(unp_m,rv_m_unp,color='k',lw=1.)
 		ax.errorbar(unp_m,rv_m_unp,color='C7',lw=0.5)
@@ -680,7 +686,6 @@ def plot_lightcurve(parameters,data,savefig=False,
 	n_phot = data['LCs']
 	pls = parameters['Planets']
 
-
 	if n_phot >= 1:
 
 		npoints = 100000
@@ -818,7 +823,34 @@ def plot_lightcurve(parameters,data,savefig=False,
 				ax_tr.set_ylabel(r'$\rm Relative \ Brightness$',fontsize=font)
 				ax_tr.set_xlabel(r'$\rm Time \ (BJD)$',fontsize=font)
 				if savefig: tr_fig.savefig(path+'lc_{}_Polynomial-deg{}.pdf'.format(nn,deg_w))
+			elif (trend == 'ground'):
+				tr_fig = plt.figure(figsize=(12,6))
+				ax_tr = tr_fig.add_subplot(111)
 
+				nterms = data['n_trend LC_{}'.format(nn)]
+
+				csum = np.zeros_like(time)
+				for nterm in range(1,nterms+1):
+					cn = parameters['LC_{}_c_{}'.format(nn,nterm)]['Value']
+					dc = arr[:,2+nterm]
+					ax_tr.plot(time,cn*dc,lw=2.0,color='k')
+					ax_tr.plot(time,cn*dc,lw=1.0,color='C{}'.format(9-nterm))
+					csum += cn*dc
+
+				temp_fl = fl - flux_oc# + 1
+				fl -= csum
+
+
+				ax_tr.errorbar(time,temp_fl,yerr=jitter_err,linestyle='none',marker='.',markersize=0.1,color='k')
+				ax_tr.errorbar(time,temp_fl,yerr=fl_err,linestyle='none',color='C{}'.format(nn-1))
+
+				# ax.errorbar(time,temp_fl,yerr=)
+				ax_tr.plot(time,csum,lw=2.0,color='k')
+				ax_tr.plot(time,csum,lw=1.0,color='w')
+
+				ax_tr.set_ylabel(r'$\rm Relative \ Brightness$',fontsize=font)
+				ax_tr.set_xlabel(r'$\rm Time \ (BJD)$',fontsize=font)
+				if savefig: tr_fig.savefig(path+'lc_{}_detrend.pdf'.format(nn))
 			elif (trend == 'savitsky'):
 				sg_fig = plt.figure(figsize=(12,6))
 				ax_sg = sg_fig.add_subplot(111)
@@ -1033,6 +1065,10 @@ def plot_lightcurve(parameters,data,savefig=False,
 			#print('Factor to apply to get a reduced chi-squared around 1.0 is:\n\t {:.03f}\n'.format(np.sqrt(red_chi2)))
 			print('Number of data points: {}'.format(len(fl)))
 			print('Number of fitting parameters: {}'.format(n_pars))
+			rms = np.std(fl - flux_oc)
+			print('RMS of the residuals is:\n\t {:.03f}'.format(rms))
+			## in ppt
+			print('RMS of the residuals in ppt is:\n\t {:.03f}'.format(rms*1e3))
 			print('#########################'.format(nn))
 
 

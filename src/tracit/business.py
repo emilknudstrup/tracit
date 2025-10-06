@@ -41,7 +41,9 @@ else:
 
 from .support import plot_autocorr, create_chains, create_corner, hpd, significantFormat
 from .structure import check_fps
-from .priors import tgauss_prior, gauss_prior, flat_prior, tgauss_prior_dis, flat_prior_dis
+from .priors import tgauss_prior, gauss_prior, beta_prior, rayexp_prior, flat_prior, tgauss_prior_dis, flat_prior_dis, jeff_prior
+
+from .constants import grav
 
 # =============================================================================
 # external modules
@@ -50,6 +52,7 @@ from .priors import tgauss_prior, gauss_prior, flat_prior, tgauss_prior_dis, fla
 import emcee
 import arviz as az
 from multiprocessing import Pool
+import multiprocessing 
 import celerite
 import batman
 
@@ -146,16 +149,22 @@ def inv2Gauss(x,amp1,amp2,sig1,sig2,mu2):
 def start_vals(nwalkers,ndim):
 	pars = parameters['FPs']
 	pos = []
+	frac = int(nwalkers*0.5)
 	for ii in range(nwalkers):
 		start = np.ndarray(ndim)
 		for idx, par in enumerate(pars):
 			pri = parameters[par]['Prior_vals']
 			dist = parameters[par]['Distribution']
-			assert dist in ['tgauss','uni'], print('{} is not a valid option for the starting distribution.'.format(dist))
+			assert dist in ['tgauss','uni','mix'], print('{} is not a valid option for the starting distribution.'.format(dist))
 			if dist == 'tgauss':
 				start[idx] = tgauss_prior_dis(pri[0],pri[1],pri[2],pri[3])
 			elif dist == 'uni':
 				start[idx] = flat_prior_dis(np.random.uniform(),pri[2],pri[3])
+			elif dist == 'mix':
+				if ii < frac:
+					start[idx] = tgauss_prior_dis(pri[0],pri[1],pri[2],pri[3])
+				else:
+					start[idx] = flat_prior_dis(np.random.uniform(),pri[2],pri[3])					
 		pos.append(start)
 	return pos
 
@@ -182,7 +191,7 @@ def get_binned(x,y,binfactor=4,yerr=np.array([])):
 
 
 def lc_model(time,n_planet='b',n_phot=1,
-	supersample_factor=30,exp_time=0.0208):
+	supersample_factor=1,exp_time=0.0208):
 	'''Light curve model.
 
 
@@ -259,7 +268,7 @@ def rv_model(time,n_planet='b',n_rv=1,RM=False):
 		per = parameters['P'+pllabel]['Value']
 		K = parameters['K'+pllabel]['Value']
 		omega = parameters['w'+pllabel]['Value']
-		omega = omega%360
+		# omega = omega%360
 		ecc = parameters['e'+pllabel]['Value']
 		RVsys = 0.0
 
@@ -317,7 +326,7 @@ def rv_model(time,n_planet='b',n_rv=1,RM=False):
 		K = parameters['K'+pllabel]['Value']
 		orbpars.K = K
 		omega = parameters['w'+pllabel]['Value']
-		omega = omega%360
+		# omega = omega%360
 		orbpars.w = omega
 		ecc = parameters['e'+pllabel]['Value']
 		orbpars.ecc = ecc
@@ -379,7 +388,7 @@ def rv_model(time,n_planet='b',n_rv=1,RM=False):
 				qs = []
 			orbpars.cs = qs
 
-			calcRV = get_RV(time,orbpars,RM=RM,stelpars=stelpars,mpath=mpath)
+			calcRV = get_RV(time,orbpars,RM=RM,stelpars=stelpars)#,mpath=mpath)
 		else:
 			calcRV = get_RV(time,orbpars)
 		return calcRV
@@ -411,9 +420,9 @@ def ls_model2(time,start_grid,ring_grid,vel_grid,
 		w = parameters['w'+pllabel]['Value']
 		omega = np.deg2rad(w)
 
-	    ## With this you supply the mid-transit time 
-	    ## and then the time of periastron is calculated
-	    ## from S. R. Kane et al. (2009), PASP, 121, 886. DOI: 10.1086/648564
+		## With this you supply the mid-transit time 
+		## and then the time of periastron is calculated
+		## from S. R. Kane et al. (2009), PASP, 121, 886. DOI: 10.1086/648564
 		if (ecc > 0.0) or (w != 90.):
 			f = 0.5*np.pi - omega
 			ew = 2*np.arctan(np.tan(0.5*f)*np.sqrt((1 - ecc)/(1 + ecc)))
@@ -509,9 +518,9 @@ def ls_model2(time,start_grid,ring_grid,vel_grid,
 		ecc = parameters['e'+pllabel]['Value']
 		omega = parameters['w'+pllabel]['Value']
 
-	    ## With this you supply the mid-transit time 
-	    ## and then the time of periastron is calculated
-	    ## from S. R. Kane et al. (2009), PASP, 121, 886. DOI: 10.1086/648564
+		## With this you supply the mid-transit time 
+		## and then the time of periastron is calculated
+		## from S. R. Kane et al. (2009), PASP, 121, 886. DOI: 10.1086/648564
 		if (ecc > 0.0) or (omega != 90.):
 			f = 0.5*np.pi - omega*np.pi/180.
 			ew = 2*np.arctan(np.tan(0.5*f)*np.sqrt((1 - ecc)/(1 + ecc)))
@@ -523,7 +532,7 @@ def ls_model2(time,start_grid,ring_grid,vel_grid,
 		
 		lam = parameters['lam'+pllabel]['Value']
 
-		omega = omega%360
+		# omega = omega%360
 		omega *= np.pi/180.
 		retrograde = False
 		if retrograde:
@@ -631,7 +640,7 @@ def ls_model(time,start_grid,ring_grid,vel_grid,
 	
 	lam = parameters['lam'+pllabel]['Value']
 
-	omega = omega%360
+	# omega = omega%360
 	omega *= np.pi/180.
 	retrograde = False
 	if retrograde:
@@ -869,7 +878,7 @@ def localRV_model(time,n_planet='b'):
 	omega = parameters['w'+pllabel]['Value']
 	lam = parameters['lam'+pllabel]['Value']
 
-	omega = omega%360
+	# omega = omega%360
 	omega *= np.pi/180.
 
 	lam *= np.pi/180.
@@ -923,14 +932,16 @@ def lnprob(positions):
 	'''
 	log_prob = 0.0
 	chisq = 0.0
-
 	pars = parameters['FPs']
+
 	for idx, par in enumerate(pars):
 		val = positions[idx]
 		parameters[par]['Value'] = val
 		pri = parameters[par]['Prior_vals']
 		ptype = parameters[par]['Prior']
 		
+
+
 		pval, sigma, lower, upper = pri[0], pri[1], pri[2], pri[3]
 
 		if ptype == 'uni':
@@ -943,11 +954,18 @@ def lnprob(positions):
 			prob = jeff_prior(val,lower,upper)
 		elif ptype == 'beta':
 			prob = beta_prior(val)
+		elif ptype == 'rayexp':
+			if val < 0:
+				return -np.inf, -np.inf
+			prob = rayexp_prior(val)
+
 		if prob != 0:
 			log_prob += np.log(prob)
 		else:
 			return -np.inf, -np.inf
+		
 
+	#print(log_prob)
 	m_fps = len(pars)
 	n_dps = 0
 
@@ -957,12 +975,12 @@ def lnprob(positions):
 		if ('ecosw_{}'.format(pl) in pars) and ('esinw_{}'.format(pl) in pars):
 			ecosw = parameters['ecosw_{}'.format(pl)]['Value']
 			esinw = parameters['esinw_{}'.format(pl)]['Value']
-			esinw = abs(esinw)
+			# esinw = abs(esinw)
 			ecc = ecosw**2 + esinw**2
 			#if ecc > 1.0:
 			parameters['e_{}'.format(pl)]['Value'] = ecc
 			omega = np.arctan2(esinw,ecosw)*180./np.pi
-			parameters['w_{}'.format(pl)]['Value'] = omega%360
+			parameters['w_{}'.format(pl)]['Value'] = omega#%360
 		
 		if ('vcosl_{}'.format(pl) in pars) and ('vsinl_{}'.format(pl) in pars):
 			vcosl = parameters['vcosl_{}'.format(pl)]['Value']
@@ -983,7 +1001,10 @@ def lnprob(positions):
 		if ('cosi_{}'.format(pl) in pars):
 			cosi = parameters['cosi_{}'.format(pl)]['Value']
 			parameters['inc_{}'.format(pl)]['Value'] = np.arccos(cosi)*180./np.pi
-		
+		if ('lnP_{}'.format(pl) in pars):
+			lnP = parameters['lnP_{}'.format(pl)]['Value']
+			parameters['P_{}'.format(pl)]['Value'] = np.exp(lnP)
+			
 		if ('T41_{}'.format(pl) in constraints):
 			pri_41 = parameters['T41_{}'.format(pl)]['Prior_vals']
 			pval_41, sigma_41 = pri_41[0], pri_41[1]
@@ -997,9 +1018,9 @@ def lnprob(positions):
 			b = aR*np.cos(inc)*(1 - ecc**2)/(1 + ecc*np.sin(ww))
 			
 			ecc = parameters['e_'+pl]['Value']
-			omega = (parameters['w_'+pl]['Value']%360)*np.pi/180.
+			# omega = (parameters['w_'+pl]['Value']%360)*np.pi/180.
 
-			t41 = per/np.pi * np.arcsin( np.sqrt( ((1 + rp)**2 - b**2))/(np.sin(inc)*aR) )*np.sqrt(1 - ecc**2)/(1 + ecc*np.sin(omega))
+			t41 = per/np.pi * np.arcsin( np.sqrt( ((1 + rp)**2 - b**2))/(np.sin(inc)*aR) )*np.sqrt(1 - ecc**2)/(1 + ecc*np.sin(ww))
 
 			prob = gauss_prior(t41*24.,pval_41,sigma_41)
 			if prob != 0:
@@ -1024,12 +1045,21 @@ def lnprob(positions):
 		pval, sigma = rho[0], rho[1]
 
 		for pl in pls:
+			inc = parameters['inc_'+pl]['Value']*np.pi/180.
+
+
 			aR = parameters['a_Rs_'+pl]['Value']
 			per = parameters['P_'+pl]['Value']
-			circ = 3*np.pi*aR**3/((per*24*3600)**2*constants.grav)
 
 			ecc = parameters['e_'+pl]['Value']
 			omega = parameters['w_'+pl]['Value']*np.pi/180.
+
+			b = aR*np.cos(inc)*(1 - ecc**2)/(1 + ecc*np.sin(omega))
+			t41 = per/np.pi * np.arcsin( np.sqrt( ((1 + rp)**2 - b**2))/(np.sin(inc)*aR) )*np.sqrt(1 - ecc**2)/(1 + ecc*np.sin(omega))
+			if np.isnan(t41):
+				continue
+
+			circ = 3*np.pi*aR**3/((per*24*3600)**2*grav)
 			ecc_nom = (1 - ecc**2)**(3/2)
 			ecc_den = (1 + ecc*np.sin(omega))**3
 			
@@ -1074,7 +1104,7 @@ def lnprob(positions):
 			trend = data['Detrend LC_{}'.format(nn)]
 
 
-			if (trend == 'poly') or (trend == True): in_transit = np.array([],dtype=np.int)
+			if (trend == 'poly') or (trend == True): in_transit = np.array([],dtype=int)
 
 			for pl in pls:
 				try:
@@ -1093,7 +1123,9 @@ def lnprob(positions):
 
 				flux_m -= (1 - flux_pl)
 
+				# if (trend == 'poly') or (trend == True):
 				if (trend == 'poly') or (trend == True):
+
 					per, t0 = parameters['P_{}'.format(pl)]['Value'],parameters['T0_{}'.format(pl)]['Value']
 					ph = time2phase(time,per,t0)*per*24
 					aR = parameters['a_Rs_{}'.format(pl)]['Value']
@@ -1104,7 +1136,12 @@ def lnprob(positions):
 					dur = total_duration(per,rp,aR,inc*np.pi/180.,ecc,ww*np.pi/180.)*24
 					
 					indxs = np.where((ph < (dur/2 + 6)) & (ph > (-dur/2 - 6)))[0]
-					in_transit = np.append(in_transit,indxs)				
+					in_transit = np.append(in_transit,indxs)
+					# if np.isnan(dur):
+						# print(pl)
+
+						# print(aR,rp,inc,ecc,ww)
+						# return -np.inf, -np.inf				
 
 
 			
@@ -1114,10 +1151,18 @@ def lnprob(positions):
 
 
 			if (trend == 'poly') or (trend == True):
+				if not len(in_transit):
+					log_prob += lnlike(flux_m,flux,sigma)
+					chisq += chi2(flux_m,flux,sigma)
+					continue
 				deg_w = data['Poly LC_{}'.format(nn)]
 				
 				in_transit.sort()
 				in_transit = np.unique(in_transit)
+				# print(in_transit)
+				# if not len(in_transit):
+					# print(in_transit,aR,inc,aR*np.cos(np.deg2rad(inc)),dur)
+				# dgaps = np.where(np.diff(time[in_transit]) > 0.5)[0]
 				dgaps = np.where(np.diff(time[in_transit]) > 1)[0]
 				start = 0
 				temp_fl = flux - flux_m + 1
@@ -1135,6 +1180,7 @@ def lnprob(positions):
 
 				idxs = in_transit[start:]
 				t = time[idxs]
+
 				tfl = temp_fl[idxs]
 				poly_pars = np.polyfit(t,tfl,deg_w)
 				slope = np.zeros(len(t))
@@ -1144,6 +1190,21 @@ def lnprob(positions):
 
 				log_prob += lnlike(flux_m,flux,sigma)
 				chisq += chi2(flux_m,flux,sigma)
+			elif (trend == 'ground'):
+
+				nterms = data['n_trend LC_{}'.format(nn)]
+				# print(nterms)
+				csum = np.zeros_like(time)
+				for nterm in range(1,nterms+1):
+					cn = parameters['LC_{}_c_{}'.format(nn,nterm)]['Value']
+					dc = arr[:,2+nterm]
+					csum += cn*dc
+					# print(csum)
+
+				flux -= csum
+				log_prob += lnlike(flux_m,flux,sigma)
+				chisq += chi2(flux_m,flux,sigma)
+
 			elif (trend == 'savitsky'):
 
 				temp_fl = flux - flux_m + 1
@@ -1233,8 +1294,12 @@ def lnprob(positions):
 				v0 = parameters['RVsys_{}'.format(nn)]['Value']
 			rv -= v0
 
-			log_jitter = parameters['RVsigma_{}'.format(nn)]['Value']
-			jitter = log_jitter
+			if 'logRVsigma_{}'.format(nn) in parameters['FPs']:
+				log_jitter = parameters['logRVsigma_{}'.format(nn)]['Value']
+				parameters['RVsigma_{}'.format(nn)]['Value'] = np.exp(log_jitter)
+			
+			jitter = parameters['RVsigma_{}'.format(nn)]['Value']
+			
 			sigma = np.sqrt(rv_err**2 + jitter**2)
 			#chi2scale = data['Chi2 RV_{}'.format(nn)]
 
@@ -1318,7 +1383,7 @@ def lnprob(positions):
 		else:
 			log_prob += lnlike(model_rvs,rvs,ervs)
 			chisq += chi2(model_rvs,rvs,ervs)
-
+	
 	avg_ccf = np.array([])
 	for nn in range(1,n_ls+1):
 		if data['Fit LS_{}'.format(nn)]:
@@ -1671,7 +1736,8 @@ def lnprob(positions):
 				chi2scale_shadow = data['Chi2 LS_{}'.format(nn)]
 				chi2scale_oot = data['Chi2 OOT_{}'.format(nn)]
 				unc *= chi2scale_oot
-			
+
+
 				if fit_oot:
 					## Here we simply fit our average out-of-transit CCF
 					## to an out-of-transit model CCF
@@ -2049,11 +2115,12 @@ def mcmc(par,dat,maxdraws,nwalkers,
 			backend.reset(nwalkers,ndim)
 
 	if np.log10(maxdraws) > 5.3: kk = 20000
-	elif np.log10(maxdraws) > 5.0: kk = 10000
-	elif np.log10(maxdraws) > 4.0: kk = 1000
+	elif np.log10(maxdraws) > 4.9: kk = 10000
+	elif np.log10(maxdraws) > 3.9: kk = 1000
 	else: kk = 100
 
 	with Pool(nproc) as pool:
+	# with multiprocessing.get_context("fork").Pool(nproc) as pool:
 		sampler = emcee.EnsembleSampler(nwalkers,ndim,lnprob,
 				pool=pool,backend=backend,
 				moves=moves)  
@@ -2267,14 +2334,17 @@ def checkStatistics(parameters_local,data_local,filename=None,
 			ecosw = flat_samples[:,idx_ecosw]
 			idx_esinw = fit_params.index('esinw_{}'.format(pl))
 			esinw = flat_samples[:,idx_esinw]
-			esinw = abs(esinw)
+			# esinw = abs(esinw)
 			flat_samples[:,idx_esinw] = esinw
 			ecc = ecosw**2 + esinw**2
 			omega = np.arctan2(esinw,ecosw)*180./np.pi
+			# omega = omega%360
 			flat_samples = np.concatenate(
 				(flat_samples, ecc[:, None], omega[:, None]), axis=1)
 			labels += [r'$e \rm _{}$'.format(pl), r'$\omega \rm _{} \ (^\circ)$'.format(pl)]
 			hands += ['e_{}'.format(pl), 'w_{}'.format(pl)]
+			ecc = ecc[:,None]
+			omega = omega[:,None]
 
 			# val_ecc = np.median(ecc)
 			# hpds_ecc = hpd(ecc,0.68)
@@ -2298,7 +2368,8 @@ def checkStatistics(parameters_local,data_local,filename=None,
 			omega = parameters_local['w_'+pl]['Value']
 
 		if ('cosi_{}'.format(pl) in fit_params):
-			ecc_fac = (1 - ecc**2)/(1 + ecc*np.sin(omega))
+			ecc_fac = (1 - ecc**2)/(1 + ecc*np.sin(np.deg2rad(omega)))
+
 			idx_cosi = fit_params.index('cosi_{}'.format(pl))
 			cosi = flat_samples[:,idx_cosi]
 			inc = np.arccos(cosi)*180./np.pi
@@ -2311,14 +2382,23 @@ def checkStatistics(parameters_local,data_local,filename=None,
 				idx_ar = fit_params.index('a_Rs_{}'.format(pl))
 				aR = flat_samples[:,idx_ar]
 				flat_samples = np.concatenate(
-					(flat_samples, cosi[:, None]*aR[:,None]), axis=1)
+					(flat_samples, cosi[:, None]*aR[:,None]*ecc_fac), axis=1)
 			else:
 				aR = parameters_local['a_Rs_'+pl]['Value']
 				flat_samples = np.concatenate(
-					(flat_samples, cosi[:, None]*aR), axis=1)
+					(flat_samples, cosi[:, None]*aR*ecc_fac), axis=1)
 
 			labels += [r'$b \rm _{}$'.format(pl)]
 			hands += ['b_{}'.format(pl)]
+		
+		if ('lnP_{}'.format(pl) in fit_params):
+			idx_lnP = fit_params.index('lnP_{}'.format(pl))
+			lnP = flat_samples[:,idx_lnP]
+			P = np.exp(lnP)
+			flat_samples = np.concatenate(
+				(flat_samples, P[:, None]), axis=1)
+			labels += [r'$P \rm _{} \ \rm (days)$'.format(pl)]
+			hands += ['P_{}'.format(pl)]
 
 		if ('vcosl_{}'.format(pl) in fit_params) and ('vsinl_{}'.format(pl) in fit_params):
 			idx_vcosl = fit_params.index('vcosl_{}'.format(pl))
@@ -2419,6 +2499,14 @@ def checkStatistics(parameters_local,data_local,filename=None,
 			hands += ['RV{}_q1'.format(nn)]
 			hands += ['RV{}_q2'.format(nn)]
 
+		if ('logRVsigma_{}'.format(nn) in fit_params):
+			idx_sigma = fit_params.index('logRVsigma_{}'.format(nn))
+			sigma = np.exp(flat_samples[:,idx_sigma])
+			flat_samples = np.concatenate(
+				(flat_samples, sigma[:, None]), axis=1)
+			labels += [r'$\sigma \rm _{RV'+'{}'.format(nn) + '\ (m/s)}$']
+			hands += ['RVsigma_{}'.format(nn)]
+
 	for nn in range(1,n_phot+1):
 		if ('LC{}_q_sum'.format(nn) in fit_params):
 			idx_qs = fit_params.index('LC{}_q_sum'.format(nn))
@@ -2486,12 +2574,13 @@ def checkStatistics(parameters_local,data_local,filename=None,
 			print('ERROR:')
 			print('Failed to estimate mode.')
 			print('Probably a poor fit, check boundaries of priors.')
+
 		label = labels[i][:-1] + '=' + str(val) + '_{-' + str(low) + '}^{+' + str(up) + '}'
 		value_formats.append(label)
 
 		best_idx = np.argmax(log_prob_samples)
 		best_fit = all_samples[best_idx,i]
-		best_val, _, _ = significantFormat(best_fit,float(low),float(up))
+		# best_val, _, _ = significantFormat(best_fit,float(low),float(up))
 
 		hand = hands[i]
 		try:
@@ -2503,7 +2592,8 @@ def checkStatistics(parameters_local,data_local,filename=None,
 			rhat = rhats[i]
 		except IndexError:
 			rhat = 'Derived'
-		results[hand] = [labels[i],val,low,up,best_val,mode,pri,mu,std,aa,bb,rhat]
+		# results[hand] = [labels[i],val,low,up,best_val,mode,pri,mu,std,aa,bb,rhat]
+		results[hand] = [labels[i],val,low,up,best_fit,mode,pri,mu,std,aa,bb,rhat]
 	
 	## pandas DataFrame of results
 	res_df = pd.DataFrame(results)
@@ -2589,9 +2679,11 @@ def residuals(params,parameters,data):
 			
 			lc_res = (flux_m - flux)/flux_err
 			res = np.append(res,lc_res)
-
+	rv_times, rvs, ervs = np.array([]), np.array([]), np.array([])  
+	add_drift = False
 	for nn in range(1,n_rv+1):
 		if data['Fit RV_{}'.format(nn)]:
+			add_drift = True
 			arr = data['RV_{}'.format(nn)]
 			time, rv, rv_err = arr[:,0].copy(), arr[:,1].copy(), arr[:,2].copy()
 			
@@ -2601,7 +2693,8 @@ def residuals(params,parameters,data):
 			else:
 				v0 = parameters['RVsys_{}'.format(nn)]['Value']
 			rv -= v0
-
+			# if nn > 1:
+				# print(v0)
 			log_jitter = parameters['RVsigma_{}'.format(nn)]['Value']
 			#jitter = np.exp(log_jitter)
 			jitter = log_jitter
@@ -2616,7 +2709,44 @@ def residuals(params,parameters,data):
 				rv_m += rv_pl
 
 			rv_res = (rv_m - rv)/sigma
-			res = np.append(res,rv_res)
+			# res = np.append(res,rv_res)
+
+			rv_times, rvs, ervs = np.append(rv_times,time), np.append(rvs,rv_m-rv), np.append(ervs,sigma)  
+
+
+	# model_rvs = np.array([])
+	# add_drift = False
+	# rv_gps = []
+	# rv_idxs = np.array([])
+	# for nn in range(1,n_rv+1):
+	# 	if data['Fit RV_{}'.format(nn)]:
+	# 		add_drift = True
+	# 		arr = data['RV_{}'.format(nn)]
+	# 		time, rv, rv_err = arr[:,0].copy(), arr[:,1].copy(), arr[:,2].copy()
+			
+	# 		fix = parameters['RVsys_{}'.format(nn)]['Fix']
+	# 		if fix != False:
+	# 			v0 = parameters[fix]['Value']
+	# 		else:
+	# 			v0 = parameters['RVsys_{}'.format(nn)]['Value']
+	# 		rv -= v0
+
+	# 		log_jitter = parameters['RVsigma_{}'.format(nn)]['Value']
+	# 		jitter = log_jitter
+	# 		sigma = np.sqrt(rv_err**2 + jitter**2)
+	# 		#chi2scale = data['Chi2 RV_{}'.format(nn)]
+
+
+	if add_drift:# n_rv > 0:
+		aa = np.array([parameters['a{}'.format(ii)]['Value'] for ii in range(1,3)])
+		idx = np.argmin(rv_times)
+		zp, off = rv_times[idx], rvs[idx]
+
+		drift = np.array(aa[1]*(rv_times-zp)**2 + aa[0]*(rv_times-zp))# + off
+		# print(drift)
+		res = np.append(res,(rvs - drift)/ervs)
+		#model_rvs += drift
+
 	for nn in range(1,n_ls+1):
 		if data['Fit LS_{}'.format(nn)]:
 			old = 0
@@ -2811,7 +2941,7 @@ def residuals(params,parameters,data):
 
 				#only_oot = data['Only_OOT_{}'.format(nn)]			
 				#fit_oot = data['OOT_{}'.format(nn)]	
-
+	# print(np.sum(res**2))
 	return res
 
 			# shadow_data = data['LS_{}'.format(nn)]
