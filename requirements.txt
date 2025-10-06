@@ -13,4 +13,8 @@ astropy
 tqdm
 Cython
 corner
+<<<<<<< HEAD
 kepler.py
+=======
+kepler.py
+>>>>>>> 0c31374ee7f03594935086ed00df574474390d92
