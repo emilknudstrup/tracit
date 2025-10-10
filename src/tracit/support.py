@@ -300,4 +300,3 @@ def create_corner(samples,labels=None,truths=None,savefig=True,fname='corner',
 		if not fname.lower().endswith(('.png', '.pdf')): fname += '.pdf'
 		fig.savefig(fname)
 		plt.close()
-

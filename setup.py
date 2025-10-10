@@ -1,9 +1,9 @@
 from setuptools import find_packages, setup
 
-dependencies=''
+dependencies=[]
 with open("requirements.txt","r") as f:
-	dependencies = f.read().splitlines()
-
+	for line in f.readlines():
+		dependencies.append(line.strip())
 
 
 setup(
@@ -32,7 +32,6 @@ setup(
 	# 'statsmodels>=0.12.0',
 	# 'astropy',
 	# 'tqdm'
-	# ]
-	
+	# ]	
 )
 
